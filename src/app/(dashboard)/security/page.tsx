@@ -222,6 +222,23 @@ export default function SecurityPage() {
                     </CardHeader>
                     <CardContent className="p-8 space-y-6">
                         <div className="space-y-3">
+                            <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">App ID (Identifiant Application)</Label>
+                            <div className="flex gap-2">
+                                <div className="flex-1 bg-black/20 border border-white/5 rounded-xl px-4 py-3.5 font-mono text-sm flex items-center justify-between group/key">
+                                    <span className="truncate pr-4 text-blue-400 font-bold">{config?.applicationId}</span>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleCopy(config?.applicationId, 'appid')}
+                                        className="h-8 w-8 text-muted-foreground hover:text-primary shrink-0 transition-colors"
+                                    >
+                                        {copiedKey === 'appid' ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
                             <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Clé Publique (Live)</Label>
                             <div className="flex gap-2">
                                 <div className="flex-1 bg-black/20 border border-white/5 rounded-xl px-4 py-3.5 font-mono text-sm flex items-center justify-between group/key">

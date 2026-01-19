@@ -143,7 +143,12 @@ export async function getGatewayById(id: string) {
         const userId = (session.user as any).id;
 
         const gateway = await (prisma as any).gateway.findFirst({
-            where: { id, userId },
+            where: {
+                id,
+                application: {
+                    userId: userId
+                }
+            },
         });
         return gateway;
     } catch (error) {
@@ -151,6 +156,7 @@ export async function getGatewayById(id: string) {
         return null;
     }
 }
+
 import { PaymentOrchestratorFactory } from "@/lib/orchestrator/factory";
 
 export async function validateGatewayCredentials(providerId: string, config: any) {
@@ -183,8 +189,18 @@ export async function updateGateway(id: string, data: any) {
         if (!session?.user) throw new Error("Unauthorized");
         const userId = (session.user as any).id;
 
+        // Verify ownership first
+        const existing = await (prisma as any).gateway.findFirst({
+            where: {
+                id,
+                application: { userId }
+            }
+        });
+
+        if (!existing) throw new Error("Gateway not found or access denied");
+
         const gateway = await (prisma as any).gateway.update({
-            where: { id, userId },
+            where: { id },
             data,
         });
 
@@ -203,8 +219,18 @@ export async function deleteGateway(id: string) {
         if (!session?.user) throw new Error("Unauthorized");
         const userId = (session.user as any).id;
 
+        // Verify ownership first
+        const existing = await (prisma as any).gateway.findFirst({
+            where: {
+                id,
+                application: { userId }
+            }
+        });
+
+        if (!existing) throw new Error("Gateway not found or access denied");
+
         await (prisma as any).gateway.delete({
-            where: { id, userId },
+            where: { id },
         });
 
         revalidatePath("/gateways");

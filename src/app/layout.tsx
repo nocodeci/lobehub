@@ -17,7 +17,7 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="fr" className="dark" suppressHydrationWarning>
-            <body className={`${inter.className} antialiased bg-[#050505] text-white`}>
+            <body className={`${inter.className} antialiased bg-[#050505] text-white`} suppressHydrationWarning>
                 <Providers>
                     {children}
                 </Providers>

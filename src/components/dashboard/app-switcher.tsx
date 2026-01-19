@@ -93,13 +93,13 @@ export function AppSwitcher() {
                             <div className="absolute inset-0 bg-primary/20 mix-blend-overlay" />
                         </div>
                         <div className="flex flex-col items-start overflow-hidden">
-                            <span className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest leading-none mb-0.5">Workspace</span>
-                            <span className="text-[13px] font-bold text-foreground truncate max-w-[130px] tracking-tight">
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest leading-none mb-0.5">Workspace</span>
+                            <span className="text-[13px] font-bold text-white truncate max-w-[130px] tracking-tight">
                                 {currentApp?.name || "Select app..."}
                             </span>
                         </div>
                     </div>
-                    <div className="flex items-center gap-0.5 opacity-20 group-hover:opacity-40 transition-opacity translate-x-1">
+                    <div className="flex items-center gap-0.5 opacity-20 group-hover:opacity-40 transition-opacity translate-x-1 text-white">
                         <ChevronsUpDown className="h-3.5 w-3.5" />
                     </div>
                 </Button>

@@ -10,6 +10,7 @@ export async function middleware(req: any) {
         path.startsWith('/api/auth') ||
         path.startsWith('/_next') ||
         path.includes('favicon.ico') ||
+        path === '/' ||
         path === '/auth/login' ||
         path === '/auth/register' ||
         path.startsWith('/checkout')

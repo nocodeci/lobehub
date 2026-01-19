@@ -102,7 +102,7 @@ export function GatewayList() {
                                         <div className="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
                                             <div
                                                 className={`h-full transition-all duration-1000 ${parseFloat(gateway.successRate) > 95 ? 'bg-emerald-500' :
-                                                        parseFloat(gateway.successRate) > 85 ? 'bg-amber-500' : 'bg-red-500'
+                                                    parseFloat(gateway.successRate) > 85 ? 'bg-amber-500' : 'bg-red-500'
                                                     }`}
                                                 style={{ width: gateway.successRate }}
                                             />

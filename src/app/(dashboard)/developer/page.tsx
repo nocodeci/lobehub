@@ -36,6 +36,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { getApiConfig } from "@/lib/actions/security";
 import { getAnalyticsData } from "@/lib/actions/analytics";
 import Link from "next/link";
+import { useApplication } from "@/components/context/application-context"; // Assuming this exists or we fetch App ID
 
 const CodeBlock = ({ code }: { code: string }) => {
     const lines = code.split('\n');
@@ -82,6 +83,9 @@ export default function DeveloperPage() {
     const [showSecret, setShowSecret] = useState(false);
     const [isSimulating, setIsSimulating] = useState(false);
 
+    // In a real scenario, we'd get the current App ID from a context or state
+    // For now, we rely on the backend `getApiConfig` to return data for the selected app context
+
     const loadData = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -121,12 +125,13 @@ export default function DeveloperPage() {
 
     const codeSnippets = useMemo(() => {
         const key = config?.publicKey || 'af_live_...92kf';
+        const appId = config?.applicationId || 'app_...'; // Fallback
         return {
-            nodejs: `// Initialisation de l'orchestrateur AfriFlow\nconst afriflow = require('afriflow-sdk')('${key}');\n\n// Création d'une transaction multi-passerelle\nconst transaction = await afriflow.payments.create({\n  amount: 25000,\n  currency: 'XOF',\n  customer: 'cust_842h94k',\n  routing: 'auto_optimize', // Choisit la passerelle la moins chère\n  metadata: {\n    order_id: 'ORDER-993'\n  }\n});\n\nconsole.log('ID de transaction:', transaction.id);`,
-            python: `# Initialisation de l'orchestrateur AfriFlow\nimport afriflow\n\nclient = afriflow.Client(api_key="${key}")\n\n# Création d'une transaction multi-passerelle\ntransaction = client.payments.create(\n    amount=25000,\n    currency="XOF",\n    customer_id="cust_842h94k",\n    routing="auto_optimize",\n    metadata={\n        "order_id": "ORDER-993"\n    }\n)\n\nprint(f"ID de transaction: {transaction.id}")`,
-            php: `<?php\n// Initialisation de l'orchestrateur AfriFlow\n$afriflow = new \\AfriFlow\\Client('${key}');\n\n// Création d'une transaction multi-passerelle\n$transaction = $afriflow->payments->create([\n    'amount' => 25000,\n    'currency' => 'XOF',\n    'customer' => 'cust_842h94k',\n    'routing' => 'auto_optimize',\n    'metadata' => [\n        'order_id' => 'ORDER-993'\n    ]\n]);\n\necho "ID de transaction: " . $transaction->id;`
+            nodejs: `// Initialisation de l'orchestrateur AfriFlow\nconst afriflow = require('afriflow-sdk')('${key}');\n\n// Pour les intégrations serveur à serveur, incluez votre App ID: '${appId}'\n\n// Création d'une transaction multi-passerelle\nconst transaction = await afriflow.payments.create({\n  amount: 25000,\n  currency: 'XOF',\n  customer: 'cust_842h94k',\n  routing: 'auto_optimize',\n  metadata: {\n    order_id: 'ORDER-993'\n  }\n});\n\nconsole.log('ID de transaction:', transaction.id);`,
+            python: `# Initialisation de l'orchestrateur AfriFlow\nimport afriflow\n\nclient = afriflow.Client(api_key="${key}")\n# App ID: ${appId}\n\n# Création d'une transaction multi-passerelle\ntransaction = client.payments.create(\n    amount=25000,\n    currency="XOF",\n    customer_id="cust_842h94k",\n    routing="auto_optimize",\n    metadata={\n        "order_id": "ORDER-993"\n    }\n)\n\nprint(f"ID de transaction: {transaction.id}")`,
+            php: `<?php\n// Initialisation de l'orchestrateur AfriFlow\n$afriflow = new \\AfriFlow\\Client('${key}');\n// App ID: ${appId}\n\n// Création d'une transaction multi-passerelle\n$transaction = $afriflow->payments->create([\n    'amount' => 25000,\n    'currency' => 'XOF',\n    'customer' => 'cust_842h94k',\n    'routing' => 'auto_optimize',\n    'metadata' => [\n        'order_id' => 'ORDER-993'\n    ]\n]);\n\necho "ID de transaction: " . $transaction->id;`
         };
-    }, [config?.publicKey]);
+    }, [config]);
 
     return (
         <div id="top" className="flex flex-col gap-8 pb-12 max-w-7xl mx-auto p-4 md:p-8">
@@ -193,6 +198,24 @@ export default function DeveloperPage() {
                             <CardDescription className="text-xs font-semibold">Gérez vos identifiants d'intégration directe.</CardDescription>
                         </CardHeader>
                         <CardContent className="p-8 space-y-6">
+                            {/* App ID Display */}
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">App ID</Label>
+                                <div className="relative group">
+                                    <div className="h-12 bg-black/40 border border-white/5 rounded-xl px-4 flex items-center font-mono text-xs text-blue-400 overflow-hidden pr-12">
+                                        {config?.applicationId || "Waiting for Context..."}
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleCopyKey(config?.applicationId, 'appid')}
+                                        className="absolute right-1 top-1 h-10 w-10 text-muted-foreground hover:text-primary"
+                                    >
+                                        {copiedKey === 'appid' ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                                    </Button>
+                                </div>
+                            </div>
+
                             <div className="space-y-4">
                                 <div className="space-y-2">
                                     <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Public Key</Label>
