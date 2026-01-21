@@ -28,14 +28,14 @@ export function OverviewChart() {
 
     if (isLoading) {
         return (
-            <Card className="border-none bg-card/50 backdrop-blur-md shadow-lg h-[450px] flex items-center justify-center">
+            <Card className="border border-white/5 bg-[#252525] backdrop-blur-md shadow-lg h-[450px] flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
             </Card>
         );
     }
 
     return (
-        <Card className="border-none bg-card/50 backdrop-blur-md shadow-lg h-full">
+        <Card className="border border-white/5 bg-[#252525] backdrop-blur-md shadow-lg h-full">
             <CardHeader>
                 <CardTitle>Volume de Transactions (Hebdomadaire)</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">

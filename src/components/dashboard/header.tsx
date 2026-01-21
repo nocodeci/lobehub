@@ -36,7 +36,7 @@ export function Header() {
     }, []);
 
     return (
-        <header className="sticky top-0 z-30 flex h-16 items-center border-b border-border/40 bg-background/80 backdrop-blur-md px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center bg-transparent px-6">
             <div className="flex flex-1 items-center">
                 <div className="relative w-96 max-w-sm group">
                     <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50 transition-colors group-focus-within:text-foreground" />
@@ -59,9 +59,9 @@ export function Header() {
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Live</span>
                 </div>
 
-                <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg relative transition-all">
+                <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-[#87a9ff] hover:bg-white/5 rounded-lg relative transition-all">
                     <Bell className="h-4 w-4" />
-                    <span className="absolute top-2.5 right-2.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background" />
+                    <span className="absolute top-2.5 right-2.5 h-1.5 w-1.5 rounded-full bg-[#87a9ff] ring-2 ring-[#1f1f1f]" />
                 </Button>
 
                 {mounted && (
@@ -74,8 +74,8 @@ export function Header() {
                                         className="object-cover"
                                         alt={user?.name || "User"}
                                     />
-                                    <AvatarFallback className="bg-secondary text-muted-foreground text-[10px] font-bold">
-                                        {user?.name?.[0] || user?.email?.[0]?.toUpperCase()}
+                                    <AvatarFallback data-slot="avatar-fallback" className="flex size-full items-center justify-center rounded-full bg-secondary text-muted-foreground text-[10px] font-bold uppercase transition-colors group-hover:bg-secondary/80">
+                                        {user?.name?.[0] || user?.email?.[0] || "Y"}
                                     </AvatarFallback>
                                 </Avatar>
                             </Button>

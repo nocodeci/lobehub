@@ -5,6 +5,7 @@ import { ChatWelcomeScreen } from "./chat-welcome-screen";
 import { ChatConversationView } from "./chat-conversation-view";
 import { useChat } from "@ai-sdk/react";
 import { useChatStore } from "@/store/chat-store";
+import { useSession } from "next-auth/react";
 
 interface Message {
   id: string;
@@ -26,14 +27,25 @@ interface DBMessage {
 }
 
 export function ChatMain() {
+  const { data: session } = useSession();
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+
   const [input, setInput] = useState(""); // Manage input locally for stability
-  const [selectedMode, setSelectedMode] = useState("fast");
+  const [selectedMode, setSelectedMode] = useState("ecommerce");
   const [isConversationStarted, setIsConversationStarted] = useState(false);
   const [chatId, setChatId] = useState<string | null>(null);
 
   // Use Vercel AI SDK v6 for chat management
   const { messages, status, sendMessage, setMessages } = useChat();
-  const { fetchChats, selectChat } = useChatStore();
+  const { fetchChats, selectChat, setPreviewState } = useChatStore();
+
+  const handleReset = () => {
+    setIsConversationStarted(false);
+    setMessages([]);
+    setInput("");
+    setChatId(null);
+    localStorage.removeItem("gnata-chat-id");
+  };
 
   // Load chatId from session on mount
   useEffect(() => {
@@ -41,14 +53,20 @@ export function ChatMain() {
     if (savedChatId) {
       setChatId(savedChatId);
       selectChat(savedChatId);
-      // Fetch history for this chatId
+
+      // Fetch history with ownership check
       fetch(`/api/chat/history/${savedChatId}`)
-        .then(res => {
+        .then(async res => {
+          if (res.status === 403 || res.status === 401) {
+            // Not our chat! Clear it and redirect to welcome
+            handleReset();
+            throw new Error('Unauthorized or expired session');
+          }
           if (!res.ok) throw new Error('Failed to fetch history');
           return res.json();
         })
         .then((data: DBMessage[]) => {
-          if (Array.isArray(data)) {
+          if (Array.isArray(data) && data.length > 0) {
             const history = data.map((m) => ({
               id: m.id,
               role: m.role as "user" | "assistant",
@@ -61,9 +79,27 @@ export function ChatMain() {
             setMessages(typedHistory);
           }
         })
-        .catch(err => console.error("Error loading history:", err));
+        .catch(err => {
+          console.warn("Chat init info:", err.message);
+        });
     }
-  }, [setMessages]);
+  }, [setMessages, selectChat]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle initial prompt from URL
+  useEffect(() => {
+    if (!isConversationStarted && !chatId) {
+      const initialPrompt = searchParams?.get('prompt');
+      if (initialPrompt && initialPrompt.trim() && initialPrompt !== "Je veux un site e-commerce pour ") {
+        console.log("Found initial prompt in URL:", initialPrompt);
+        // Clear param from URL without refreshing
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+
+        // Start conversation
+        handleSendMessage(initialPrompt);
+      }
+    }
+  }, [isConversationStarted, chatId, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Save chatId when it changes
   useEffect(() => {
@@ -74,12 +110,53 @@ export function ChatMain() {
     }
   }, [chatId]);
 
-  // Check if conversation has started
+  // Check if conversation has started and detect payment success
   useEffect(() => {
     if (messages.length > 0) {
       setIsConversationStarted(true);
+
+      // Detect verifyPayment success to trigger preview
+      messages.forEach((m: any) => {
+        // Check in parts (AI SDK v6 structure)
+        if (m.parts && Array.isArray(m.parts)) {
+          m.parts.forEach((part: any) => {
+            if (part.type === 'tool-invocation' && part.toolName === 'verifyPayment') {
+              if (part.state === 'result' && part.result && part.result.paid === true) {
+                console.log("Payment confirmed! Triggering preview...");
+                setPreviewState('building', true);
+              }
+            }
+          });
+        }
+        // Also check legacy toolInvocations property
+        if (m.toolInvocations && Array.isArray(m.toolInvocations)) {
+          m.toolInvocations.forEach((ti: any) => {
+            if (ti.toolName === 'verifyPayment' && ti.state === 'result') {
+              if (ti.result && ti.result.paid === true) {
+                console.log("Payment confirmed (legacy)! Triggering preview...");
+                setPreviewState('building', true);
+              }
+            }
+          });
+        }
+
+        // Fallback: Check if AI message text contains payment confirmation
+        const messageText = (m as any).text || (m as any).content ||
+          (m.parts || [])
+            .filter((p: any) => p.type === 'text')
+            .map((p: any) => p.text || '')
+            .join('');
+
+        if (m.role === 'assistant' &&
+          messageText &&
+          (messageText.includes('Paiement confirmé') ||
+            messageText.includes('a commencé la création'))) {
+          console.log("Payment confirmation detected in text! Triggering preview...");
+          setPreviewState('building', true);
+        }
+      });
     }
-  }, [messages]);
+  }, [messages, setPreviewState]);
 
   // Transform AI SDK messages to UI Message format
   const uiMessages: Message[] = messages.map(m => {
@@ -120,6 +197,7 @@ export function ChatMain() {
     if (isNewChat) {
       currentChatId = crypto.randomUUID();
       setChatId(currentChatId);
+      selectChat(currentChatId); // Sync store immediately
     }
 
     const currentInput = input;
@@ -132,14 +210,6 @@ export function ChatMain() {
     }
   };
 
-  const handleReset = () => {
-    setIsConversationStarted(false);
-    setMessages([]);
-    setInput("");
-    setChatId(null);
-    localStorage.removeItem("gnata-chat-id");
-  };
-
   const handleSendMessage = async (content: string) => {
     if (!content?.trim()) return;
 
@@ -148,6 +218,7 @@ export function ChatMain() {
     if (isNewChat) {
       currentChatId = crypto.randomUUID();
       setChatId(currentChatId);
+      selectChat(currentChatId); // Sync store immediately
     }
 
     await sendMessage({ text: content }, { body: { chatId: currentChatId } });

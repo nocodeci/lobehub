@@ -22,25 +22,37 @@ interface ChatState {
   chats: Chat[];
   selectedChatId: string | null;
   isLoading: boolean;
+  isPreviewOpen: boolean;
+  previewState: 'idle' | 'building' | 'preview';
   selectChat: (chatId: string | null) => void;
   fetchChats: () => Promise<void>;
   archiveChat: (chatId: string) => Promise<void>;
   unarchiveChat: (chatId: string) => Promise<void>;
   deleteChat: (chatId: string) => Promise<void>;
   renameChat: (chatId: string, newTitle: string) => Promise<void>;
+  setPreviewState: (state: 'idle' | 'building' | 'preview', isOpen?: boolean) => void;
 }
 
-export const useChatStore = create<ChatState>((set) => ({
+export const useChatStore = create<ChatState>((set, get) => ({
   chats: [],
   selectedChatId: typeof window !== "undefined" ? localStorage.getItem("gnata-chat-id") : null,
   isLoading: false,
+  isPreviewOpen: false,
+  previewState: 'idle',
+
+  setPreviewState: (state, isOpen) => set((s) => ({
+    previewState: state,
+    isPreviewOpen: isOpen !== undefined ? isOpen : s.isPreviewOpen
+  })),
 
   selectChat: (chatId) => set({ selectedChatId: chatId }),
 
   fetchChats: async () => {
     set({ isLoading: true });
     try {
-      const res = await fetch("/api/chat/list");
+      const selectedId = get().selectedChatId;
+      const url = selectedId ? `/api/chat/list?chatId=${selectedId}` : "/api/chat/list";
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch chats");
       const data = await res.json();
       set({ chats: Array.isArray(data) ? data : [] });

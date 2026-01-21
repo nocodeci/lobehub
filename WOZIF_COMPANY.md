@@ -143,3 +143,6 @@ gnata/                     # Application Gnata (nouveau)
 3. ⏳ Créer le portail de compte unifié
 4. ⏳ Finaliser AfriFlow
 5. ⏳ Développer Gnata MVP
+
+
+

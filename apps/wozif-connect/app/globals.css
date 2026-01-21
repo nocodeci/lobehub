@@ -10,49 +10,167 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --primary: 142 70% 45%;
+    /* WhatsApp Primary Green */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 168 80% 20%;
+    /* WhatsApp Dark Teal */
+    --secondary-foreground: 210 40% 98%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 142 70% 45%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
+    --ring: 142 70% 45%;
+    --radius: 1.25rem;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
   }
 
   .dark {
-    --background: 224 71.4% 4.1%;
+    /* Main background #212121 (hsl 0 0% 13%) */
+    --background: 0 0% 13%;
     --foreground: 210 40% 98%;
-    --card: 224 71.4% 4.1%;
+    /* Sidebar/Card background #171717 (hsl 0 0% 9%) */
+    --card: 0 0% 9%;
     --card-foreground: 210 40% 98%;
-    --popover: 224 71.4% 4.1%;
+    --popover: 0 0% 9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 263.4 70% 50.4%;
-    /* Purple Wozif */
-    --primary-foreground: 210 40% 98%;
-    --secondary: 215 27.9% 16.9%;
+    --primary: 142 70% 45%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 187 45% 18%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 215 27.9% 16.9%;
-    --muted-foreground: 217.9 10.6% 64.9%;
-    --accent: 215 27.9% 16.9%;
-    --accent-foreground: 210 40% 98%;
+    --muted: 0 0% 11%;
+    --muted-foreground: 215 15% 70%;
+    --accent: 142 70% 45%;
+    --accent-foreground: 0 0% 9%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 215 27.9% 16.9%;
-    --input: 215 27.9% 16.9%;
-    --ring: 263.4 70% 50.4%;
+    --border: 0 0% 16%;
+    --input: 0 0% 16%;
+    --ring: 142 70% 45%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
   }
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(37, 211, 102, 0.1);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(37, 211, 102, 0.2);
+}
+
+/* Recharts Tooltip */
+.recharts-default-tooltip {
+  @apply !bg-[#0a1410] !border-[#25d366]/20 !rounded-2xl !shadow-2xl !p-4 !backdrop-blur-xl !bg-opacity-90 !important;
+}
+
+.recharts-tooltip-label {
+  @apply !text-white !font-black !uppercase !tracking-widest !text-[10px] !mb-2 !block !important;
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  @apply bg-white/[0.03] border border-white/5 backdrop-blur-md shadow-2xl;
+}
+
+.whatsapp-gradient {
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+}
+
+.bg_pattern_wazzap_conversation {
+  background-image: url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png");
+  background-repeat: repeat;
+  background-size: 400px;
+  filter: invert(1) opacity(0.04);
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+
+/* Premium Phone Input Styles */
+.premium-phone-input {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.premium-phone-input .PhoneInputCountry {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s;
+}
+
+.premium-phone-input .PhoneInputCountry:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(37, 211, 102, 0.3);
+}
+
+.premium-phone-input input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+  padding: 12px 16px !important;
+  color: white !important;
+  font-size: 14px !important;
+  transition: all 0.2s;
+}
+
+.premium-phone-input input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #25D366 !important;
+  box-shadow: 0 0 0 4px rgba(37, 211, 102, 0.1);
+}
+
+.PhoneInputCountrySelect {
+  background-color: #171717 !important;
+  color: white !important;
+  padding: 10px !important;
+  border-radius: 12px !important;
+}
+
+
+
+@layer base {
+  * {
+    @apply border-border;
   }
 
   body {

@@ -79,8 +79,8 @@ export function AppSwitcher() {
                 <Button
                     variant="ghost"
                     className={cn(
-                        "w-full h-12 justify-between px-3.5 bg-secondary/5 border border-border/40 hover:bg-secondary/20 hover:border-border transition-all rounded-[14px]",
-                        open && "bg-secondary/40 border-border"
+                        "w-full h-12 justify-between px-3.5 bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all rounded-[14px]",
+                        open && "bg-white/10 border-white/20"
                     )}
                 >
                     <div className="flex items-center gap-3 overflow-hidden">
@@ -155,9 +155,9 @@ export function AppSwitcher() {
 
                 <DropdownMenuItem
                     onClick={handleCreateApp}
-                    className="flex items-center gap-3 px-3.5 py-3 rounded-xl cursor-default hover:bg-primary/5 transition-all text-primary font-bold outline-none group/new"
+                    className="flex items-center gap-3 px-3.5 py-3 rounded-xl cursor-default hover:bg-[#87a9ff]/5 transition-all text-[#87a9ff] font-bold outline-none group/new"
                 >
-                    <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center group-hover/new:scale-110 transition-transform">
+                    <div className="h-7 w-7 rounded-lg bg-[#87a9ff]/10 flex items-center justify-center group-hover/new:scale-110 transition-transform">
                         <Plus className="h-4 w-4" />
                     </div>
                     <span className="text-[12px]">Ajouter un espace</span>

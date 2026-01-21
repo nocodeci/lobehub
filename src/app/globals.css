@@ -62,24 +62,24 @@
 }
 
 .dark {
-  --background: #09090b;
+  --background: #191919;
   --foreground: #fafafa;
-  --card: #09090b;
+  --card: #1f1f1f;
   --card-foreground: #fafafa;
-  --popover: #09090b;
+  --popover: #1f1f1f;
   --popover-foreground: #fafafa;
   --primary: #fafafa;
   --primary-foreground: #18181b;
-  --secondary: #27272a;
+  --secondary: #252525;
   --secondary-foreground: #fafafa;
-  --muted: #27272a;
+  --muted: #252525;
   --muted-foreground: #a1a1aa;
-  --accent: #27272a;
+  --accent: #252525;
   --accent-foreground: #fafafa;
   --destructive: #7f1d1d;
   --destructive-foreground: #fafafa;
-  --border: #27272a;
-  --input: #27272a;
+  --border: #252525;
+  --input: #252525;
   --ring: #d4d4d8;
 }
 
@@ -109,5 +109,16 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  .bg_pattern_wazzap_conversation {
+    background-image: url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png");
+    background-repeat: repeat;
+    background-size: 400px;
+    filter: invert(1) opacity(0.04);
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: 0;
   }
 }

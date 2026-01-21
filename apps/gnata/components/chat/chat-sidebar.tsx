@@ -14,6 +14,7 @@ import {
   Settings2Icon,
   HistoryIcon,
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -241,9 +242,11 @@ export function ChatSidebar() {
                 Plan Gratuit
               </p>
             </div>
-            <Button variant="ghost" size="icon" className="size-8 text-zinc-600 hover:text-zinc-200">
-              <Settings2Icon className="size-4" />
-            </Button>
+            <Link href="/settings">
+              <Button variant="ghost" size="icon" className="size-8 text-zinc-600 hover:text-zinc-200">
+                <Settings2Icon className="size-4" />
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

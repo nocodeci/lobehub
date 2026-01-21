@@ -47,8 +47,16 @@ export default function LoginPage() {
             if (result?.error) {
                 setError("Email ou mot de passe incorrect");
             } else {
-                router.push("/dashboard");
-                router.refresh();
+                // Get callbackUrl from search params if it exists
+                const searchParams = new URLSearchParams(window.location.search);
+                const callbackUrl = searchParams.get("callbackUrl");
+
+                if (callbackUrl) {
+                    window.location.href = callbackUrl;
+                } else {
+                    router.push("/dashboard");
+                    router.refresh();
+                }
             }
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : "Une erreur est survenue";

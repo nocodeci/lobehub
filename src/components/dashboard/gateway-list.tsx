@@ -29,13 +29,13 @@ export function GatewayList() {
 
     if (isLoading) {
         return (
-            <Card className="border-none bg-card/50 backdrop-blur-md shadow-lg overflow-hidden h-[400px] flex items-center justify-center">
+            <Card className="border border-white/5 bg-[#252525] backdrop-blur-md shadow-lg overflow-hidden h-[400px] flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </Card>
         );
     }
     return (
-        <Card className="border-none bg-card/50 backdrop-blur-md shadow-lg overflow-hidden">
+        <Card className="border border-white/5 bg-[#252525] backdrop-blur-md shadow-lg overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle>Passerelles Africaines Connectées</CardTitle>
@@ -54,19 +54,19 @@ export function GatewayList() {
             </CardHeader>
             <CardContent className="p-0">
                 <Table>
-                    <TableHeader className="bg-muted/50">
-                        <TableRow>
-                            <TableHead className="pl-6 w-[200px]">Passerelle</TableHead>
-                            <TableHead>Régions</TableHead>
-                            <TableHead>Statut</TableHead>
-                            <TableHead>Uptime</TableHead>
-                            <TableHead>Succès</TableHead>
+                    <TableHeader className="bg-white/5">
+                        <TableRow className="border-white/5 hover:bg-transparent">
+                            <TableHead className="pl-6 w-[200px] text-zinc-400 font-bold uppercase text-[10px] tracking-widest">Passerelle</TableHead>
+                            <TableHead className="text-zinc-400 font-bold uppercase text-[10px] tracking-widest">Régions</TableHead>
+                            <TableHead className="text-zinc-400 font-bold uppercase text-[10px] tracking-widest">Statut</TableHead>
+                            <TableHead className="text-zinc-400 font-bold uppercase text-[10px] tracking-widest">Uptime</TableHead>
+                            <TableHead className="text-zinc-400 font-bold uppercase text-[10px] tracking-widest">Succès</TableHead>
                             <TableHead className="text-right pr-6"></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {gateways.map((gateway) => (
-                            <TableRow key={gateway.id} className="hover:bg-accent/50 transition-colors">
+                            <TableRow key={gateway.id} className="border-white/5 hover:bg-white/[0.02] transition-colors group/row">
                                 <TableCell className="pl-6 font-medium">
                                     <div className="flex items-center gap-3">
                                         <div className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center font-bold text-xs overflow-hidden p-1.5 flex-shrink-0">

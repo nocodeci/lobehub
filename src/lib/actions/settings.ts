@@ -81,3 +81,35 @@ export async function getFullCurrentApplication() {
         return null;
     }
 }
+
+export async function getCurrentUser() {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.email) return null;
+
+        return await prisma.user.findUnique({
+            where: { email: session.user.email }
+        });
+    } catch (error) {
+        return null;
+    }
+}
+
+export async function updateUserProfile(data: { name: string; email: string; phone?: string; country?: string }) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.email) throw new Error("Unauthorized");
+
+        const user = await prisma.user.update({
+            where: { email: session.user.email },
+            data
+        });
+
+        revalidatePath("/settings");
+
+        return { success: true, user };
+    } catch (error) {
+        console.error("Failed to update user profile:", error);
+        return { success: false, error: "Impossible de mettre à jour le profil." };
+    }
+}

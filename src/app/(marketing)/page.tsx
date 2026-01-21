@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Zap } from "lucide-react";
+import { ArrowRight, Zap, LayoutDashboard, LogOut } from "lucide-react";
 import Link from "next/link";
 import { Hero } from "@/components/landing/hero";
 import { Features } from "@/components/landing/features";
@@ -10,10 +10,15 @@ import { VisualShowcase } from "@/components/landing/showcase";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { CheckoutDemo } from "@/components/landing/checkout-demo";
 import { WhatsAppRetargeting } from "@/components/landing/whatsapp-retargeting";
+import { useSession, signOut } from "next-auth/react";
 
 export default function LandingPage() {
+    const { data: session, status } = useSession();
+    const isLoading = status === "loading";
+    const isAuthenticated = !!session?.user;
+
     return (
-        <main className="bg-[#020202] min-h-screen selection:bg-primary selection:text-black">
+        <main className="bg-[#191919] min-h-screen selection:bg-primary selection:text-black">
             {/* Navigation Overlay */}
             {/* Navigation Floating Pill */}
             <nav className="fixed top-6 left-0 right-0 z-50 flex justify-center px-4">
@@ -35,16 +40,38 @@ export default function LandingPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Link href="/auth/login">
-                            <Button variant="ghost" className="text-zinc-300 hover:text-white hover:bg-white/10 rounded-full h-10 px-6 hidden sm:flex">
-                                Connexion
-                            </Button>
-                        </Link>
-                        <Link href="/auth/register">
-                            <Button className="rounded-full bg-white text-black hover:bg-zinc-200 h-10 px-6 font-medium">
-                                S'inscrire
-                            </Button>
-                        </Link>
+                        {isLoading ? (
+                            <div className="h-10 w-24 bg-white/10 rounded-full animate-pulse" />
+                        ) : isAuthenticated ? (
+                            <>
+                                <Link href="/dashboard">
+                                    <Button className="rounded-full bg-white text-black hover:bg-zinc-200 h-10 px-6 font-medium">
+                                        <LayoutDashboard className="h-4 w-4 mr-2" />
+                                        Dashboard
+                                    </Button>
+                                </Link>
+                                <Button
+                                    variant="ghost"
+                                    className="text-zinc-300 hover:text-white hover:bg-white/10 rounded-full h-10 px-4 hidden sm:flex"
+                                    onClick={() => signOut()}
+                                >
+                                    <LogOut className="h-4 w-4" />
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <Link href="/auth/login">
+                                    <Button variant="ghost" className="text-zinc-300 hover:text-white hover:bg-white/10 rounded-full h-10 px-6 hidden sm:flex">
+                                        Connexion
+                                    </Button>
+                                </Link>
+                                <Link href="/auth/register">
+                                    <Button className="rounded-full bg-white text-black hover:bg-zinc-200 h-10 px-6 font-medium">
+                                        S'inscrire
+                                    </Button>
+                                </Link>
+                            </>
+                        )}
                     </div>
                 </div>
             </nav>

@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { GnataLogo } from "../GnataLogo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LogoUpload } from "./logo-upload";
+import { ImageUpload } from "./image-upload";
 import ReactMarkdown from 'react-markdown';
 
 interface Message {
@@ -65,6 +66,16 @@ export function ChatMessage({ message, onSend }: ChatMessageProps) {
             console.log("Uploaded logo:", file.name);
             if (onSend) {
               onSend("Voilà mon logo, qu'en penses-tu ?");
+            }
+          }} />
+        )}
+
+        {/* Render Image Upload if requested by tool */}
+        {message.sender === "ai" && message.toolInvocations?.some(tool => tool.toolName === 'requestImages') && (
+          <ImageUpload onUpload={(files) => {
+            console.log("Uploaded images:", files.length);
+            if (onSend) {
+              onSend("Voilà mes images pour le site, qu'en penses-tu ?");
             }
           }} />
         )}

@@ -95,7 +95,7 @@ export function TransactionList() {
 
     if (isLoading) {
         return (
-            <Card className="border-none bg-card/50 backdrop-blur-md shadow-lg h-[400px] flex items-center justify-center">
+            <Card className="border border-white/5 bg-[#252525] backdrop-blur-md shadow-lg h-[400px] flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
             </Card>
         );
@@ -103,19 +103,19 @@ export function TransactionList() {
 
     return (
         <>
-            <Card className="border-none bg-card/50 backdrop-blur-md shadow-lg h-full overflow-hidden">
+            <Card className="border border-white/5 bg-[#252525] backdrop-blur-md shadow-lg h-full overflow-hidden">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                     <CardTitle className="text-lg font-bold">Transactions Récentes</CardTitle>
                     <div className="flex gap-2">
                         <button
                             onClick={handleSync}
                             disabled={isSyncing}
-                            className="p-2 rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+                            className="p-2 rounded-full hover:bg-[#87a9ff]/10 text-muted-foreground hover:text-[#87a9ff] transition-colors disabled:opacity-50"
                             title="Synchroniser"
                         >
                             <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
                         </button>
-                        <button className="text-sm font-medium text-primary hover:underline flex items-center gap-1">
+                        <button className="text-sm font-medium text-[#87a9ff] hover:underline flex items-center gap-1">
                             Voir tout <ArrowRight className="h-3 w-3" />
                         </button>
                     </div>

@@ -1,0 +1,292 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String          @id @default(cuid())
+  name           String
+  email          String          @unique
+  emailVerified  DateTime?
+  password       String
+  phone          String?
+  country        String?
+  image          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  accounts       Account[]
+  ApiConfig      ApiConfig?
+  AuditLog       AuditLog[]
+  Customer       Customer[]
+  Gateway        Gateway[]
+  PaymentLink    PaymentLink[]
+  PaymentMethod  PaymentMethod[]
+  PaymentRecord  PaymentRecord[]
+  sessions       Session[]
+  subscriptions  Subscription[]
+  TeamMember     TeamMember[]
+  WhatsAppConfig WhatsAppConfig?
+  Automation     Automation[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Subscription {
+  id        String    @id @default(cuid())
+  userId    String
+  product   String
+  plan      String
+  status    String
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ApiConfig {
+  id             String   @id
+  userId         String   @unique
+  publicKey      String   @unique
+  secretKey      String
+  webhookUrl     String?
+  lastRotationAt DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
+  User           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id        String   @id
+  userId    String
+  actorName String
+  action    String
+  ipAddress String?
+  location  String?
+  createdAt DateTime @default(now())
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Customer {
+  id        String   @id
+  userId    String
+  name      String
+  email     String
+  phone     String?
+  country   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, email])
+  @@index([userId])
+}
+
+model Gateway {
+  id          String   @id
+  userId      String
+  name        String
+  countries   String[]
+  status      String   @default("active")
+  uptime      String
+  successRate String
+  logo        String?
+  apiKey      String?
+  apiSecret   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  config      Json?
+  User        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PaymentLink {
+  id                   String    @id
+  userId               String
+  slug                 String    @unique
+  title                String
+  description          String?
+  amount               Float
+  currency             String    @default("XOF")
+  status               String    @default("active")
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime
+  facebookPixelId      String?
+  googleAdsId          String?
+  requestPhone         Boolean   @default(false)
+  webhookUrl           String?
+  allowQuantity        Boolean   @default(false)
+  customSuccessMessage String?
+  expiresAt            DateTime?
+  User                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PaymentMethod {
+  id        String      @id
+  userId    String
+  name      String
+  country   String
+  flag      String?
+  provider  String
+  type      PaymentType
+  isActive  Boolean     @default(true)
+  uptime    String      @default("100%")
+  createdAt DateTime    @default(now())
+  updatedAt DateTime
+  User      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PaymentRecord {
+  id            String            @id
+  userId        String
+  orderId       String            @unique
+  amount        Float
+  currency      String            @default("XOF")
+  status        TransactionStatus @default(PENDING)
+  paymentType   PaymentType
+  provider      String
+  providerRef   String?           @unique
+  customerName  String
+  customerEmail String
+  customerPhone String?
+  metadata      Json?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime
+  completedAt   DateTime?
+  User          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ProviderLog   ProviderLog[]
+
+  @@index([provider])
+  @@index([status])
+  @@index([userId])
+}
+
+model ProviderLog {
+  id            String        @id
+  transactionId String
+  type          String
+  payload       Json
+  timestamp     DateTime      @default(now())
+  PaymentRecord PaymentRecord @relation(fields: [transactionId], references: [id])
+
+  @@index([transactionId])
+}
+
+model TeamMember {
+  id         String   @id
+  userId     String
+  name       String
+  email      String
+  role       String
+  permission String
+  status     String   @default("Hors ligne")
+  avatar     String?
+  lastActive String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime
+  User       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model WhatsAppConfig {
+  id                  String   @id
+  userId              String   @unique
+  status              String   @default("DISCONNECTED")
+  phoneNumber         String?
+  sessionData         Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime
+  autoFollowupEnabled Boolean  @default(false)
+  User                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Automation {
+  id                  String           @id @default(cuid())
+  userId              String
+  name                String
+  description         String?
+  nodes               Json             // Les blocs/nodes du workflow
+  status              AutomationStatus @default(DRAFT)
+  whatsappInstanceId  String?          // ID unique pour la connexion WhatsApp de cette automatisation
+  whatsappNumber      String?          // Numéro WhatsApp connecté
+  telegramBotToken    String?          // Token du bot Telegram si applicable
+  template            String?          // Template utilisé (support, ecommerce, appointment, etc.)
+  products            Json?            // Produits associés (pour e-commerce)
+  currency            String?          @default("XOF")
+  triggerKeywords     String[]         // Mots-clés déclencheurs
+  aiInstructions      String?          // Instructions IA globales
+  isActive            Boolean          @default(false)
+  lastTriggeredAt     DateTime?
+  triggerCount        Int              @default(0)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  User                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([isActive])
+}
+
+enum AutomationStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum PaymentType {
+  MOBILE_MONEY
+  CARD
+  BANK_TRANSFER
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}

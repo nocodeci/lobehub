@@ -87,7 +87,7 @@ export function StatsCards() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
                 >
-                    <Card className="relative overflow-hidden border-none bg-card/40 backdrop-blur-xl shadow-lg hover:shadow-2xl transition-all duration-300 group">
+                    <Card className="relative overflow-hidden border border-white/5 bg-[#252525] backdrop-blur-xl shadow-lg hover:shadow-2xl transition-all duration-300 group">
                         {/* Background Image with Overlay */}
                         <div
                             className="absolute inset-0 z-0 opacity-20 group-hover:opacity-40 transition-opacity duration-500 scale-110 group-hover:scale-100"
@@ -102,10 +102,10 @@ export function StatsCards() {
 
                         <div className="relative z-10">
                             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                                <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
+                                <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-[#87a9ff] transition-colors">
                                     {stat.title}
                                 </CardTitle>
-                                <div className={`p-2 rounded-lg bg-${stat.color}-500/10 text-${stat.color}-500 group-hover:bg-${stat.color}-500 group-hover:text-white transition-all duration-300 shadow-lg shadow-${stat.color}-500/20`}>
+                                <div className="p-2 rounded-lg bg-[#87a9ff]/10 text-[#87a9ff] group-hover:bg-[#87a9ff] group-hover:text-black transition-all duration-300 shadow-lg shadow-[#87a9ff]/20">
                                     <stat.icon className="h-4 w-4" />
                                 </div>
                             </CardHeader>

@@ -57,8 +57,8 @@ export function DashboardView() {
 
             {/* Decorative Background Elements */}
             <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
-                <div className="absolute top-0 right-[-10%] w-[50%] h-[50%] bg-gradient-to-b from-primary/5 to-transparent blur-[120px] rounded-full opacity-50" />
-                <div className="absolute bottom-0 left-[-10%] w-[40%] h-[40%] bg-blue-500/5 blur-[150px] rounded-full opacity-30" />
+                <div className="absolute top-0 right-[-10%] w-[50%] h-[50%] bg-gradient-to-b from-[#87a9ff]/5 to-transparent blur-[120px] rounded-full opacity-50" />
+                <div className="absolute bottom-0 left-[-10%] w-[40%] h-[40%] bg-[#87a9ff]/5 blur-[150px] rounded-full opacity-30" />
             </div>
         </div>
     );

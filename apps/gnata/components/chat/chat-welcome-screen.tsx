@@ -2,18 +2,24 @@ import { Button } from "@/components/ui/button";
 import { GnataLogo } from "@/components/GnataLogo";
 import { cn } from "@/lib/utils";
 import {
-  ZapIcon,
-  MessageCircleDashedIcon,
-  WandSparklesIcon,
-  BoxIcon,
+  ShoppingBag,
+  Palette,
+  Rocket,
+  AppWindow,
+  Briefcase,
+  PanelsTopLeft,
+  Smartphone
 } from "lucide-react";
 import { PlaceholdersAndVanishInput } from "@/components/ui/placeholders-and-vanish-input";
 
 const chatModes = [
-  { id: "fast", label: "Rapide", icon: ZapIcon },
-  { id: "in-depth", label: "Détaillé", icon: MessageCircleDashedIcon },
-  { id: "magic", label: "Vibe AI", icon: WandSparklesIcon, pro: true },
-  { id: "holistic", label: "Holistique", icon: BoxIcon },
+  { id: "ecommerce", label: "E-commerce", icon: ShoppingBag },
+  { id: "portfolio", label: "Portfolio", icon: Palette },
+  { id: "saas", label: "SaaS / App", icon: AppWindow, pro: true },
+  { id: "landing", label: "Landing Page", icon: Rocket },
+  { id: "mobile", label: "App Mobile", icon: Smartphone, pro: true },
+  { id: "vitrine", label: "Site Vitrine", icon: Briefcase },
+  { id: "custom", label: "Sur Mesure", icon: PanelsTopLeft },
 ];
 
 interface ChatWelcomeScreenProps {
@@ -30,11 +36,11 @@ export function ChatWelcomeScreen({
   onModeChange,
 }: ChatWelcomeScreenProps) {
   const placeholders = [
-    "Crée-moi un site e-commerce pour vendre des chaussures...",
-    "Je veux un portfolio minimaliste pour mes photos...",
-    "Génère une landing page pour mon application SaaS...",
-    "Fais un site de restaurant avec réservation à Paris...",
-    "Un blog tech moderne avec dark mode...",
+    "Je veux un site e-commerce pour vendre des chaussures...",
+    "Je souhaiterais un portfolio minimaliste pour mes photos...",
+    "J'ai besoin d'une landing page pour mon application SaaS...",
+    "Je veux un site de restaurant avec réservation à Paris...",
+    "Je souhaiterais un blog tech moderne avec dark mode...",
   ];
 
   return (
@@ -75,7 +81,7 @@ export function ChatWelcomeScreen({
               <mode.icon className="size-4" />
               <span>{mode.label}</span>
               {mode.pro && (
-                <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium">
+                <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-purple-400 border border-purple-500/20 shadow-sm shadow-purple-500/10">
                   Pro
                 </span>
               )}

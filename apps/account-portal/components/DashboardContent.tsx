@@ -47,8 +47,8 @@ export default function DashboardContent({ userName, initials }: DashboardConten
                         <button
                             key={i}
                             className={`h-12 w-12 rounded-2xl flex items-center justify-center transition-all ${nav.active
-                                    ? "bg-slate-950 text-white shadow-xl shadow-slate-200"
-                                    : "text-slate-400 hover:text-slate-900 hover:bg-slate-50"
+                                ? "bg-slate-950 text-white shadow-xl shadow-slate-200"
+                                : "text-slate-400 hover:text-slate-900 hover:bg-slate-50"
                                 }`}
                         >
                             <nav.icon size={20} />
@@ -236,22 +236,26 @@ export default function DashboardContent({ userName, initials }: DashboardConten
                                             <div>
                                                 <h3 className="text-3xl font-[900] text-slate-950 tracking-tight">Gnata</h3>
                                                 <div className="flex items-center gap-2 mt-1.5">
-                                                    <span className="h-1.5 w-1.5 rounded-full bg-slate-200 group-hover:bg-amber-500 transition-colors"></span>
-                                                    <span className="text-[10px] font-black text-slate-400 group-hover:text-amber-600 uppercase tracking-[0.2em] transition-colors">Prêt à démarrer</span>
+                                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                                                    <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Souverain & Actif</span>
                                                 </div>
                                             </div>
                                         </div>
+                                        <Link
+                                            href="http://localhost:3002"
+                                            target="_blank"
+                                            className="h-14 px-8 rounded-2xl bg-slate-950 text-white text-sm font-black flex items-center gap-3 hover:bg-zinc-800 transition-all active:scale-95 shadow-xl shadow-slate-200"
+                                        >
+                                            Ouvrir <ArrowUpRight className="h-4 w-4" />
+                                        </Link>
                                     </div>
 
                                     <div className="flex-1 flex flex-col items-center justify-center text-center py-6 px-4 rounded-3xl bg-slate-50 border border-slate-100 border-dashed group-hover:bg-white group-hover:border-indigo-200 transition-all">
                                         <div className="mb-4 h-14 w-14 rounded-2xl bg-white shadow-sm flex items-center justify-center border border-slate-100 group-hover:shadow-indigo-100 transition-all">
                                             <LayoutDashboard className="h-6 w-6 text-slate-300 group-hover:text-indigo-500" />
                                         </div>
-                                        <h4 className="text-sm font-black text-slate-900 mb-2 uppercase tracking-tight">Configuration Requise</h4>
-                                        <p className="text-[13px] text-slate-500 font-medium max-w-[240px] leading-relaxed mb-6">Connectez votre domaine pour activer la puissance de Gnata.</p>
-                                        <button className="h-11 px-6 rounded-xl bg-slate-950 text-white text-[11px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all active:scale-95 shadow-lg shadow-slate-200">
-                                            Démarrer le Setup
-                                        </button>
+                                        <h4 className="text-sm font-black text-slate-900 mb-2 uppercase tracking-tight">Moteur IA v1.0</h4>
+                                        <p className="text-[13px] text-slate-500 font-medium max-w-[240px] leading-relaxed mb-6">Plateforme de création de sites web assistée par IA de haute précision.</p>
                                     </div>
                                 </div>
                             </motion.div>

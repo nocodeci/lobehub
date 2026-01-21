@@ -32,17 +32,17 @@ export function DashboardHeader() {
                 transition={{ duration: 0.5, ease: "easeOut" }}
                 className="space-y-1"
             >
-                <div className="flex items-center gap-2 text-muted-foreground/60 mb-2">
+                <div className="flex items-center gap-2 text-[#87a9ff]/60 mb-2">
                     <Calendar className="h-3.5 w-3.5" />
                     <span className="text-xs font-medium uppercase tracking-widest">
                         {date || <span className="opacity-0">Chargement...</span>}
                     </span>
                 </div>
                 <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">
-                    {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-zinc-400 to-zinc-700 dark:from-white dark:to-zinc-500">{userFirstName}</span>.
+                    {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#87a9ff] to-[#87a9ff]/60">{userFirstName}</span>.
                 </h1>
                 <p className="text-lg text-muted-foreground font-light max-w-md leading-relaxed">
-                    Voici ce qui se passe sur votre espace <span className="font-medium text-foreground">AfriFlow</span> aujourd'hui.
+                    Voici ce qui se passe sur votre espace <span className="font-medium text-[#87a9ff]">AfriFlow</span> aujourd'hui.
                 </p>
             </motion.div>
 

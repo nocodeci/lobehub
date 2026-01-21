@@ -31,9 +31,45 @@ export async function GET(
             return NextResponse.json({ error: 'Invalid API Key' }, { status: 401 });
         }
 
-        // Find the latest successful transaction for this link
-        // We look for payment records where metadata.paymentLinkId matches the provided ID
-        // unique key is not guaranteed on metadata, so findFirst
+        // --- VIP SIMULATION LOGIC ---
+        // Fetch the payment link to identify the user
+        const paymentLink = await prisma.paymentLink.findUnique({
+            where: { id },
+            include: {
+                application: {
+                    include: {
+                        user: true
+                    }
+                }
+            }
+        });
+
+        const vipEmails = [
+            "yohankoffik225@gmail.com",
+            "yohankoffik@gmail.com",
+            "koffiyohaneric225@gmail.com"
+        ];
+
+        if (paymentLink && (
+            vipEmails.includes(paymentLink.application?.user?.email || "") ||
+            paymentLink.applicationId === 'cmkki1url0000vxi8j8bjjgnl' // Allow Gnata App ID (Demo)
+        )) {
+            console.log("🌟 VIP/Demo Simulation triggered for:", paymentLink.application?.user?.email);
+            return NextResponse.json({
+                success: true,
+                paid: true,
+                status: 'SUCCESS',
+                transaction: {
+                    id: `sim_vip_${Math.random().toString(36).substring(7)}`,
+                    amount: paymentLink.amount,
+                    customerName: "Simulation VIP",
+                    customerEmail: paymentLink.application?.user?.email || "vip@demo.com"
+                }
+            });
+        }
+        // -----------------------------
+
+        // Original logic for non-VIP
         const successRecord = await prisma.paymentRecord.findFirst({
             where: {
                 applicationId: config.applicationId,
@@ -63,7 +99,7 @@ export async function GET(
         const pendingRecord = await prisma.paymentRecord.findFirst({
             where: {
                 applicationId: config.applicationId,
-                status: { not: 'FAILED' }, // Pending, Verifying, etc.
+                status: { not: 'FAILED' },
                 metadata: {
                     path: ['paymentLinkId'],
                     equals: id

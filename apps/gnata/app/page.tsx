@@ -1,17 +1,32 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Zap, ArrowRight, LayoutTemplate, Palette, Rocket } from "lucide-react";
+import { Zap, ArrowRight, LayoutTemplate, Palette, Rocket, ShoppingBag, AppWindow, Smartphone, Briefcase, PanelsTopLeft } from "lucide-react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { GnataLogo } from "../components/GnataLogo";
+import { cn } from "@/lib/utils";
 
 export default function GnataLanding() {
+  const { data: session } = useSession();
   const [mounted, setMounted] = useState(false);
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState("Je veux un site e-commerce pour ");
+  const [activeCategory, setActiveCategory] = useState("E-commerce");
+  const [availableCoders, setAvailableCoders] = useState(3);
 
   useEffect(() => {
     setMounted(true);
+    // Dynamic expert count simulation
+    const interval = setInterval(() => {
+      setAvailableCoders(prev => {
+        const change = Math.random() > 0.5 ? 1 : -1;
+        const newVal = prev + change;
+        return Math.min(Math.max(newVal, 2), 6); // Stay between 2 and 6
+      });
+    }, 15000); // Update every 15 seconds
+
+    return () => clearInterval(interval);
   }, []);
 
   if (!mounted) return null;
@@ -34,9 +49,16 @@ export default function GnataLanding() {
           </div>
 
           <div className="flex items-center gap-4">
-            <Link href="/login" className="text-sm font-medium text-zinc-300 hover:text-white transition-colors">
-              Connexion
-            </Link>
+            {session ? (
+              <Link href="/start" className="text-sm font-medium text-zinc-300 hover:text-white transition-colors flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Tableau de Bord
+              </Link>
+            ) : (
+              <Link href="http://localhost:3012/auth/login?callbackUrl=http://localhost:3002" className="text-sm font-medium text-zinc-300 hover:text-white transition-colors">
+                Connexion
+              </Link>
+            )}
             <Link href="/start" className="bg-white text-black px-5 py-2 rounded-full text-sm font-bold hover:bg-zinc-200 transition-colors">
               Commander mon site
             </Link>
@@ -138,7 +160,7 @@ export default function GnataLanding() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                 </div>
-                3 Experts Vibe Coders disponibles maintenant
+                {availableCoders} Experts Vibe Coders disponibles maintenant
               </div>
             </div>
 
@@ -152,15 +174,35 @@ export default function GnataLanding() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.8, duration: 1 }}
-            className="mt-12 flex flex-wrap justify-center gap-3 max-w-3xl"
+            className="mt-12 flex flex-wrap justify-center gap-3 max-w-4xl"
           >
-            {["Une marketplace de chaussures", "Un portfolio de photographe minimaliste", "Un restaurant de sushi avec réservation"].map((p, i) => (
+            {[
+              { label: "E-commerce", icon: ShoppingBag, prompt: "Je veux un site e-commerce pour " },
+              { label: "Portfolio", icon: Palette, prompt: "Je veux un portfolio pour " },
+              { label: "SaaS / App", icon: AppWindow, prompt: "J'ai besoin d'une application SaaS pour " },
+              { label: "Landing Page", icon: Rocket, prompt: "Je veux une landing page pour " },
+              { label: "App Mobile", icon: Smartphone, prompt: "Je veux une application mobile pour " },
+              { label: "Site Vitrine", icon: Briefcase, prompt: "Je veux un site vitrine pour mon entreprise " },
+              { label: "Sur Mesure", icon: PanelsTopLeft, prompt: "J'ai un projet sur mesure : " }
+            ].map((cat, i) => (
               <button
                 key={i}
-                onClick={() => setPrompt(p)}
-                className="px-4 py-2 rounded-full border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] text-xs text-zinc-500 hover:text-zinc-300 transition-all cursor-pointer"
+                onClick={() => {
+                  setPrompt(cat.prompt);
+                  setActiveCategory(cat.label);
+                }}
+                className={cn(
+                  "px-4 py-2 rounded-full border transition-all cursor-pointer flex items-center gap-2 group",
+                  activeCategory === cat.label
+                    ? "bg-purple-500/10 border-purple-500/30 text-white shadow-[0_0_15px_-3px_rgba(168,85,247,0.2)]"
+                    : "border-white/5 bg-white/[0.02] hover:bg-white/[0.05] text-zinc-500 hover:text-white"
+                )}
               >
-                {p}
+                <cat.icon className={cn(
+                  "w-3 h-3 transition-colors",
+                  activeCategory === cat.label ? "text-purple-400" : "text-zinc-600 group-hover:text-purple-400"
+                )} />
+                {cat.label}
               </button>
             ))}
           </motion.div>
@@ -295,10 +337,10 @@ function TypewriterTextarea({ value, onChange }: { value: string, onChange: (val
   const [typingSpeed, setTypingSpeed] = useState(100);
 
   const examples = [
-    "Crée-moi un site e-commerce pour vendre des chaussures à Abidjan...",
+    "Je veux un site e-commerce pour vendre des chaussures à Abidjan...",
     "Je veux un portfolio minimaliste pour mes photos de mariage...",
-    "Génère une landing page pour mon application mobile...",
-    "Fais un site de restaurant avec menu et réservation...",
+    "J'ai besoin d'une landing page pour mon application mobile...",
+    "Je souhaiterais un site de restaurant avec menu et réservation...",
   ];
 
   useEffect(() => {
