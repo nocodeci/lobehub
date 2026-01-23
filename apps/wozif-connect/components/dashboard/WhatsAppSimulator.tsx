@@ -52,6 +52,7 @@ interface WhatsAppSimulatorProps {
     currency?: string;
     targetPhoneNumber?: string | null;
     onNodeResult?: (nodeId: number, result: string, data?: any) => void;
+    onNodeExecutionData?: (nodeId: number, input: any, output: any, context: any) => void;
 }
 
 export interface NodeExecutionStatus {
@@ -87,7 +88,8 @@ export function WhatsAppSimulator({
     products = [],
     currency = "FCFA",
     targetPhoneNumber = null,
-    onNodeResult
+    onNodeResult,
+    onNodeExecutionData
 }: WhatsAppSimulatorProps) {
     const isTelegram = nodes.some(n => n.type === 'telegram_message' || n.type === 'tg_buttons');
 
@@ -401,10 +403,25 @@ export function WhatsAppSimulator({
         let currentNode = nodes.find(n => n.type === 'keyword' || n.type === 'whatsapp_message' || n.type === 'telegram_message');
         if (!currentNode && nodes.length > 0) currentNode = nodes[0];
 
+        // Extraire la dernière image et audio des messages pour le contexte
+        const lastUserMessageObj = messages.filter(m => m.sender === 'user').slice(-1)[0];
+        const lastImageUrl = lastUserMessageObj?.imageUrl || messages.filter(m => m.sender === 'user' && m.imageUrl).slice(-1)[0]?.imageUrl;
+        const lastAudioUrl = messages.filter(m => m.sender === 'user' && m.text?.includes('audio:')).slice(-1)[0]?.text?.match(/audio:(.+)/)?.[1];
+
         const context: ExecutionContext = {
             lastUserMessage: userMsg,
+            lastImageUrl, // Image reçue via WhatsApp/Telegram
+            lastAudioUrl, // Audio reçu via WhatsApp/Telegram
             products,
             currency,
+            cart: [], // Panier d'achat (sera mis à jour par les nœuds add_to_cart)
+            // Ajouter l'historique des messages pour les agents IA
+            messages: messages.map((msg: Message) => ({
+                sender: msg.sender,
+                text: msg.text || '',
+                content: msg.text || '',
+                imageUrl: msg.imageUrl // Inclure les images dans l'historique
+            })),
             addMessage: (newMsg: Omit<ExecutorMessage, "id" | "time">) => {
                 const resolvedText = (newMsg as any)?.text;
 
@@ -440,9 +457,32 @@ export function WhatsAppSimulator({
             nodeStatusMap[currentNode.id] = "running";
             if (setNodeStatuses) setNodeStatuses({ ...nodeStatusMap });
 
+            // Capture input context before execution
+            const inputContext = JSON.parse(JSON.stringify(context));
+            
             // Execute the node
             const result = await executeNode(currentNode, context);
             const duration = Date.now() - startTime;
+            
+            // Capture output context after execution
+            const outputContext = JSON.parse(JSON.stringify(context));
+            
+            // Store node output data in context for next nodes to access
+            if (result.data && typeof result.data === 'object') {
+                Object.keys(result.data).forEach(key => {
+                    context[key] = result.data[key];
+                });
+            }
+            
+            // Notify about node execution data for inspection
+            if (onNodeExecutionData) {
+                onNodeExecutionData(
+                    currentNode.id,
+                    inputContext,
+                    result.data || {},
+                    outputContext
+                );
+            }
 
             // 🔥 STEP 2: Update to final status (success/error) AFTER execution
             console.log(`✓ [${nodeIndex}] Completed: ${currentNode.name} -> ${result.success ? 'success' : 'error'}`);

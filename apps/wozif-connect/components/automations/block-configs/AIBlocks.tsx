@@ -509,3 +509,255 @@ export function AIGenerateVideoConfig({ node, updateConfig }: BlockConfigProps) 
   );
 }
 
+// Bloc AI Edit Image
+export function AIEditImageConfig({ node, updateConfig }: BlockConfigProps) {
+  const config = parseConfig(node.config, { prompt: "", mask: "", n: 1, size: "1024x1024" });
+  return (
+    <div className="space-y-4">
+      <div className="p-5 rounded-2xl bg-gradient-to-br from-pink-500/10 to-transparent border border-pink-500/20 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-pink-500/20 flex items-center justify-center">
+            <Sparkles className="h-5 w-5 text-pink-400" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-white">Éditer Image</h4>
+            <p className="text-[10px] text-pink-400/60">Modifie une image avec DALL-E</p>
+          </div>
+        </div>
+        <div>
+          <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Prompt de modification</label>
+          <textarea value={config.prompt} onChange={(e) => updateConfig({ ...config, prompt: e.target.value })} className="w-full mt-1 h-20 bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white" placeholder="Décrivez les modifications à apporter..." />
+        </div>
+        <div>
+          <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Taille</label>
+          <select value={config.size} onChange={(e) => updateConfig({ ...config, size: e.target.value })} className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white">
+            <option value="1024x1024">1024x1024</option>
+            <option value="1792x1024">1792x1024</option>
+            <option value="1024x1792">1024x1792</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Bloc AI Translate Audio
+export function AITranslateAudioConfig({ node, updateConfig }: BlockConfigProps) {
+  const config = parseConfig(node.config, { targetLanguage: "fr", format: "text" });
+  return (
+    <div className="space-y-4">
+      <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 to-transparent border border-amber-500/20 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
+            <Sparkles className="h-5 w-5 text-amber-400" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-white">Traduire Audio</h4>
+            <p className="text-[10px] text-amber-400/60">Traduit un enregistrement audio</p>
+          </div>
+        </div>
+        <div>
+          <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Langue cible</label>
+          <select value={config.targetLanguage} onChange={(e) => updateConfig({ ...config, targetLanguage: e.target.value })} className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white">
+            <option value="fr">Français</option>
+            <option value="en">Anglais</option>
+            <option value="es">Espagnol</option>
+            <option value="de">Allemand</option>
+            <option value="ar">Arabe</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Format de sortie</label>
+          <select value={config.format} onChange={(e) => updateConfig({ ...config, format: e.target.value })} className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white">
+            <option value="text">Texte</option>
+            <option value="json">JSON</option>
+            <option value="srt">SRT (sous-titres)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Bloc AI Delete File
+export function AIDeleteFileConfig({ node, updateConfig }: BlockConfigProps) {
+  const config = parseConfig(node.config, { fileId: "" });
+  return (
+    <div className="space-y-4">
+      <div className="p-5 rounded-2xl bg-gradient-to-br from-red-500/10 to-transparent border border-red-500/20 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+            <FileText className="h-5 w-5 text-red-400" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-white">Supprimer Fichier</h4>
+            <p className="text-[10px] text-red-400/60">Supprime un fichier via OpenAI</p>
+          </div>
+        </div>
+        <div>
+          <label className="text-[9px] font-bold uppercase text-muted-foreground/60">ID du fichier</label>
+          <Input value={config.fileId} onChange={(e) => updateConfig({ ...config, fileId: e.target.value })} className="mt-1 bg-black/40 border-white/10" placeholder="file-xxx" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Bloc AI List Files
+export function AIListFilesConfig({ node, updateConfig }: BlockConfigProps) {
+  const config = parseConfig(node.config, { purpose: "all" });
+  return (
+    <div className="space-y-4">
+      <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+            <FileText className="h-5 w-5 text-blue-400" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-white">Lister Fichiers</h4>
+            <p className="text-[10px] text-blue-400/60">Liste les fichiers disponibles</p>
+          </div>
+        </div>
+        <div>
+          <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Filtre par usage</label>
+          <select value={config.purpose} onChange={(e) => updateConfig({ ...config, purpose: e.target.value })} className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white">
+            <option value="all">Tous</option>
+            <option value="assistants">Assistants</option>
+            <option value="fine-tune">Fine-tuning</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Bloc AI Upload File
+export function AIUploadFileConfig({ node, updateConfig }: BlockConfigProps) {
+  const config = parseConfig(node.config, { purpose: "assistants", fileUrl: "" });
+  return (
+    <div className="space-y-4">
+      <div className="p-5 rounded-2xl bg-gradient-to-br from-green-500/10 to-transparent border border-green-500/20 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-green-500/20 flex items-center justify-center">
+            <FileText className="h-5 w-5 text-green-400" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-white">Téléverser Fichier</h4>
+            <p className="text-[10px] text-green-400/60">Téléverse un fichier vers OpenAI</p>
+          </div>
+        </div>
+        <div>
+          <label className="text-[9px] font-bold uppercase text-muted-foreground/60">URL du fichier</label>
+          <Input value={config.fileUrl} onChange={(e) => updateConfig({ ...config, fileUrl: e.target.value })} className="mt-1 bg-black/40 border-white/10" placeholder="https://..." />
+        </div>
+        <div>
+          <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Usage</label>
+          <select value={config.purpose} onChange={(e) => updateConfig({ ...config, purpose: e.target.value })} className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white">
+            <option value="assistants">Assistants</option>
+            <option value="fine-tune">Fine-tuning</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Bloc AI Create Conversation
+export function AICreateConversationConfig({ node, updateConfig }: BlockConfigProps) {
+  const config = parseConfig(node.config, { name: "", metadata: {} });
+  return (
+    <div className="space-y-4">
+      <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+            <Bot className="h-5 w-5 text-purple-400" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-white">Créer Conversation</h4>
+            <p className="text-[10px] text-purple-400/60">Crée une nouvelle conversation</p>
+          </div>
+        </div>
+        <div>
+          <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Nom de la conversation</label>
+          <Input value={config.name} onChange={(e) => updateConfig({ ...config, name: e.target.value })} className="mt-1 bg-black/40 border-white/10" placeholder="Conversation..." />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Bloc AI Get Conversation
+export function AIGetConversationConfig({ node, updateConfig }: BlockConfigProps) {
+  const config = parseConfig(node.config, { conversationId: "" });
+  return (
+    <div className="space-y-4">
+      <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-transparent border border-cyan-500/20 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+            <Bot className="h-5 w-5 text-cyan-400" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-white">Obtenir Conversation</h4>
+            <p className="text-[10px] text-cyan-400/60">Récupère une conversation existante</p>
+          </div>
+        </div>
+        <div>
+          <label className="text-[9px] font-bold uppercase text-muted-foreground/60">ID de la conversation</label>
+          <Input value={config.conversationId} onChange={(e) => updateConfig({ ...config, conversationId: e.target.value })} className="mt-1 bg-black/40 border-white/10" placeholder="conv_xxx" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Bloc AI Remove Conversation
+export function AIRemoveConversationConfig({ node, updateConfig }: BlockConfigProps) {
+  const config = parseConfig(node.config, { conversationId: "" });
+  return (
+    <div className="space-y-4">
+      <div className="p-5 rounded-2xl bg-gradient-to-br from-red-500/10 to-transparent border border-red-500/20 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+            <Bot className="h-5 w-5 text-red-400" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-white">Supprimer Conversation</h4>
+            <p className="text-[10px] text-red-400/60">Supprime une conversation</p>
+          </div>
+        </div>
+        <div>
+          <label className="text-[9px] font-bold uppercase text-muted-foreground/60">ID de la conversation</label>
+          <Input value={config.conversationId} onChange={(e) => updateConfig({ ...config, conversationId: e.target.value })} className="mt-1 bg-black/40 border-white/10" placeholder="conv_xxx" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Bloc AI Update Conversation
+export function AIUpdateConversationConfig({ node, updateConfig }: BlockConfigProps) {
+  const config = parseConfig(node.config, { conversationId: "", name: "", metadata: {} });
+  return (
+    <div className="space-y-4">
+      <div className="p-5 rounded-2xl bg-gradient-to-br from-orange-500/10 to-transparent border border-orange-500/20 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
+            <Bot className="h-5 w-5 text-orange-400" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-white">Mettre à jour Conversation</h4>
+            <p className="text-[10px] text-orange-400/60">Met à jour une conversation</p>
+          </div>
+        </div>
+        <div>
+          <label className="text-[9px] font-bold uppercase text-muted-foreground/60">ID de la conversation</label>
+          <Input value={config.conversationId} onChange={(e) => updateConfig({ ...config, conversationId: e.target.value })} className="mt-1 bg-black/40 border-white/10" placeholder="conv_xxx" />
+        </div>
+        <div>
+          <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Nouveau nom</label>
+          <Input value={config.name} onChange={(e) => updateConfig({ ...config, name: e.target.value })} className="mt-1 bg-black/40 border-white/10" placeholder="Nouveau nom..." />
+        </div>
+      </div>
+    </div>
+  );
+}

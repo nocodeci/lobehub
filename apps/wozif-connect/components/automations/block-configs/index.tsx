@@ -23,7 +23,18 @@ import {
   AIGenerateAudioConfig,
   AITranscribeConfig,
   AIGenerateVideoConfig,
+  AIEditImageConfig,
+  AITranslateAudioConfig,
+  AIDeleteFileConfig,
+  AIListFilesConfig,
+  AIUploadFileConfig,
+  AICreateConversationConfig,
+  AIGetConversationConfig,
+  AIRemoveConversationConfig,
+  AIUpdateConversationConfig,
 } from "./AIBlocks";
+
+import { AIAgentConfig } from "./AIAgentConfig";
 
 import {
   DelayConfig,
@@ -100,15 +111,25 @@ const blockConfigComponents: Record<string, React.FC<BlockConfigProps>> = {
   // AI
   gpt_analyze: GPTConfig,
   gpt_respond: GPTConfig,
+  ai_agent: AIAgentConfig,
   ai_translate: AITranslateConfig,
   ai_summarize: AISummarizeConfig,
   sentiment: SentimentConfig,
   ai_moderation: AIModerationConfig,
   ai_analyze_image: AIAnalyzeImageConfig,
   ai_generate_image: AIGenerateImageConfig,
+  ai_edit_image: AIEditImageConfig,
   ai_generate_audio: AIGenerateAudioConfig,
   ai_transcribe: AITranscribeConfig,
+  ai_translate_audio: AITranslateAudioConfig,
   ai_generate_video: AIGenerateVideoConfig,
+  ai_delete_file: AIDeleteFileConfig,
+  ai_list_files: AIListFilesConfig,
+  ai_upload_file: AIUploadFileConfig,
+  ai_create_conversation: AICreateConversationConfig,
+  ai_get_conversation: AIGetConversationConfig,
+  ai_remove_conversation: AIRemoveConversationConfig,
+  ai_update_conversation: AIUpdateConversationConfig,
 
   // Messages
   delay: DelayConfig,

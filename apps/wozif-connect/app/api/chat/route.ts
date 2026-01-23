@@ -1714,15 +1714,43 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const response = await openai.chat.completions.create({
-          model: body.model || "gpt-4o-mini",
-          messages: [
+        // Utiliser les messages fournis si disponibles (pour l'historique), sinon construire
+        let messages: Array<{ role: string; content: string }> = [];
+        
+        if (body.messages && Array.isArray(body.messages) && body.messages.length > 0) {
+          // Utiliser les messages fournis (incluant l'historique)
+          messages = body.messages;
+        } else {
+          // Construire les messages de base
+          messages = [
             { role: "system", content: body.systemPrompt },
             { role: "user", content: message }
-          ],
+          ];
+        }
+
+        // Préparer les paramètres de la requête
+        const requestParams: any = {
+          model: body.model || "gpt-4o-mini",
+          messages: messages,
           max_tokens: body.maxTokens || 500,
-          temperature: 0.1,
-        });
+        };
+
+        // Ajouter la température si fournie
+        if (body.temperature !== undefined) {
+          requestParams.temperature = body.temperature;
+        }
+
+        // Ajouter reasoning_effort pour les modèles o1
+        if (body.reasoningEffort && (body.model?.includes('o1') || body.model?.includes('o3'))) {
+          requestParams.reasoning_effort = body.reasoningEffort;
+        }
+
+        // Note: Les modèles o1 ne supportent pas la température, la retirer si c'est un modèle o1
+        if (body.model?.includes('o1') || body.model?.includes('o3')) {
+          delete requestParams.temperature;
+        }
+
+        const response = await openai.chat.completions.create(requestParams);
 
         return NextResponse.json({
           success: true,

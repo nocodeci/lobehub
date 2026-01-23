@@ -17,6 +17,7 @@ export interface ExecutionContext {
     userName?: string;
     userFirstName?: string;
     userEmail?: string;
+    messages?: Array<{ sender: 'user' | 'bot'; text?: string; content?: string }>;
     addMessage: (msg: Omit<Message, "id" | "time">) => void;
     [key: string]: any;
 }
@@ -137,15 +138,16 @@ export async function executeNode(
 
         case 'gpt_analyze': {
             // STRICT intent classification - NO response generation
-            const { categories, aiInstructions } = config;
+            const { categories, aiInstructions, system, prompt } = config;
             const userMessage = context.lastUserMessage;
+            const systemPrompt = system || aiInstructions || "";
 
             console.log(`🔍 Classification d'intention...`);
 
-            const customCategories = categories || aiInstructions || "";
+            const customCategories = categories || "";
 
-            // STRICT classification prompt
-            const systemPrompt = `Tu es un classificateur d'intention. Tu dois UNIQUEMENT retourner UNE catégorie parmi:
+            // Use custom system prompt if provided, otherwise use default
+            const finalSystemPrompt = systemPrompt || `Tu es un classificateur d'intention. Tu dois UNIQUEMENT retourner UNE catégorie parmi:
 - salutation (bonjour, salut, hello)
 - question_prix (combien, prix, coût, tarif)
 - demande_produit (article, produit, disponibilité)
@@ -162,15 +164,17 @@ RÈGLES STRICTES:
 2. NE JAMAIS répondre au message
 3. NE JAMAIS générer de phrase complète`;
 
+            const analysisPrompt = prompt || `Classifie: "${userMessage}"`;
+
             try {
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        message: `Classifie: "${userMessage}"`,
-                        systemPrompt,
-                        model: 'gpt-4o-mini',
-                        maxTokens: 10
+                        message: analysisPrompt,
+                        systemPrompt: finalSystemPrompt,
+                        model: config.model || 'gpt-4o-mini',
+                        maxTokens: config.maxTokens || 500
                     })
                 });
 
@@ -202,9 +206,32 @@ RÈGLES STRICTES:
                     };
                 }
 
-                let intent = data.response?.trim()?.toLowerCase() || "autre";
+                let responseText = data.response?.trim() || "autre";
 
-                // Clean up: keep only the intent word
+                // Try to parse as JSON first (for complex analysis outputs)
+                try {
+                    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        const parsed = JSON.parse(jsonMatch[0]);
+                        // Store all JSON fields in context
+                        Object.keys(parsed).forEach(key => {
+                            context[key] = parsed[key];
+                        });
+                        
+                        // Also store in data for condition nodes
+                        return {
+                            success: true,
+                            waitDelay: 1000,
+                            message: `Analyse: ${JSON.stringify(parsed)}`,
+                            data: parsed
+                        };
+                    }
+                } catch (e) {
+                    // Not JSON, continue with simple intent classification
+                }
+
+                // Simple intent classification (fallback)
+                let intent = responseText.toLowerCase();
                 intent = intent.split(/[\s,.!?]/)[0].replace(/[^a-z_]/g, "");
                 if (!intent || intent.length > 25) intent = "autre";
 
@@ -301,6 +328,221 @@ RÈGLES STRICTES:
             }
         }
 
+        case 'ai_agent': {
+            // Agent IA autonome avec outils et mémoire
+            const {
+                agentName = "Mon Agent",
+                instructions = "Tu es un assistant utile.",
+                systemPrompt,
+                model = "gpt-4o",
+                reasoningEffort = "low",
+                includeChatHistory = true,
+                outputFormat = "text",
+                verbosity = "medium",
+                continueOnError = false,
+                writeToConversationHistory = true,
+            } = config;
+
+            const userMessage = context.lastUserMessage;
+            const agentInstructions = instructions || systemPrompt || 'Tu es un assistant utile.';
+
+            console.log(`🤖 Agent IA "${agentName}" en cours d'exécution...`);
+
+            try {
+                // Construire l'historique de conversation si activé
+                let conversationHistory: Array<{ role: string; content: string }> = [];
+                
+                if (includeChatHistory && context.messages && Array.isArray(context.messages)) {
+                    // Convertir l'historique des messages en format OpenAI
+                    conversationHistory = context.messages
+                        .slice(-10) // Limiter à 10 derniers messages pour éviter les tokens excessifs
+                        .map((msg: any) => ({
+                            role: msg.sender === 'bot' ? 'assistant' : 'user',
+                            content: msg.text || msg.content || ''
+                        }))
+                        .filter((msg: any) => msg.content.trim().length > 0);
+                }
+
+                // Construire le prompt système avec les instructions de l'agent
+                let systemMessage = agentInstructions;
+
+                // Ajouter des instructions selon le format de sortie
+                if (outputFormat === "json") {
+                    systemMessage += "\n\nIMPORTANT: Tu dois répondre UNIQUEMENT en JSON valide. Pas de texte avant ou après.";
+                } else if (outputFormat === "markdown") {
+                    systemMessage += "\n\nTu peux utiliser le formatage Markdown pour structurer ta réponse.";
+                }
+
+                // Ajouter des instructions selon la verbosité
+                if (verbosity === "low") {
+                    systemMessage += "\n\nSois concis et direct. Réponses courtes (1-2 phrases max).";
+                } else if (verbosity === "high") {
+                    systemMessage += "\n\nTu peux être détaillé et fournir des explications complètes.";
+                }
+
+                // Construire les messages pour l'API
+                const messages: Array<{ role: string; content: string }> = [
+                    { role: 'system', content: systemMessage }
+                ];
+
+                // Ajouter l'historique si disponible
+                if (conversationHistory.length > 0) {
+                    messages.push(...conversationHistory);
+                }
+
+                // Ajouter le message actuel de l'utilisateur
+                messages.push({ role: 'user', content: userMessage });
+
+                // Préparer les paramètres selon le modèle
+                const requestBody: any = {
+                    model: model,
+                    messages: messages,
+                };
+
+                // Pour les modèles o1, utiliser reasoning_effort (pas de température)
+                if (model.includes('o1') || model.includes('o3')) {
+                    requestBody.reasoning_effort = reasoningEffort === "high" ? "high" : reasoningEffort === "medium" ? "medium" : "low";
+                } else {
+                    // Pour les autres modèles GPT, utiliser la température
+                    requestBody.temperature = reasoningEffort === "high" ? 0.9 : reasoningEffort === "medium" ? 0.7 : 0.3;
+                }
+
+                // Préparer le body de la requête
+                const requestPayload: any = {
+                    message: userMessage,
+                    systemPrompt: systemMessage,
+                    model: model,
+                    messages: messages,
+                };
+
+                // Ajouter les paramètres selon le type de modèle
+                if (model.includes('o1') || model.includes('o3')) {
+                    // Modèles o1 : utiliser reasoning_effort, pas de température
+                    requestPayload.reasoningEffort = requestBody.reasoning_effort;
+                } else {
+                    // Autres modèles GPT : utiliser température
+                    requestPayload.temperature = requestBody.temperature;
+                }
+
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestPayload)
+                });
+
+                // Gérer les erreurs selon la configuration
+                if (!response.ok) {
+                    const errorMsg = `Erreur API: ${response.status} ${response.statusText}`;
+                    console.warn(`[ai_agent] ${errorMsg}`);
+
+                    if (continueOnError) {
+                        const fallbackResponse = generateFallbackResponse(context.intent, userMessage);
+                        if (writeToConversationHistory) {
+                            context.addMessage({ sender: 'bot', text: fallbackResponse });
+                        }
+                        return {
+                            success: true,
+                            waitDelay: 1000,
+                            message: `Agent (fallback): ${fallbackResponse.slice(0, 50)}...`
+                        };
+                    } else {
+                        return {
+                            success: false,
+                            waitDelay: 0,
+                            message: errorMsg
+                        };
+                    }
+                }
+
+                const data = await response.json();
+
+                if (!data.success && data.error) {
+                    const errorMsg = `Erreur: ${data.error}`;
+                    console.warn(`[ai_agent] ${errorMsg}`);
+
+                    if (continueOnError) {
+                        const fallbackResponse = generateFallbackResponse(context.intent, userMessage);
+                        if (writeToConversationHistory) {
+                            context.addMessage({ sender: 'bot', text: fallbackResponse });
+                        }
+                        return {
+                            success: true,
+                            waitDelay: 1000,
+                            message: `Agent (fallback): ${fallbackResponse.slice(0, 50)}...`
+                        };
+                    } else {
+                        return {
+                            success: false,
+                            waitDelay: 0,
+                            message: errorMsg
+                        };
+                    }
+                }
+
+                let aiResponse = data.response || "Je n'ai pas pu générer de réponse.";
+
+                // Valider le format JSON si requis
+                if (outputFormat === "json") {
+                    try {
+                        JSON.parse(aiResponse);
+                    } catch (e) {
+                        // Si ce n'est pas du JSON valide, essayer d'extraire du JSON
+                        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            aiResponse = jsonMatch[0];
+                        } else {
+                            aiResponse = JSON.stringify({ response: aiResponse });
+                        }
+                    }
+                }
+
+                // Ajouter le message à l'historique si configuré
+                if (writeToConversationHistory) {
+                    context.addMessage({
+                        sender: 'bot',
+                        text: aiResponse,
+                    });
+                }
+
+                // Stocker la réponse dans le contexte pour utilisation ultérieure
+                context.aiAgentResponse = aiResponse;
+                context.lastAgentName = agentName;
+
+                return {
+                    success: true,
+                    waitDelay: 2000,
+                    message: `Agent "${agentName}" a répondu: ${aiResponse.slice(0, 50)}...`,
+                    data: { 
+                        aiResponse,
+                        agentName,
+                        outputFormat,
+                        usedHistory: includeChatHistory && conversationHistory.length > 0
+                    }
+                };
+            } catch (error: any) {
+                const errorMsg = `Erreur: ${error.message}`;
+                console.error(`[ai_agent] ${errorMsg}`, error);
+
+                if (continueOnError) {
+                    const fallbackResponse = generateFallbackResponse(context.intent, userMessage);
+                    if (writeToConversationHistory) {
+                        context.addMessage({ sender: 'bot', text: fallbackResponse });
+                    }
+                    return {
+                        success: true,
+                        waitDelay: 1000,
+                        message: `Agent (fallback): ${fallbackResponse.slice(0, 50)}...`
+                    };
+                } else {
+                    return {
+                        success: false,
+                        waitDelay: 0,
+                        message: errorMsg
+                    };
+                }
+            }
+        }
+
         case 'show_catalog': {
             const { selectedProducts } = config;
             const products = context.products.filter(p =>
@@ -348,22 +590,74 @@ RÈGLES STRICTES:
         }
 
         case 'condition': {
-            const { field, operator, value } = config;
-            const testValue = context[field] || context.lastUserMessage;
+            const { field, operator, value, condition } = config;
+            
+            // Support both 'field' and 'condition' for backward compatibility
+            const fieldName = field || condition;
+            
+            // Try to get value from context, supporting nested paths like "previous.output.autoResolvable"
+            let testValue: any = undefined;
+            
+            if (fieldName) {
+                // Direct field access
+                if (context[fieldName] !== undefined) {
+                    testValue = context[fieldName];
+                } else if (fieldName.includes('.')) {
+                    // Nested path like "previous.output.autoResolvable"
+                    const parts = fieldName.split('.');
+                    let current: any = context;
+                    for (const part of parts) {
+                        if (current && typeof current === 'object' && part in current) {
+                            current = current[part];
+                        } else {
+                            current = undefined;
+                            break;
+                        }
+                    }
+                    testValue = current;
+                }
+            }
+            
+            // Fallback to last user message if no field found
+            if (testValue === undefined) {
+                testValue = context.lastUserMessage || "";
+            }
 
             let passed = false;
             const v1 = String(testValue).toLowerCase();
-            const v2 = String(value).toLowerCase();
+            const v2 = String(value || "").toLowerCase();
 
             switch (operator) {
                 case 'contains':
                     passed = v1.includes(v2);
                     break;
                 case 'equals':
+                case '==':
                     passed = v1 === v2;
                     break;
+                case 'not_equals':
+                case '!=':
+                    passed = v1 !== v2;
+                    break;
                 case 'starts':
+                case 'starts_with':
                     passed = v1.startsWith(v2);
+                    break;
+                case 'greater_than':
+                case '>':
+                    passed = Number(testValue) > Number(value);
+                    break;
+                case 'greater_than_or_equal':
+                case '>=':
+                    passed = Number(testValue) >= Number(value);
+                    break;
+                case 'less_than':
+                case '<':
+                    passed = Number(testValue) < Number(value);
+                    break;
+                case 'less_than_or_equal':
+                case '<=':
+                    passed = Number(testValue) <= Number(value);
                     break;
                 default:
                     passed = true;
@@ -372,7 +666,7 @@ RÈGLES STRICTES:
             return {
                 success: true,
                 waitDelay: 500,
-                message: `Condition ${passed ? 'VRAIE ✅' : 'FAUSSE ❌'}`,
+                message: `Condition ${passed ? 'VRAIE ✅' : 'FAUSSE ❌'} (${fieldName}: ${testValue} ${operator} ${value})`,
                 data: { conditionPassed: passed }
             };
         }
@@ -443,12 +737,13 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
                 if (!data.success || !data.response) {
                     const local = analyzeLocally(userMessage);
                     context.sentimentScore = local.score;
+                    context.satisfaction = local.score; // Also store as satisfaction for condition nodes
                     context.emotion = local.emotion;
                     return {
                         success: true,
                         waitDelay: 1000,
                         message: `Sentiment (local): ${local.score}/100 - ${local.emotion}`,
-                        data: local
+                        data: { ...local, satisfaction: local.score }
                     };
                 }
 
@@ -459,16 +754,18 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
                 } catch (e) {
                     const local = analyzeLocally(userMessage);
                     context.sentimentScore = local.score;
+                    context.satisfaction = local.score; // Also store as satisfaction for condition nodes
                     context.emotion = local.emotion;
                     return {
                         success: true,
                         waitDelay: 1000,
                         message: `Sentiment (local): ${local.score}/100 - ${local.emotion}`,
-                        data: local
+                        data: { ...local, satisfaction: local.score }
                     };
                 }
 
                 context.sentimentScore = result.score;
+                context.satisfaction = result.score; // Also store as satisfaction for condition nodes
                 context.emotion = result.emotion;
 
                 // Send analysis as bot message if configured
@@ -478,17 +775,18 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
                     success: true,
                     waitDelay: 1500,
                     message: `Sentiment: ${result.score}/100 ${emoji} - ${result.emotion}`,
-                    data: result
+                    data: { ...result, satisfaction: result.score }
                 };
             } catch (error: any) {
                 const local = analyzeLocally(userMessage);
                 context.sentimentScore = local.score;
+                context.satisfaction = local.score; // Also store as satisfaction for condition nodes
                 context.emotion = local.emotion;
                 return {
                     success: true,
                     waitDelay: 1000,
                     message: `Sentiment (local): ${local.score}/100 - ${local.emotion}`,
-                    data: local
+                    data: { ...local, satisfaction: local.score }
                 };
             }
         }
@@ -826,25 +1124,186 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
         }
 
         case 'add_to_cart': {
-            const { productId, quantity } = config;
+            // Détecte et ajoute un produit au panier
+            const { productId, quantity = 1, productName, price } = config;
+            const userMessage = context.lastUserMessage.toLowerCase();
+            
+            // Si productId n'est pas fourni, essayer de détecter depuis le message
+            let detectedProductId = productId;
+            if (!detectedProductId) {
+                // Chercher dans les produits disponibles
+                const matchingProduct = context.products?.find((p: any) => 
+                    userMessage.includes(p.name.toLowerCase()) || 
+                    userMessage.includes(p.id.toString())
+                );
+                if (matchingProduct) {
+                    detectedProductId = matchingProduct.id;
+                }
+            }
+
+            // Initialiser le panier si nécessaire
+            if (!context.cart) {
+                context.cart = [];
+            }
+
+            // Trouver le produit dans la liste
+            const product = context.products?.find((p: any) => p.id === detectedProductId);
+            
+            if (!product && !detectedProductId) {
+                context.addMessage({
+                    sender: 'bot',
+                    text: `❌ *Produit non trouvé*\n\nJe n'ai pas pu identifier le produit à ajouter. Pouvez-vous préciser ?`,
+                });
+                return {
+                    success: false,
+                    waitDelay: 500,
+                    message: `Produit non trouvé`
+                };
+            }
+
+            const productToAdd = product || { 
+                id: detectedProductId, 
+                name: productName || `Produit ${detectedProductId}`, 
+                price: price || 0 
+            };
+
+            // Vérifier si le produit est déjà dans le panier
+            const existingItem = context.cart.find((item: any) => item.id === productToAdd.id);
+            if (existingItem) {
+                existingItem.quantity = (existingItem.quantity || 1) + quantity;
+            } else {
+                context.cart.push({
+                    id: productToAdd.id,
+                    name: productToAdd.name,
+                    price: productToAdd.price,
+                    quantity: quantity
+                });
+            }
+
+            const finalQuantity = existingItem ? existingItem.quantity : quantity;
+            context.addMessage({
+                sender: 'bot',
+                text: `✅ *Ajouté au panier*\n\n*${productToAdd.name}* x${finalQuantity}\n${productToAdd.price * finalQuantity} ${context.currency}`,
+            });
+
             return {
                 success: true,
-                waitDelay: 500,
-                message: `Produit ${productId} ajouté au panier (x${quantity || 1})`,
-                data: { cartUpdated: true }
+                waitDelay: 800,
+                message: `Produit ${productToAdd.name} ajouté au panier (x${finalQuantity})`,
+                data: { cartUpdated: true, cartItems: context.cart.length }
             };
         }
 
         case 'checkout': {
-            const { gateway, currency } = config;
+            // Finalise la commande et envoie le paiement
+            const { gateway, currency, paymentUrl, successUrl, failureUrl, apiKey, testMode } = config;
+            const cart = context.cart || [];
+            
+            if (cart.length === 0) {
+                context.addMessage({
+                    sender: 'bot',
+                    text: `❌ *Panier vide*\n\nVotre panier est vide. Ajoutez des produits avant de passer commande.`,
+                });
+                return {
+                    success: false,
+                    waitDelay: 500,
+                    message: `Checkout échoué - panier vide`
+                };
+            }
+
+            // Calculer le total
+            let subtotal = 0;
+            cart.forEach((item: any) => {
+                subtotal += (item.price || 0) * (item.quantity || 1);
+            });
+            const discount = context.discountApplied || 0;
+            const total = Math.max(0, subtotal - discount);
+
+            // Générer un ID de commande
+            const orderId = `CMD-${Date.now()}`;
+            context.orderId = orderId;
+            context.orderTotal = total;
+
+            // Construire l'URL de paiement
+            let finalPaymentUrl = paymentUrl;
+            if (!finalPaymentUrl) {
+                if (gateway === 'moneroo' && apiKey) {
+                    // URL Moneroo avec paramètres
+                    const params = new URLSearchParams({
+                        order: orderId,
+                        amount: total.toString(),
+                        currency: currency || context.currency || 'XOF',
+                        ...(successUrl && { success_url: successUrl }),
+                        ...(failureUrl && { failure_url: failureUrl }),
+                        ...(testMode && { test: 'true' })
+                    });
+                    finalPaymentUrl = `https://moneroo.com/checkout?${params.toString()}`;
+                } else {
+                    // URL générique
+                    finalPaymentUrl = `https://pay.example.com/checkout?order=${orderId}&amount=${total}&currency=${currency || context.currency || 'XOF'}`;
+                }
+            }
+
+            // Construire le message de checkout
+            let checkoutText = `💳 *Finalisation de la commande*\n\n`;
+            checkoutText += `*Commande #${orderId}*\n\n`;
+            cart.forEach((item: any, i: number) => {
+                checkoutText += `${i + 1}. ${item.name} x${item.quantity}\n`;
+                checkoutText += `   ${(item.price * item.quantity)} ${currency || context.currency}\n\n`;
+            });
+            checkoutText += `━━━━━━━━━━━━━━━━\n`;
+            if (discount > 0) {
+                checkoutText += `Sous-total: ${subtotal} ${currency || context.currency}\n`;
+                checkoutText += `Réduction: -${discount} ${currency || context.currency}\n`;
+            }
+            checkoutText += `*Total: ${total} ${currency || context.currency}*\n\n`;
+            checkoutText += `🔗 Lien de paiement sécurisé:\n${finalPaymentUrl}`;
+            if (testMode) {
+                checkoutText += `\n\n⚠️ *Mode test activé*`;
+            }
+
             context.addMessage({
                 sender: 'bot',
-                text: `💳 Lien de paiement ${gateway || 'sécurisé'}:\nhttps://pay.example.com/checkout`,
+                text: checkoutText,
             });
+
+            return {
+                success: true,
+                waitDelay: 1500,
+                message: `Checkout initié - Commande ${orderId} (${total} ${currency || context.currency})`,
+                data: { orderId, total, cartItems: cart.length, paymentUrl: finalPaymentUrl, gateway, testMode }
+            };
+        }
+
+        case 'show_cart': {
+            // Affiche le contenu du panier actuel
+            const cart = context.cart || [];
+            if (cart.length === 0) {
+                context.addMessage({
+                    sender: 'bot',
+                    text: `🛒 *Votre panier est vide*\n\nAjoutez des produits pour commencer vos achats !`,
+                });
+            } else {
+                let cartText = `🛒 *Votre Panier*\n\n`;
+                let total = 0;
+                cart.forEach((item: any, i: number) => {
+                    const itemTotal = (item.price || 0) * (item.quantity || 1);
+                    total += itemTotal;
+                    cartText += `${i + 1}. *${item.name || 'Produit'}* x${item.quantity || 1}\n`;
+                    cartText += `   ${itemTotal} ${context.currency}\n\n`;
+                });
+                cartText += `━━━━━━━━━━━━━━━━\n*Total: ${total} ${context.currency}*`;
+                
+                context.addMessage({
+                    sender: 'bot',
+                    text: cartText,
+                });
+            }
             return {
                 success: true,
                 waitDelay: 1000,
-                message: `Checkout initié (${gateway}, ${currency})`
+                message: `Panier affiché (${cart.length || 0} articles)`,
+                data: { cartItems: cart.length || 0 }
             };
         }
 
@@ -858,6 +1317,55 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
                 success: true,
                 waitDelay: 800,
                 message: `Statut commande ${orderId} affiché`
+            };
+        }
+
+        case 'apply_promo': {
+            // Applique un code promo au panier
+            const { promoCode, discountType, discountValue } = config;
+            const cart = context.cart || [];
+            
+            if (cart.length === 0) {
+                context.addMessage({
+                    sender: 'bot',
+                    text: `❌ *Panier vide*\n\nVotre panier est vide. Ajoutez des produits avant d'appliquer un code promo.`,
+                });
+                return {
+                    success: false,
+                    waitDelay: 500,
+                    message: `Code promo non appliqué - panier vide`
+                };
+            }
+
+            // Calculer le total actuel
+            let total = 0;
+            cart.forEach((item: any) => {
+                total += (item.price || 0) * (item.quantity || 1);
+            });
+
+            // Appliquer la réduction
+            let discount = 0;
+            if (discountType === 'percentage') {
+                discount = total * ((discountValue || 0) / 100);
+            } else if (discountType === 'fixed') {
+                discount = discountValue || 0;
+            }
+
+            const finalTotal = Math.max(0, total - discount);
+            context.cartTotal = finalTotal;
+            context.promoCode = promoCode;
+            context.discountApplied = discount;
+
+            context.addMessage({
+                sender: 'bot',
+                text: `🎉 *Code promo appliqué !*\n\nCode: *${promoCode || 'PROMO'}*\nRéduction: ${discount} ${context.currency}\n\n*Total avant:* ${total} ${context.currency}\n*Total après:* ${finalTotal} ${context.currency}`,
+            });
+
+            return {
+                success: true,
+                waitDelay: 1000,
+                message: `Code promo ${promoCode} appliqué (réduction: ${discount} ${context.currency})`,
+                data: { discount, finalTotal, promoCode }
             };
         }
 
@@ -1277,6 +1785,234 @@ Score: 0 = sûr, 100 = très problématique. Réponds UNIQUEMENT en JSON.`,
                 waitDelay: 3000,
                 message: `Vidéo générée: "${videoPrompt.slice(0, 30)}..."`,
                 data: { prompt: videoPrompt, duration: duration || 5 }
+            };
+        }
+
+        case 'ai_edit_image': {
+            // Édition d'image avec DALL-E
+            const { prompt, size } = config;
+            const editPrompt = prompt || context.lastUserMessage;
+            const imageToEdit = config.imageUrl || context.lastImageUrl;
+            console.log(`✏️ Édition d'image DALL-E...`);
+
+            if (!imageToEdit) {
+                return {
+                    success: false,
+                    waitDelay: 300,
+                    message: `Aucune image à éditer`
+                };
+            }
+
+            context.addMessage({
+                sender: 'bot',
+                text: `✏️ *Modification de l'image en cours...*\n_"${editPrompt.slice(0, 50)}..."_`,
+            });
+
+            return {
+                success: true,
+                waitDelay: 2500,
+                message: `Image éditée: "${editPrompt.slice(0, 30)}..."`,
+                data: { prompt: editPrompt, size: size || '1024x1024', originalImage: imageToEdit }
+            };
+        }
+
+        case 'ai_translate_audio': {
+            // Traduction d'audio avec Whisper + GPT
+            const { targetLanguage, format } = config;
+            const audioUrl = config.audioUrl || context.lastAudioUrl;
+            console.log(`🌍 Traduction audio...`);
+
+            if (!audioUrl) {
+                return {
+                    success: false,
+                    waitDelay: 300,
+                    message: `Aucun audio à traduire`
+                };
+            }
+
+            // Simulé - en production: transcrire avec Whisper puis traduire avec GPT
+            const simulatedTranslation = `[Traduction en ${targetLanguage || 'fr'}] Ceci est une traduction simulée de l'audio.`;
+
+            context.translatedAudio = simulatedTranslation;
+            context.lastUserMessage = simulatedTranslation;
+
+            context.addMessage({
+                sender: 'bot',
+                text: `🌍 *Audio traduit en ${targetLanguage || 'fr'}*\n_"${simulatedTranslation.slice(0, 50)}..."_`,
+            });
+
+            return {
+                success: true,
+                waitDelay: 2000,
+                message: `Audio traduit en ${targetLanguage || 'fr'}`,
+                data: { translation: simulatedTranslation, targetLanguage, format: format || 'text' }
+            };
+        }
+
+        case 'ai_delete_file': {
+            // Suppression de fichier via OpenAI API
+            const { fileId } = config;
+            console.log(`🗑️ Suppression fichier: ${fileId}...`);
+
+            if (!fileId) {
+                return {
+                    success: false,
+                    waitDelay: 300,
+                    message: `ID de fichier manquant`
+                };
+            }
+
+            // Simulé - en production, appeler l'API OpenAI pour supprimer le fichier
+            return {
+                success: true,
+                waitDelay: 500,
+                message: `Fichier ${fileId} supprimé`,
+                data: { fileId }
+            };
+        }
+
+        case 'ai_list_files': {
+            // Liste des fichiers via OpenAI API
+            const { purpose } = config;
+            console.log(`📋 Liste fichiers (purpose: ${purpose || 'all'})...`);
+
+            // Simulé - en production, appeler l'API OpenAI pour lister les fichiers
+            const simulatedFiles = [
+                { id: 'file-1', name: 'document.pdf', purpose: 'assistants' },
+                { id: 'file-2', name: 'data.json', purpose: 'fine-tune' }
+            ];
+
+            context.filesList = simulatedFiles;
+
+            return {
+                success: true,
+                waitDelay: 800,
+                message: `${simulatedFiles.length} fichiers trouvés`,
+                data: { files: simulatedFiles, purpose: purpose || 'all' }
+            };
+        }
+
+        case 'ai_upload_file': {
+            // Téléversement de fichier vers OpenAI
+            const { fileUrl, purpose } = config;
+            console.log(`📤 Téléversement fichier: ${fileUrl}...`);
+
+            if (!fileUrl) {
+                return {
+                    success: false,
+                    waitDelay: 300,
+                    message: `URL de fichier manquante`
+                };
+            }
+
+            // Simulé - en production, téléverser le fichier via l'API OpenAI
+            const simulatedFileId = `file-${Date.now()}`;
+
+            context.uploadedFileId = simulatedFileId;
+
+            context.addMessage({
+                sender: 'bot',
+                text: `📤 *Fichier téléversé*\n_ID: ${simulatedFileId}_`,
+            });
+
+            return {
+                success: true,
+                waitDelay: 1500,
+                message: `Fichier téléversé: ${simulatedFileId}`,
+                data: { fileId: simulatedFileId, fileUrl, purpose: purpose || 'assistants' }
+            };
+        }
+
+        case 'ai_create_conversation': {
+            // Création d'une conversation
+            const { name } = config;
+            console.log(`💬 Création conversation: ${name || 'Sans nom'}...`);
+
+            const conversationId = `conv_${Date.now()}`;
+            context.conversationId = conversationId;
+
+            return {
+                success: true,
+                waitDelay: 500,
+                message: `Conversation créée: ${conversationId}`,
+                data: { conversationId, name: name || '' }
+            };
+        }
+
+        case 'ai_get_conversation': {
+            // Récupération d'une conversation
+            const { conversationId } = config;
+            console.log(`📥 Récupération conversation: ${conversationId}...`);
+
+            if (!conversationId) {
+                return {
+                    success: false,
+                    waitDelay: 300,
+                    message: `ID de conversation manquant`
+                };
+            }
+
+            // Simulé - en production, récupérer la conversation via l'API
+            context.conversationId = conversationId;
+            context.conversationData = {
+                id: conversationId,
+                messages: context.messages || []
+            };
+
+            return {
+                success: true,
+                waitDelay: 600,
+                message: `Conversation récupérée: ${conversationId}`,
+                data: { conversationId, messages: context.messages || [] }
+            };
+        }
+
+        case 'ai_remove_conversation': {
+            // Suppression d'une conversation
+            const { conversationId } = config;
+            console.log(`🗑️ Suppression conversation: ${conversationId}...`);
+
+            if (!conversationId) {
+                return {
+                    success: false,
+                    waitDelay: 300,
+                    message: `ID de conversation manquant`
+                };
+            }
+
+            // Simulé - en production, supprimer la conversation via l'API
+            return {
+                success: true,
+                waitDelay: 500,
+                message: `Conversation supprimée: ${conversationId}`,
+                data: { conversationId }
+            };
+        }
+
+        case 'ai_update_conversation': {
+            // Mise à jour d'une conversation
+            const { conversationId, name } = config;
+            console.log(`✏️ Mise à jour conversation: ${conversationId}...`);
+
+            if (!conversationId) {
+                return {
+                    success: false,
+                    waitDelay: 300,
+                    message: `ID de conversation manquant`
+                };
+            }
+
+            // Simulé - en production, mettre à jour la conversation via l'API
+            context.conversationId = conversationId;
+            if (name) {
+                context.conversationName = name;
+            }
+
+            return {
+                success: true,
+                waitDelay: 600,
+                message: `Conversation mise à jour: ${conversationId}`,
+                data: { conversationId, name: name || '' }
             };
         }
 
