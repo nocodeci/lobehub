@@ -64,7 +64,7 @@ import {
   UserX,
   Search,
   UserSearch,
-  Map,
+  Map as MapIcon,
   Link2,
   Filter,
   Flame,
@@ -84,16 +84,33 @@ import {
   Smartphone,
   QrCode,
   Mic,
+  Copy,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { WhatsAppSimulator } from "@/components/dashboard/WhatsAppSimulator";
+import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 import PhoneInput, {
   getCountryCallingCode,
   Country,
 } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import en from "react-phone-number-input/locale/en";
+
+import ReactFlow, {
+  Background,
+  Controls,
+  MiniMap,
+  ReactFlowProvider,
+  useReactFlow,
+  Handle,
+  Position,
+  type Node as RFNode,
+  type Edge as RFEdge,
+  type NodeProps as RFNodeProps,
+  type Connection,
+} from "@xyflow/react";
 
 // Labels personnalisés avec préfixes téléphoniques
 const customLabels: Record<string, string> = {
@@ -595,6 +612,23 @@ const workflowTemplates = [
   },
 ];
 
+type LogLevel = "success" | "error" | "warning" | "skipped" | "info";
+
+type ExecutionLogEntry = {
+  ts: number;
+  line: string;
+};
+
+const getLogLevel = (line: string): LogLevel => {
+  if (line.includes("[SUCCESS]")) return "success";
+  if (line.includes("[ERROR]")) return "error";
+  if (line.includes("[WARNING]")) return "warning";
+  if (line.includes("[SKIPPED]")) return "skipped";
+  return "info";
+};
+
+const stripLogPrefix = (line: string) => line.replace(/\[.*?\]\s*/, "");
+
 // Catégories de nœuds pour les automatisations
 const nodeCategories = [
   {
@@ -1005,7 +1039,7 @@ const nodeCategories = [
       {
         id: "google_maps_extract",
         name: "Leads Google Maps",
-        icon: Map,
+        icon: MapIcon,
         description: "Extrait des contacts pros depuis Google Maps",
       },
       {
@@ -1146,6 +1180,282 @@ type WorkflowNode = {
   connectedTo?: number;
 };
 
+type FlowNodeData = {
+  workflowNode: WorkflowNode;
+  nodeInfo: any;
+  isWhatsAppConnected: boolean;
+  onOpenSettings: (id: number) => void;
+  onDelete: (id: number) => void;
+};
+
+function WorkflowFlowNode({ data, selected }: RFNodeProps<RFNode<FlowNodeData>>) {
+  const info = data.nodeInfo;
+  const Icon = info?.icon;
+
+  return (
+    <div
+      className={cn(
+        "group rounded-2xl border shadow-xl backdrop-blur-xl bg-[#171717]",
+        selected ? "border-primary/60" : "border-white/10",
+      )}
+      onDoubleClick={() => data.onOpenSettings(data.workflowNode.id)}
+    >
+      <Handle type="target" position={Position.Left} className="!bg-white/40" />
+      <Handle type="source" position={Position.Right} className="!bg-white/40" />
+
+      <div className="flex items-center gap-2 px-3 py-2">
+        <div className="h-8 w-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+          {Icon ? <Icon className="h-4 w-4 text-white/80" /> : null}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] font-bold text-white/90 truncate">
+            {data.workflowNode.name}
+          </div>
+          <div className="text-[9px] text-white/40 truncate">
+            {data.workflowNode.type}
+          </div>
+        </div>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            data.onOpenSettings(data.workflowNode.id);
+          }}
+          className="h-8 w-8 rounded-xl hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+          title="Configurer"
+        >
+          <Settings className="h-4 w-4" />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            data.onDelete(data.workflowNode.id);
+          }}
+          className="h-8 w-8 rounded-xl hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+          title="Supprimer"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function WorkflowReactFlowCanvas({
+  workflowNodes,
+  setWorkflowNodes,
+  setSelectedNodeIds,
+  setRightPanelTab,
+  setIsRightPanelOpen,
+  isWhatsAppConnected,
+  getNodeInfo,
+  addNodeAtPosition,
+}: {
+  workflowNodes: WorkflowNode[];
+  setWorkflowNodes: React.Dispatch<React.SetStateAction<WorkflowNode[]>>;
+  setSelectedNodeIds: React.Dispatch<React.SetStateAction<Set<number>>>;
+  setRightPanelTab: React.Dispatch<React.SetStateAction<"inspect" | "simulate" | "logs">>;
+  setIsRightPanelOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  isWhatsAppConnected: boolean;
+  getNodeInfo: (type: string) => any;
+  addNodeAtPosition: (type: string, name: string, x: number, y: number) => void;
+}) {
+  const {
+    fitView,
+    zoomIn,
+    zoomOut,
+    getZoom,
+    screenToFlowPosition,
+  } = useReactFlow();
+
+  const [flowZoom, setFlowZoom] = useState(() => getZoom());
+
+  const rfNodes: RFNode<FlowNodeData>[] = React.useMemo(() => {
+    return workflowNodes.map((n) => ({
+      id: String(n.id),
+      type: "workflow",
+      position: { x: n.x, y: n.y },
+      data: {
+        workflowNode: n,
+        nodeInfo: getNodeInfo(n.type),
+        isWhatsAppConnected,
+        onOpenSettings: (id) => {
+          setSelectedNodeIds(new Set([id]));
+          setRightPanelTab("inspect");
+          setIsRightPanelOpen(true);
+        },
+        onDelete: (id) => {
+          setWorkflowNodes((prev) => prev.filter((x) => x.id !== id));
+          setSelectedNodeIds((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+        },
+      },
+    }));
+  }, [
+    workflowNodes,
+    getNodeInfo,
+    isWhatsAppConnected,
+    setIsRightPanelOpen,
+    setRightPanelTab,
+    setSelectedNodeIds,
+    setWorkflowNodes,
+  ]);
+
+  const rfEdges: RFEdge[] = React.useMemo(() => {
+    const edges: RFEdge[] = [];
+    for (let i = 0; i < workflowNodes.length; i++) {
+      const node = workflowNodes[i];
+      if (node.connectedTo === -1) continue;
+
+      let target: WorkflowNode | undefined;
+      if (node.connectedTo !== undefined && node.connectedTo !== -1) {
+        target = workflowNodes.find((n) => n.id === node.connectedTo);
+      } else if (i < workflowNodes.length - 1) {
+        target = workflowNodes[i + 1];
+      }
+      if (!target) continue;
+
+      edges.push({
+        id: `e-${node.id}-${target.id}`,
+        source: String(node.id),
+        target: String(target.id),
+        type: "smoothstep",
+        style: { stroke: "#87a9ff", strokeWidth: 2, opacity: 0.45 },
+      });
+    }
+    return edges;
+  }, [workflowNodes]);
+
+  const nodeTypes = React.useMemo(() => ({ workflow: WorkflowFlowNode }), []);
+
+  const handleNodesChange = (changes: any[]) => {
+    const positionChanges = changes.filter((c) => c.type === "position" && c.position);
+    if (positionChanges.length === 0) return;
+
+    setWorkflowNodes((prev) => {
+      const byId = new Map(prev.map((n) => [String(n.id), n] as const));
+      positionChanges.forEach((c) => {
+        const existing = byId.get(c.id);
+        if (!existing) return;
+        byId.set(c.id, { ...existing, x: c.position.x, y: c.position.y });
+      });
+      return Array.from(byId.values());
+    });
+  };
+
+  const handleSelectionChange = (selection: { nodes: Array<{ id: string }> }) => {
+    const next = new Set<number>();
+    selection.nodes.forEach((n) => {
+      const parsed = Number(n.id);
+      if (!Number.isNaN(parsed)) next.add(parsed);
+    });
+    setSelectedNodeIds(next);
+  };
+
+  const handleConnect = (connection: Connection) => {
+    if (!connection.source || !connection.target) return;
+    const sourceId = Number(connection.source);
+    const targetId = Number(connection.target);
+    if (Number.isNaN(sourceId) || Number.isNaN(targetId)) return;
+
+    setWorkflowNodes((prev) =>
+      prev.map((n) => (n.id === sourceId ? { ...n, connectedTo: targetId } : n)),
+    );
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const nodeType = e.dataTransfer.getData("nodeType");
+    const nodeName = e.dataTransfer.getData("nodeName");
+    if (!nodeType) return;
+
+    const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+    addNodeAtPosition(nodeType, nodeName, position.x, position.y);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  return (
+    <div className="relative w-full h-full">
+      <div className="sticky top-4 left-4 z-50 flex items-center gap-2 w-fit">
+        <div className="flex items-center gap-1 bg-[#171717] rounded-xl border border-white/10 p-1 shadow-xl">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              zoomOut();
+            }}
+            className="h-8 w-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+            title="Dézoomer"
+          >
+            <ZoomOut className="h-4 w-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              fitView({ padding: 0.2, duration: 300 });
+            }}
+            className="h-8 px-2 rounded-lg hover:bg-white/10 flex items-center justify-center text-xs font-bold text-muted-foreground hover:text-white transition-colors min-w-[48px]"
+            title="Réinitialiser / overview"
+          >
+            {Math.round(flowZoom * 100)}%
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              zoomIn();
+            }}
+            className="h-8 w-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+            title="Zoomer"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </button>
+          <div className="w-px h-6 bg-white/10 mx-1" />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              fitView({ padding: 0.2, duration: 300 });
+            }}
+            className="h-8 w-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+            title="Vue d'overview"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      <ReactFlow
+        nodes={rfNodes}
+        edges={rfEdges}
+        nodeTypes={nodeTypes}
+        onNodesChange={handleNodesChange}
+        onSelectionChange={handleSelectionChange}
+        onConnect={handleConnect}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onMove={() => setFlowZoom(getZoom())}
+        fitView
+        deleteKeyCode={null}
+        proOptions={{ hideAttribution: true }}
+      >
+        <Background gap={32} size={1} color="rgba(255,255,255,0.08)" />
+        <MiniMap
+          pannable
+          zoomable
+          nodeColor={() => "rgba(135,169,255,0.7)"}
+          maskColor="rgba(0,0,0,0.35)"
+        />
+        <Controls position="bottom-right" />
+      </ReactFlow>
+    </div>
+  );
+}
+
 // Free-form Draggable Node Component (n8n style)
 function DraggableNode({
   node,
@@ -1177,7 +1487,7 @@ function DraggableNode({
   ) => void;
   isSelected?: boolean;
   isActiveStep?: boolean;
-  executionStatus?: "success" | "error" | "warning" | "skipped";
+  executionStatus?: "success" | "error" | "warning" | "skipped" | "running";
   onSelect: (e: React.MouseEvent) => void;
   onNodeSelectOnly: (e: React.MouseEvent) => void;
   onOpenSettings: () => void;
@@ -1558,12 +1868,14 @@ function DraggableNode({
 }
 
 export default function NewWorkflowPage() {
+  const useReactFlowCanvas = true;
   const [viewMode, setViewMode] = useState<ViewMode>("templates");
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [workflowName, setWorkflowName] = useState("Mon Workflow");
   const [automationId, setAutomationId] = useState("");
   const [nodes, setNodes] = useState<Array<WorkflowNode>>([]);
-  const [executionLogs, setExecutionLogs] = useState<string[]>([]);
+  const [executionLogs, setExecutionLogs] = useState<ExecutionLogEntry[]>([]);
+  const [executionSequence, setExecutionSequence] = useState<any[]>([]);
   const [tgBotToken, setTgBotToken] = useState("");
   const [userPhoneNumber, setUserPhoneNumber] = useState("");
   const [isPhoneSubmitted, setIsPhoneSubmitted] = useState(false);
@@ -1596,7 +1908,23 @@ export default function NewWorkflowPage() {
     const savedLogs = localStorage.getItem("draft_execution_logs");
     if (savedLogs) {
       try {
-        setExecutionLogs(JSON.parse(savedLogs));
+        const parsed = JSON.parse(savedLogs);
+        if (Array.isArray(parsed)) {
+          if (parsed.length === 0) {
+            setExecutionLogs([]);
+          } else if (typeof parsed[0] === "string") {
+            setExecutionLogs(
+              (parsed as string[]).map((line) => ({ ts: Date.now(), line })),
+            );
+          } else {
+            setExecutionLogs(
+              (parsed as any[]).map((e) => ({
+                ts: typeof e?.ts === "number" ? e.ts : Date.now(),
+                line: typeof e?.line === "string" ? e.line : String(e),
+              })),
+            );
+          }
+        }
       } catch (e) {
         console.error("Failed to parse logs", e);
       }
@@ -1623,14 +1951,173 @@ export default function NewWorkflowPage() {
     localStorage.setItem("draft_execution_logs", JSON.stringify(executionLogs));
   }, [executionLogs]);
 
-  useEffect(() => {
-    if (!isLoaded.current) return;
-    localStorage.setItem("draft_tg_token", tgBotToken);
-  }, [tgBotToken]);
+  const [paletteQuery, setPaletteQuery] = useState("");
+  const [favoriteNodeTypes, setFavoriteNodeTypes] = useState<Set<string>>(
+    new Set(),
+  );
+  const [recentNodeTypes, setRecentNodeTypes] = useState<string[]>([]);
+
+  const [logQuery, setLogQuery] = useState("");
+  const [logLevelFilter, setLogLevelFilter] = useState<Set<LogLevel>>(
+    new Set(["success", "error", "warning", "skipped", "info"]),
+  );
+  const [logsAutoScroll, setLogsAutoScroll] = useState(true);
+  const logsEndRef = useRef<HTMLDivElement>(null);
 
   const [rightPanelTab, setRightPanelTab] = useState<
     "inspect" | "simulate" | "logs"
   >("simulate");
+
+  useEffect(() => {
+    try {
+      const fav = localStorage.getItem("workflow_palette_favorites");
+      if (fav) {
+        const parsed = JSON.parse(fav);
+        if (Array.isArray(parsed)) setFavoriteNodeTypes(new Set(parsed));
+      }
+      const rec = localStorage.getItem("workflow_palette_recents");
+      if (rec) {
+        const parsed = JSON.parse(rec);
+        if (Array.isArray(parsed)) setRecentNodeTypes(parsed);
+      }
+    } catch (e) {
+      console.error("Failed to load palette prefs", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "workflow_palette_favorites",
+        JSON.stringify(Array.from(favoriteNodeTypes)),
+      );
+    } catch (e) {
+      console.error("Failed to save favorites", e);
+    }
+  }, [favoriteNodeTypes]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "workflow_palette_recents",
+        JSON.stringify(recentNodeTypes),
+      );
+    } catch (e) {
+      console.error("Failed to save recents", e);
+    }
+  }, [recentNodeTypes]);
+
+  const paletteNodes = React.useMemo(() => {
+    const out: Array<{
+      id: string;
+      name: string;
+      description: string;
+      icon: any;
+      categoryId: string;
+      categoryName: string;
+    }> = [];
+
+    nodeCategories.forEach((category) => {
+      category.nodes.forEach((node) => {
+        out.push({
+          id: node.id,
+          name: node.name,
+          description: node.description,
+          icon: node.icon,
+          categoryId: category.id,
+          categoryName: category.name,
+        });
+      });
+    });
+
+    return out;
+  }, []);
+
+  const paletteNodeById = React.useMemo(() => {
+    const map = new Map<string, (typeof paletteNodes)[number]>();
+    paletteNodes.forEach((n) => map.set(n.id, n));
+    return map;
+  }, [paletteNodes]);
+
+  function pushRecent(nodeType: string) {
+    setRecentNodeTypes((prev) =>
+      [nodeType, ...prev.filter((t) => t !== nodeType)].slice(0, 8),
+    );
+  }
+
+  function toggleFavorite(nodeType: string) {
+    setFavoriteNodeTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(nodeType)) next.delete(nodeType);
+      else next.add(nodeType);
+      return next;
+    });
+  }
+
+  const paletteFilteredNodes = React.useMemo(() => {
+    const q = paletteQuery.trim().toLowerCase();
+    if (!q) return [];
+
+    return paletteNodes.filter((n) => {
+      if (n.name.toLowerCase().includes(q)) return true;
+      if (n.description.toLowerCase().includes(q)) return true;
+      if (n.categoryName.toLowerCase().includes(q)) return true;
+      return false;
+    });
+  }, [paletteNodes, paletteQuery]);
+
+  const favoritePaletteNodes = React.useMemo(() => {
+    return Array.from(favoriteNodeTypes)
+      .map((id) => paletteNodeById.get(id))
+      .filter(Boolean) as Array<(typeof paletteNodes)[number]>;
+  }, [favoriteNodeTypes, paletteNodeById, paletteNodes]);
+
+  const recentPaletteNodes = React.useMemo(() => {
+    return recentNodeTypes
+      .map((id) => paletteNodeById.get(id))
+      .filter(Boolean) as Array<(typeof paletteNodes)[number]>;
+  }, [recentNodeTypes, paletteNodeById, paletteNodes]);
+
+  const filteredLogs = React.useMemo(() => {
+    const q = logQuery.trim().toLowerCase();
+    return executionLogs.filter((entry) => {
+      const level = getLogLevel(entry.line);
+      if (!logLevelFilter.has(level)) return false;
+      if (!q) return true;
+      return stripLogPrefix(entry.line).toLowerCase().includes(q);
+    });
+  }, [executionLogs, logLevelFilter, logQuery]);
+
+  useEffect(() => {
+    if (!logsAutoScroll) return;
+    if (rightPanelTab !== "logs") return;
+    logsEndRef.current?.scrollIntoView({ block: "end" });
+  }, [filteredLogs, logsAutoScroll, rightPanelTab]);
+
+  function toggleLogLevel(level: LogLevel) {
+    setLogLevelFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(level)) next.delete(level);
+      else next.add(level);
+      return next;
+    });
+  }
+
+  async function copyLogsToClipboard() {
+    try {
+      const text = filteredLogs
+        .map((e) => `${new Date(e.ts).toISOString()} ${stripLogPrefix(e.line)}`)
+        .join("\n");
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      console.error("Failed to copy logs", e);
+    }
+  }
+
+  useEffect(() => {
+    if (!isLoaded.current) return;
+    localStorage.setItem("draft_tg_token", tgBotToken);
+  }, [tgBotToken]);
   const [aiPrompt, setAiPrompt] = useState("");
   const [expandedCategory, setExpandedCategory] = useState<string | null>(
     "triggers",
@@ -1711,7 +2198,7 @@ export default function NewWorkflowPage() {
   const [isFlowAnimate, setIsFlowAnimate] = useState(false);
   const [activeStep, setActiveStep] = useState<number | null>(null); // null, 0 (node), 0.5 (wire), 1 (node)...
   const [nodeStatuses, setNodeStatuses] = useState<
-    Record<number, "success" | "error" | "warning" | "skipped">
+    Record<number, "success" | "error" | "warning" | "skipped" | "running">
   >({});
   const [connectingFrom, setConnectingFrom] = useState<number | null>(null); // Node ID we're connecting FROM
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 }); // For drawing temp connection line
@@ -1786,10 +2273,7 @@ export default function NewWorkflowPage() {
       localStorage.setItem("draft_products", JSON.stringify(products));
       localStorage.setItem("draft_currency", currency);
     } catch (e) {
-      console.warn(
-        "Storage quota exceeded for products, image might be too large.",
-        e,
-      );
+      console.error("Failed to save products/currency", e);
     }
   }, [products, currency]);
 
@@ -2063,7 +2547,22 @@ export default function NewWorkflowPage() {
   // Handle execution result from simulator
   const handleExecutionResult = (result: any) => {
     if (result.logs) {
-      setExecutionLogs(result.logs);
+      if (Array.isArray(result.logs)) {
+        if (result.logs.length === 0) {
+          setExecutionLogs([]);
+        } else if (typeof result.logs[0] === "string") {
+          setExecutionLogs(
+            (result.logs as string[]).map((line) => ({ ts: Date.now(), line })),
+          );
+        } else {
+          setExecutionLogs(
+            (result.logs as any[]).map((e) => ({
+              ts: typeof e?.ts === "number" ? e.ts : Date.now(),
+              line: typeof e?.line === "string" ? e.line : String(e),
+            })),
+          );
+        }
+      }
     }
     if (result.executedNodes) {
       const statuses: Record<
@@ -2127,13 +2626,50 @@ export default function NewWorkflowPage() {
   const handleZoomReset = () => setZoom(0.8);
   const handleZoomFit = () => setZoom(0.5);
 
+  // Keyboard event handler for Delete key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Delete or Backspace to remove selected nodes
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodeIds.size > 0) {
+        // Don't delete if user is typing in an input
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+          return;
+        }
+        e.preventDefault();
+        setNodes((prev) => prev.filter((node) => !selectedNodeIds.has(node.id)));
+        setSelectedNodeIds(new Set());
+        setIsRightPanelOpen(false);
+      }
+      // Escape to clear selection
+      if (e.key === 'Escape') {
+        setSelectedNodeIds(new Set());
+        setConnectingFrom(null);
+        setNodePickerPos(null);
+      }
+      // Ctrl/Cmd + A to select all
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a' && viewMode === 'builder') {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+          return;
+        }
+        e.preventDefault();
+        setSelectedNodeIds(new Set(nodes.map((n) => n.id)));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedNodeIds, nodes, viewMode]);
+
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
+  const canvasRef = React.useRef<HTMLDivElement>(null);
 
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left click
-    const canvas = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - canvas.left) / zoom;
-    const y = (e.clientY - canvas.top) / zoom;
+    const canvas = e.currentTarget as HTMLDivElement;
+    const rect = canvas.getBoundingClientRect();
+    // Account for scroll position
+    const x = (e.clientX - rect.left + canvas.scrollLeft) / zoom;
+    const y = (e.clientY - rect.top + canvas.scrollTop) / zoom;
 
     setIsSelecting(true);
     setSelectionRect({ x1: x, y1: y, x2: x, y2: y });
@@ -2148,9 +2684,11 @@ export default function NewWorkflowPage() {
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
-    const canvas = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - canvas.left) / zoom;
-    const y = (e.clientY - canvas.top) / zoom;
+    const canvas = e.currentTarget as HTMLDivElement;
+    const rect = canvas.getBoundingClientRect();
+    // Account for scroll position
+    const x = (e.clientX - rect.left + canvas.scrollLeft) / zoom;
+    const y = (e.clientY - rect.top + canvas.scrollTop) / zoom;
 
     // Track mouse position for connection drawing
     if (connectingFrom !== null) {
@@ -2189,6 +2727,36 @@ export default function NewWorkflowPage() {
     });
 
     setSelectedNodeIds(newlySelected);
+  };
+
+  const handleCanvasWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    const isMouseWheel = e.deltaMode === 1;
+    const isZoomGesture = e.ctrlKey || e.metaKey || isMouseWheel;
+    if (!isZoomGesture) return;
+
+    e.preventDefault();
+    const canvas = e.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    const pointerX = e.clientX - rect.left + canvas.scrollLeft;
+    const pointerY = e.clientY - rect.top + canvas.scrollTop;
+
+    const zoomFactor = Math.exp(-e.deltaY * 0.002);
+
+    setZoom((prev) => {
+      const next = Math.min(2, Math.max(0.25, prev * zoomFactor));
+      const ratio = next / prev;
+
+      requestAnimationFrame(() => {
+        const c = canvasRef.current;
+        if (!c) return;
+        const viewX = e.clientX - rect.left;
+        const viewY = e.clientY - rect.top;
+        c.scrollLeft = pointerX * ratio - viewX;
+        c.scrollTop = pointerY * ratio - viewY;
+      });
+
+      return next;
+    });
   };
 
   const handleCanvasMouseUp = (e: React.MouseEvent) => {
@@ -2284,6 +2852,7 @@ export default function NewWorkflowPage() {
     const newNodes = [...nodes];
     newNodes.splice(index, 0, newNode);
     setNodes(newNodes);
+    pushRecent(nodeType);
     setNodePickerPos(null);
     setSelectedNodeIds(new Set([newNode.id]));
     setIsRightPanelOpen(true);
@@ -2381,6 +2950,7 @@ export default function NewWorkflowPage() {
     };
 
     setNodes([...nodes, newNode]);
+    pushRecent(nodeType);
     setSelectedNodeIds(new Set([newNode.id]));
     setIsRightPanelOpen(true);
     setRightPanelTab("inspect");
@@ -3968,9 +4538,283 @@ Ton but est de transformer chaque message en vente.
                       Glissez les blocs sur le canvas pour construire votre
                       workflow
                     </p>
+                    <div className="mt-3">
+                      <div className="relative">
+                        <Search className="h-3.5 w-3.5 text-muted-foreground/60 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          value={paletteQuery}
+                          onChange={(e) => setPaletteQuery(e.target.value)}
+                          placeholder="Rechercher un bloc..."
+                          className="w-full h-9 bg-black/30 border border-white/10 rounded-xl pl-9 pr-3 text-[11px] text-white/80 focus:border-primary/40 outline-none"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                    {paletteQuery.trim().length > 0 && (
+                      <div className="rounded-xl overflow-hidden border border-white/5">
+                        <div className="px-3 py-2 bg-white/[0.02] flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-white/50">
+                            Résultats
+                          </span>
+                          <span className="text-[9px] text-muted-foreground/60">
+                            {paletteFilteredNodes.length}
+                          </span>
+                        </div>
+                        <div className="p-2 space-y-1 bg-black/20">
+                          {paletteFilteredNodes.slice(0, 24).map((node) => {
+                            const isTriggerType = node.categoryId === "triggers";
+                            const isDisabled = isTriggerType && hasTrigger;
+                            const isFav = favoriteNodeTypes.has(node.id);
+                            return (
+                              <motion.div
+                                key={node.id}
+                                whileHover={isDisabled ? {} : { x: 4 }}
+                                className={`p-2.5 rounded-lg transition-all border border-transparent
+                                  ${isDisabled ? "opacity-40 cursor-not-allowed grayscale bg-white/[0.01]" : "bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer group hover:border-white/10"}
+                                `}
+                                onClick={() =>
+                                  !isDisabled && addNodeAtPosition(node.id, node.name)
+                                }
+                              >
+                                <div className="flex items-start gap-2">
+                                  <div
+                                    draggable={!isDisabled}
+                                    onDragStart={(e) => {
+                                      if (isDisabled) {
+                                        e.preventDefault();
+                                        return;
+                                      }
+                                      e.dataTransfer.setData("nodeType", node.id);
+                                      e.dataTransfer.setData("nodeName", node.name);
+                                    }}
+                                    className="flex-1"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <node.icon
+                                        className={`h-3.5 w-3.5 transition-colors ${isDisabled ? "text-muted-foreground" : "text-muted-foreground group-hover:text-primary"}`}
+                                      />
+                                      <span
+                                        className={`text-[11px] font-medium transition-colors ${isDisabled ? "text-muted-foreground" : "text-white/80 group-hover:text-white"}`}
+                                      >
+                                        {node.name}
+                                      </span>
+                                    </div>
+                                    <p className="text-[9px] text-muted-foreground/60 mt-1 pl-5">
+                                      {node.description}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleFavorite(node.id);
+                                    }}
+                                    className={`h-7 w-7 rounded-lg border border-white/10 flex items-center justify-center transition-colors
+                                      ${isFav ? "bg-primary/15 text-primary" : "bg-black/20 text-muted-foreground hover:text-white"}
+                                    `}
+                                    title={isFav ? "Retirer des favoris" : "Ajouter aux favoris"}
+                                  >
+                                    <Star className={`h-3.5 w-3.5 ${isFav ? "fill-current" : ""}`} />
+                                  </button>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {paletteQuery.trim().length === 0 && favoritePaletteNodes.length > 0 && (
+                      <div className="rounded-xl overflow-hidden border border-white/5">
+                        <button
+                          onClick={() =>
+                            setExpandedCategory(
+                              expandedCategory === "__favorites"
+                                ? null
+                                : "__favorites",
+                            )
+                          }
+                          className="w-full p-3 flex items-center justify-between bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Star className="h-4 w-4 text-primary" />
+                            <span className="text-xs font-bold text-white">
+                              Favoris
+                            </span>
+                          </div>
+                          <ChevronRight
+                            className={`h-4 w-4 text-muted-foreground transition-transform ${expandedCategory === "__favorites" ? "rotate-90" : ""}`}
+                          />
+                        </button>
+                        <AnimatePresence>
+                          {expandedCategory === "__favorites" && (
+                            <motion.div
+                              initial={{ height: 0 }}
+                              animate={{ height: "auto" }}
+                              exit={{ height: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="p-2 space-y-1 bg-black/20">
+                                {favoritePaletteNodes.map((node) => {
+                                  const isTriggerType = node.categoryId === "triggers";
+                                  const isDisabled = isTriggerType && hasTrigger;
+                                  const isFav = favoriteNodeTypes.has(node.id);
+                                  return (
+                                    <motion.div
+                                      key={node.id}
+                                      whileHover={isDisabled ? {} : { x: 4 }}
+                                      className={`p-2.5 rounded-lg transition-all border border-transparent
+                                        ${isDisabled ? "opacity-40 cursor-not-allowed grayscale bg-white/[0.01]" : "bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer group hover:border-white/10"}
+                                      `}
+                                      onClick={() =>
+                                        !isDisabled && addNodeAtPosition(node.id, node.name)
+                                      }
+                                    >
+                                      <div className="flex items-start gap-2">
+                                        <div
+                                          draggable={!isDisabled}
+                                          onDragStart={(e) => {
+                                            if (isDisabled) {
+                                              e.preventDefault();
+                                              return;
+                                            }
+                                            e.dataTransfer.setData("nodeType", node.id);
+                                            e.dataTransfer.setData("nodeName", node.name);
+                                          }}
+                                          className="flex-1"
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <node.icon
+                                              className={`h-3.5 w-3.5 transition-colors ${isDisabled ? "text-muted-foreground" : "text-muted-foreground group-hover:text-primary"}`}
+                                            />
+                                            <span
+                                              className={`text-[11px] font-medium transition-colors ${isDisabled ? "text-muted-foreground" : "text-white/80 group-hover:text-white"}`}
+                                            >
+                                              {node.name}
+                                            </span>
+                                          </div>
+                                          <p className="text-[9px] text-muted-foreground/60 mt-1 pl-5">
+                                            {node.description}
+                                          </p>
+                                        </div>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleFavorite(node.id);
+                                          }}
+                                          className={`h-7 w-7 rounded-lg border border-white/10 flex items-center justify-center transition-colors
+                                            ${isFav ? "bg-primary/15 text-primary" : "bg-black/20 text-muted-foreground hover:text-white"}
+                                          `}
+                                          title={isFav ? "Retirer des favoris" : "Ajouter aux favoris"}
+                                        >
+                                          <Star className={`h-3.5 w-3.5 ${isFav ? "fill-current" : ""}`} />
+                                        </button>
+                                      </div>
+                                    </motion.div>
+                                  );
+                                })}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    )}
+
+                    {paletteQuery.trim().length === 0 && recentPaletteNodes.length > 0 && (
+                      <div className="rounded-xl overflow-hidden border border-white/5">
+                        <button
+                          onClick={() =>
+                            setExpandedCategory(
+                              expandedCategory === "__recents" ? null : "__recents",
+                            )
+                          }
+                          className="w-full p-3 flex items-center justify-between bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-primary" />
+                            <span className="text-xs font-bold text-white">
+                              Récents
+                            </span>
+                          </div>
+                          <ChevronRight
+                            className={`h-4 w-4 text-muted-foreground transition-transform ${expandedCategory === "__recents" ? "rotate-90" : ""}`}
+                          />
+                        </button>
+                        <AnimatePresence>
+                          {expandedCategory === "__recents" && (
+                            <motion.div
+                              initial={{ height: 0 }}
+                              animate={{ height: "auto" }}
+                              exit={{ height: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="p-2 space-y-1 bg-black/20">
+                                {recentPaletteNodes.map((node) => {
+                                  const isTriggerType = node.categoryId === "triggers";
+                                  const isDisabled = isTriggerType && hasTrigger;
+                                  const isFav = favoriteNodeTypes.has(node.id);
+                                  return (
+                                    <motion.div
+                                      key={node.id}
+                                      whileHover={isDisabled ? {} : { x: 4 }}
+                                      className={`p-2.5 rounded-lg transition-all border border-transparent
+                                        ${isDisabled ? "opacity-40 cursor-not-allowed grayscale bg-white/[0.01]" : "bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer group hover:border-white/10"}
+                                      `}
+                                      onClick={() =>
+                                        !isDisabled && addNodeAtPosition(node.id, node.name)
+                                      }
+                                    >
+                                      <div className="flex items-start gap-2">
+                                        <div
+                                          draggable={!isDisabled}
+                                          onDragStart={(e) => {
+                                            if (isDisabled) {
+                                              e.preventDefault();
+                                              return;
+                                            }
+                                            e.dataTransfer.setData("nodeType", node.id);
+                                            e.dataTransfer.setData("nodeName", node.name);
+                                          }}
+                                          className="flex-1"
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <node.icon
+                                              className={`h-3.5 w-3.5 transition-colors ${isDisabled ? "text-muted-foreground" : "text-muted-foreground group-hover:text-primary"}`}
+                                            />
+                                            <span
+                                              className={`text-[11px] font-medium transition-colors ${isDisabled ? "text-muted-foreground" : "text-white/80 group-hover:text-white"}`}
+                                            >
+                                              {node.name}
+                                            </span>
+                                          </div>
+                                          <p className="text-[9px] text-muted-foreground/60 mt-1 pl-5">
+                                            {node.description}
+                                          </p>
+                                        </div>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleFavorite(node.id);
+                                          }}
+                                          className={`h-7 w-7 rounded-lg border border-white/10 flex items-center justify-center transition-colors
+                                            ${isFav ? "bg-primary/15 text-primary" : "bg-black/20 text-muted-foreground hover:text-white"}
+                                          `}
+                                          title={isFav ? "Retirer des favoris" : "Ajouter aux favoris"}
+                                        >
+                                          <Star className={`h-3.5 w-3.5 ${isFav ? "fill-current" : ""}`} />
+                                        </button>
+                                      </div>
+                                    </motion.div>
+                                  );
+                                })}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    )}
+
                     {nodeCategories.map((category) => (
                       <div
                         key={category.id}
@@ -4086,33 +4930,56 @@ Ton but est de transformer chaque message en vente.
                 </aside>
 
                 {/* Canvas Area - Free Form */}
-                <div
-                  className="flex-1 relative bg-background/50 overflow-auto select-none"
-                  onMouseDown={handleCanvasMouseDown}
-                  onMouseMove={handleCanvasMouseMove}
-                  onMouseUp={handleCanvasMouseUp}
-                  onMouseLeave={handleCanvasMouseUp}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const nodeType = e.dataTransfer.getData("nodeType");
-                    const nodeName = e.dataTransfer.getData("nodeName");
-                    if (!nodeType) return;
+                <div className="flex-1 relative bg-background/50 overflow-hidden select-none">
+                  {useReactFlowCanvas ? (
+                    <ReactFlowProvider>
+                      <WorkflowReactFlowCanvas
+                        workflowNodes={nodes}
+                        setWorkflowNodes={setNodes}
+                        setSelectedNodeIds={setSelectedNodeIds}
+                        setRightPanelTab={setRightPanelTab}
+                        setIsRightPanelOpen={setIsRightPanelOpen}
+                        isWhatsAppConnected={isWhatsAppConnected}
+                        getNodeInfo={getNodeInfo}
+                        addNodeAtPosition={(type, name, x, y) =>
+                          addNodeAtPosition(type, name, x, y)
+                        }
+                      />
+                    </ReactFlowProvider>
+                  ) : (
+                    <div
+                      ref={canvasRef}
+                      className="flex-1 relative bg-background/50 overflow-auto select-none"
+                      style={{
+                        backgroundImage:
+                          "radial-gradient(darkgray 1px, transparent 1px)",
+                        backgroundSize: `${32 * zoom}px ${32 * zoom}px`,
+                        backgroundPosition: "0 0",
+                      }}
+                      onWheel={handleCanvasWheel}
+                      onMouseDown={handleCanvasMouseDown}
+                      onMouseMove={handleCanvasMouseMove}
+                      onMouseUp={handleCanvasMouseUp}
+                      onMouseLeave={handleCanvasMouseUp}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const canvas = e.currentTarget as HTMLDivElement;
+                        const rect = canvas.getBoundingClientRect();
+                        const nodeType = e.dataTransfer.getData("nodeType");
+                        const nodeName = e.dataTransfer.getData("nodeName");
+                        if (!nodeType) return;
 
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const x = (e.clientX - rect.left) / zoom;
-                    const y = (e.clientY - rect.top) / zoom;
-                    addNodeAtPosition(nodeType, nodeName, x, y);
-                  }}
-                >
-                  {/* Grid Background - scales with zoom */}
-                  <div
-                    className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(darkgray_1px,transparent_1px)]"
-                    style={{ backgroundSize: `${32 * zoom}px ${32 * zoom}px` }}
-                  />
+                        const x =
+                          (e.clientX - rect.left + canvas.scrollLeft) / zoom;
+                        const y =
+                          (e.clientY - rect.top + canvas.scrollTop) / zoom;
+                        addNodeAtPosition(nodeType, nodeName, x, y);
+                      }}
+                    >
 
                   {/* Zoom Controls - Bottom Left */}
-                  <div className="absolute bottom-4 left-4 z-50 flex items-center gap-2">
+                  <div className="sticky top-4 left-4 z-50 flex items-center gap-2 w-fit">
                     {/* Zoom Panel */}
                     <div className="flex items-center gap-1 bg-[#171717] rounded-xl border border-white/10 p-1 shadow-xl">
                       <button
@@ -4577,6 +5444,8 @@ Ton but est de transformer chaque message en vente.
                       )}
                     </div>
                   </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Floating Right Panel - Drawer Style */}
@@ -4623,7 +5492,9 @@ Ton but est de transformer chaque message en vente.
                           }`}
                         >
                           <Terminal className="h-3 w-3" /> Logs
-                          {executionLogs.some((l) => l.includes("[ERROR]")) && (
+                          {executionLogs.some(
+                            (e) => getLogLevel(e.line) === "error",
+                          ) && (
                             <span className="flex h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
                           )}
                         </button>
@@ -4632,16 +5503,107 @@ Ton but est de transformer chaque message en vente.
                       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                         {rightPanelTab === "logs" ? (
                           <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                                Historique d'exécution
-                              </h3>
-                              <button
-                                onClick={() => setExecutionLogs([])}
-                                className="text-[9px] text-muted-foreground/60 hover:text-white transition-colors"
-                              >
-                                Effacer tout
-                              </button>
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                  Historique d'exécution
+                                </h3>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={copyLogsToClipboard}
+                                    className="text-[9px] text-muted-foreground/60 hover:text-white transition-colors inline-flex items-center gap-1"
+                                    title="Copier"
+                                  >
+                                    <Copy className="h-3 w-3" />
+                                    Copier
+                                  </button>
+                                  <div className="h-3 w-px bg-white/10" />
+                                  <button
+                                    onClick={() => setExecutionLogs([])}
+                                    className="text-[9px] text-muted-foreground/60 hover:text-white transition-colors"
+                                  >
+                                    Effacer
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="relative">
+                                  <Search className="h-3.5 w-3.5 text-muted-foreground/60 absolute left-3 top-1/2 -translate-y-1/2" />
+                                  <input
+                                    value={logQuery}
+                                    onChange={(e) => setLogQuery(e.target.value)}
+                                    placeholder="Rechercher dans les logs..."
+                                    className="w-full h-9 bg-black/30 border border-white/10 rounded-xl pl-9 pr-3 text-[11px] text-white/80 focus:border-primary/40 outline-none"
+                                  />
+                                </div>
+                                <label className="h-9 flex items-center justify-between gap-2 bg-black/30 border border-white/10 rounded-xl px-3 text-[10px] text-muted-foreground/70">
+                                  <span>Auto-scroll</span>
+                                  <input
+                                    type="checkbox"
+                                    checked={logsAutoScroll}
+                                    onChange={(e) => setLogsAutoScroll(e.target.checked)}
+                                  />
+                                </label>
+                              </div>
+
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  onClick={() => toggleLogLevel("success")}
+                                  className={cn(
+                                    "px-2.5 h-7 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-colors",
+                                    logLevelFilter.has("success")
+                                      ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/20"
+                                      : "bg-black/20 text-muted-foreground border-white/10",
+                                  )}
+                                >
+                                  Succès
+                                </button>
+                                <button
+                                  onClick={() => toggleLogLevel("error")}
+                                  className={cn(
+                                    "px-2.5 h-7 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-colors",
+                                    logLevelFilter.has("error")
+                                      ? "bg-red-500/10 text-red-300 border-red-500/20"
+                                      : "bg-black/20 text-muted-foreground border-white/10",
+                                  )}
+                                >
+                                  Erreur
+                                </button>
+                                <button
+                                  onClick={() => toggleLogLevel("warning")}
+                                  className={cn(
+                                    "px-2.5 h-7 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-colors",
+                                    logLevelFilter.has("warning")
+                                      ? "bg-orange-500/10 text-orange-300 border-orange-500/20"
+                                      : "bg-black/20 text-muted-foreground border-white/10",
+                                  )}
+                                >
+                                  Alerte
+                                </button>
+                                <button
+                                  onClick={() => toggleLogLevel("skipped")}
+                                  className={cn(
+                                    "px-2.5 h-7 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-colors",
+                                    logLevelFilter.has("skipped")
+                                      ? "bg-zinc-500/10 text-zinc-200 border-zinc-500/20"
+                                      : "bg-black/20 text-muted-foreground border-white/10",
+                                  )}
+                                >
+                                  Passé
+                                </button>
+                                <button
+                                  onClick={() => toggleLogLevel("info")}
+                                  className={cn(
+                                    "px-2.5 h-7 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-colors",
+                                    logLevelFilter.has("info")
+                                      ? "bg-white/5 text-white/70 border-white/10"
+                                      : "bg-black/20 text-muted-foreground border-white/10",
+                                  )}
+                                >
+                                  Info
+                                </button>
+                              </div>
                             </div>
 
                             {executionLogs.length === 0 ? (
@@ -4651,38 +5613,73 @@ Ton but est de transformer chaque message en vente.
                               </div>
                             ) : (
                               <div className="space-y-2">
-                                {executionLogs.map((log, i) => (
-                                  <div
-                                    key={i}
-                                    className={`text-[10px] font-mono p-3 rounded-xl border
-                                                                            ${log.includes("[SUCCESS]") ? "bg-emerald-500/5 text-emerald-400 border-emerald-500/10" : ""}
-                                                                            ${log.includes("[ERROR]") ? "bg-red-500/5 text-red-400 border-red-500/10" : ""}
-                                                                            ${log.includes("[WARNING]") ? "bg-orange-500/5 text-orange-400 border-orange-500/10" : ""}
-                                                                            ${log.includes("[SKIPPED]") ? "bg-zinc-500/5 text-zinc-400 border-zinc-500/10" : ""}
-                                                                        `}
-                                  >
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <span
-                                        className={`h-1.5 w-1.5 rounded-full
-                                                                                ${log.includes("[SUCCESS]") ? "bg-emerald-400" : ""}
-                                                                                ${log.includes("[ERROR]") ? "bg-red-400" : ""}
-                                                                                ${log.includes("[WARNING]") ? "bg-orange-400" : ""}
-                                                                                ${log.includes("[SKIPPED]") ? "bg-zinc-400" : ""}
-                                                                            `}
-                                      />
-                                      <span className="opacity-50 text-[8px] font-black uppercase">
-                                        {log.includes("[SUCCESS]")
-                                          ? "Succès"
-                                          : log.includes("[ERROR]")
-                                            ? "Erreur"
-                                            : log.includes("[WARNING]")
-                                              ? "Alerte"
-                                              : "Passé"}
-                                      </span>
-                                    </div>
-                                    {log.replace(/\[.*?\]\s*/, "")}
+                                {filteredLogs.length === 0 ? (
+                                  <div className="text-center py-16 opacity-20">
+                                    <Filter className="h-10 w-10 mx-auto mb-3" />
+                                    <p className="text-xs">
+                                      Aucun log ne correspond aux filtres
+                                    </p>
                                   </div>
-                                ))}
+                                ) : (
+                                  filteredLogs.map((entry, i) => {
+                                    const level = getLogLevel(entry.line);
+                                    const bg =
+                                      level === "success"
+                                        ? "bg-emerald-500/5 text-emerald-300 border-emerald-500/10"
+                                        : level === "error"
+                                          ? "bg-red-500/5 text-red-300 border-red-500/10"
+                                          : level === "warning"
+                                            ? "bg-orange-500/5 text-orange-300 border-orange-500/10"
+                                            : level === "skipped"
+                                              ? "bg-zinc-500/5 text-zinc-200 border-zinc-500/10"
+                                              : "bg-white/5 text-white/70 border-white/10";
+                                    const dot =
+                                      level === "success"
+                                        ? "bg-emerald-400"
+                                        : level === "error"
+                                          ? "bg-red-400"
+                                          : level === "warning"
+                                            ? "bg-orange-400"
+                                            : level === "skipped"
+                                              ? "bg-zinc-400"
+                                              : "bg-white/40";
+                                    const label =
+                                      level === "success"
+                                        ? "Succès"
+                                        : level === "error"
+                                          ? "Erreur"
+                                          : level === "warning"
+                                            ? "Alerte"
+                                            : level === "skipped"
+                                              ? "Passé"
+                                              : "Info";
+
+                                    return (
+                                      <div
+                                        key={`${entry.ts}-${i}`}
+                                        className={`text-[10px] font-mono p-3 rounded-xl border ${bg}`}
+                                      >
+                                        <div className="flex items-center justify-between gap-2 mb-1">
+                                          <div className="flex items-center gap-2">
+                                            <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+                                            <span className="opacity-50 text-[8px] font-black uppercase">
+                                              {label}
+                                            </span>
+                                          </div>
+                                          <span className="opacity-40 text-[8px] font-black uppercase tracking-widest">
+                                            {new Date(entry.ts).toLocaleTimeString("fr-FR", {
+                                              hour: "2-digit",
+                                              minute: "2-digit",
+                                              second: "2-digit",
+                                            })}
+                                          </span>
+                                        </div>
+                                        {stripLogPrefix(entry.line)}
+                                      </div>
+                                    );
+                                  })
+                                )}
+                                <div ref={logsEndRef} />
                               </div>
                             )}
                           </div>
@@ -4701,7 +5698,14 @@ Ton but est de transformer chaque message en vente.
                                 }
                                 onProcessingChange={setIsFlowAnimate}
                                 onExecutionResult={handleExecutionResult}
+                                setIsFlowAnimate={setIsFlowAnimate}
+                                setExecutionSequence={setExecutionSequence}
+                                setActiveStep={setActiveStep}
+                                setNodeStatuses={setNodeStatuses}
                                 nodes={nodes}
+                                products={products}
+                                currency="FCFA"
+                                targetPhoneNumber={clientWhatsAppNumber}
                               />
                             </div>
 

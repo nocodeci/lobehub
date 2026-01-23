@@ -23,6 +23,7 @@ interface NodeExecutionLog {
   status: "success" | "error" | "skipped" | "warning";
   message: string;
   duration: number;
+  waitDelay?: number;
   timestamp: string;
 }
 
@@ -46,6 +47,8 @@ interface ExecutionContext {
   buttons?: string[];
   conditionMet?: boolean;
   logs: NodeExecutionLog[];
+  translatedMessage?: string;
+  originalMessage?: string;
 }
 
 // Sample products database
@@ -64,6 +67,7 @@ function addLog(
   status: "success" | "error" | "skipped" | "warning",
   message: string,
   duration: number,
+  waitDelay?: number,
 ): void {
   context.logs.push({
     nodeId: node.id,
@@ -72,6 +76,7 @@ function addLog(
     status,
     message,
     duration,
+    waitDelay,
     timestamp: new Date().toISOString(),
   });
 }
@@ -160,7 +165,7 @@ async function executeNode(
           let cfg: any = {};
           try {
             cfg = JSON.parse(node.config);
-          } catch (e) {}
+          } catch (e) { }
 
           const systemPrompt = `Tu es un expert en psychologie client et analyse de sentiment.
 Analyse le message de l'utilisateur et réponds UNIQUEMENT par un objet JSON avec les champs suivants:
@@ -229,28 +234,62 @@ ${cfg.instructions ? `CONSIGNES SPÉCIFIQUES: ${cfg.instructions}` : ""}`;
         }
 
         try {
-          const systemMsg =
-            node.config && node.config.length > 5
-              ? `Tu es un expert en analyse d'intention GPT. Basé sur ces instructions : "${node.config}", analyse le message. Réponds en 2-3 mots max.`
-              : "Analyse l'intention du client via GPT. Réponds en 2-3 mots max (ex: demande_produit, plainte, salutation, question_prix, confirmation_achat)";
+          // Parse config for custom categories
+          let analyzeConfig: any = {};
+          try {
+            analyzeConfig = JSON.parse(node.config || "{}");
+          } catch (e) { }
+
+          const customCategories = analyzeConfig.categories || analyzeConfig.aiInstructions || "";
+
+          // STRICT intent classification prompt - NO response generation
+          const systemMsg = `Tu es un classificateur d'intention. Tu dois UNIQUEMENT retourner UNE catégorie d'intention parmi cette liste:
+- salutation (bonjour, salut, hello)
+- question_prix (combien, prix, coût, tarif)
+- demande_produit (article, produit, disponibilité)
+- plainte (problème, insatisfait, erreur, retard)
+- remerciement (merci, super, génial)
+- confirmation (oui, ok, d'accord, je confirme)
+- annulation (annuler, non, arrêter)
+- demande_aide (aide, assistance, support)
+- autre (tout le reste)
+${customCategories ? `\nCatégories additionnelles: ${customCategories}` : ""}
+
+RÈGLES STRICTES:
+1. Réponds UNIQUEMENT par le nom de la catégorie (UN SEUL MOT ou deux mots avec underscore)
+2. NE JAMAIS répondre au message
+3. NE JAMAIS générer de phrase complète
+4. NE JAMAIS saluer ou poser de question
+
+Exemple:
+- Message: "Bonjour!" → salutation
+- Message: "Quel est le prix?" → question_prix
+- Message: "J'ai un problème" → plainte`;
 
           const intentResult = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
               { role: "system", content: systemMsg },
-              { role: "user", content: context.userMessage },
+              { role: "user", content: `Classifie ce message: "${context.userMessage}"` },
             ],
-            max_tokens: 20,
+            max_tokens: 10,
+            temperature: 0.1,
           });
-          const intent = intentResult.choices[0]?.message?.content?.trim();
+
+          let intent = intentResult.choices[0]?.message?.content?.trim()?.toLowerCase() || "autre";
+
+          // Clean up: remove any extra text, keep only the intent word
+          intent = intent.split(/[\s,.!?]/)[0].replace(/[^a-z_]/g, "");
+          if (!intent || intent.length > 25) intent = "autre";
+
           addLog(
             context,
             node,
             "success",
-            `Intention détectée (GPT): ${intent}`,
+            `Intention: ${intent}`,
             Date.now() - startTime,
           );
-          return { ...context, intent: intent || "unknown" };
+          return { ...context, intent };
         } catch (e: any) {
           addLog(
             context,
@@ -278,7 +317,7 @@ ${cfg.instructions ? `CONSIGNES SPÉCIFIQUES: ${cfg.instructions}` : ""}`;
         let cfgResp: any = {};
         try {
           cfgResp = JSON.parse(node.config);
-        } catch (e) {}
+        } catch (e) { }
 
         let systemPromptResp =
           cfgResp.system && cfgResp.system.length > 5
@@ -346,7 +385,7 @@ ${cfg.instructions ? `CONSIGNES SPÉCIFIQUES: ${cfg.instructions}` : ""}`;
         let cfgCat: any = {};
         try {
           cfgCat = JSON.parse(node.config);
-        } catch (e) {}
+        } catch (e) { }
 
         let catalogMsg = "📦 **Notre Catalogue:**\n";
         const selectedIds = cfgCat.selectedProducts || [];
@@ -562,9 +601,6 @@ ${cfg.instructions ? `CONSIGNES SPÉCIFIQUES: ${cfg.instructions}` : ""}`;
         context.conditionMet = hasPositiveSentiment || hasPurchaseIntent;
 
         if (!context.conditionMet) {
-          context.responses.push(
-            "⚙️ Condition non remplie - branche alternative.",
-          );
           addLog(
             context,
             node,
@@ -585,18 +621,17 @@ ${cfg.instructions ? `CONSIGNES SPÉCIFIQUES: ${cfg.instructions}` : ""}`;
 
       case "delay":
         context.delayMs = 2000;
-        context.responses.push("⏳ Pause de 2 secondes...");
         addLog(
           context,
           node,
           "success",
           "Délai de 2000ms appliqué",
           Date.now() - startTime,
+          2000,
         );
         return context;
 
       case "loop":
-        context.responses.push("🔄 Boucle exécutée.");
         addLog(
           context,
           node,
@@ -624,15 +659,13 @@ ${cfg.instructions ? `CONSIGNES SPÉCIFIQUES: ${cfg.instructions}` : ""}`;
           Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
 
         context.delayMs = randomDelay;
-        context.responses.push(
-          `🛡️ Protection Anti-Ban : Pause aléatoire de ${(randomDelay / 1000).toFixed(1)}s appliquée.`,
-        );
         addLog(
           context,
           node,
           "success",
           `Délai de sécurité : ${randomDelay}ms appliqué (Plage: ${minSec}s - ${maxSec}s)`,
           Date.now() - startTime,
+          randomDelay,
         );
         return context;
 
@@ -853,27 +886,45 @@ ${cfg.instructions ? `CONSIGNES SPÉCIFIQUES: ${cfg.instructions}` : ""}`;
         try {
           const translateCfg = JSON.parse(node.config || "{}");
           const targetLang = translateCfg.targetLanguage || "fr";
+          const sourceLang = translateCfg.autoDetect ? "auto" : (translateCfg.sourceLanguage || "auto");
+
+          const languageNames: Record<string, string> = {
+            'fr': 'Français', 'en': 'English', 'es': 'Español', 'de': 'Deutsch',
+            'pt': 'Português', 'it': 'Italiano', 'ar': 'العربية', 'zh': '中文',
+            'ja': '日本語', 'ko': '한국어', 'ru': 'Русский', 'nl': 'Nederlands'
+          };
+
           const translateResult = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
               {
                 role: "system",
-                content: `Traduis le message suivant en ${targetLang}. Réponds uniquement avec la traduction.`,
+                content: `Tu es un traducteur professionnel. 
+${sourceLang === 'auto' ? 'Détecte automatiquement la langue du message.' : `Le message est en ${languageNames[sourceLang] || sourceLang}.`}
+Traduis le message suivant en ${languageNames[targetLang] || targetLang}.
+
+RÈGLES:
+1. Réponds UNIQUEMENT avec la traduction, rien d'autre
+2. Conserve le ton et le style du message original
+3. Si le message est déjà dans la langue cible, retourne-le tel quel`,
               },
               { role: "user", content: context.userMessage },
             ],
             max_tokens: 500,
           });
-          const translated =
-            translateResult.choices[0]?.message?.content || context.userMessage;
-          context.responses.push(
-            `🌐 [Traduction → ${targetLang.toUpperCase()}] ${translated}`,
-          );
+
+          const translated = translateResult.choices[0]?.message?.content || context.userMessage;
+
+          // Silent translation - only store in context, no message visible
+          context.translatedMessage = translated;
+          context.originalMessage = context.userMessage;
+          context.userMessage = translated; // Update userMessage for next blocks
+
           addLog(
             context,
             node,
             "success",
-            `Message traduit en ${targetLang}`,
+            `Traduit vers ${languageNames[targetLang] || targetLang}`,
             Date.now() - startTime,
           );
         } catch (e: any) {
@@ -899,27 +950,59 @@ ${cfg.instructions ? `CONSIGNES SPÉCIFIQUES: ${cfg.instructions}` : ""}`;
           return context;
         }
         try {
+          const summarizeCfg = JSON.parse(node.config || "{}");
+          const style = summarizeCfg.style || "concis";
+          const showInChat = summarizeCfg.showInChat === true;
+          const maxLength = summarizeCfg.maxLength;
+
+          const styleDescriptions: Record<string, string> = {
+            'concis': 'Sois très bref, 1-2 phrases maximum',
+            'detailed': 'Fais un résumé détaillé avec les points importants',
+            'detaille': 'Fais un résumé détaillé avec les points importants',
+            'points': 'Liste les points clés sous forme de bullet points (•)',
+            'points-cles': 'Liste les points clés sous forme de bullet points (•)',
+            'action': 'Identifie les actions à prendre et décisions prises'
+          };
+
+          const styleInstruction = styleDescriptions[style] || styleDescriptions['concis'];
+
           const summarizeResult = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
               {
                 role: "system",
-                content:
-                  "Résume la conversation/message en 2-3 phrases clés. Sois concis.",
+                content: `Tu es un expert en synthèse de conversations.
+Crée un résumé de la conversation/message ci-dessous.
+
+STYLE: ${styleInstruction}
+${maxLength ? `LONGUEUR MAX: ${maxLength} mots environ` : ''}
+
+RÈGLES:
+1. Capture l'essentiel de ce qui a été dit/demandé
+2. Identifie les besoins ou intentions du client
+3. Note les informations importantes (produits, dates, montants mentionnés)
+4. Sois objectif et factuel`,
               },
               { role: "user", content: context.userMessage },
             ],
-            max_tokens: 150,
+            max_tokens: 300,
           });
-          const summary =
-            summarizeResult.choices[0]?.message?.content ||
-            "Résumé non disponible";
-          context.responses.push(`📋 [Résumé] ${summary}`);
+
+          const summary = summarizeResult.choices[0]?.message?.content || "Résumé non disponible";
+
+          // Store in context (silent by default)
+          (context as any).summary = summary;
+
+          // Only show in chat if explicitly requested
+          if (showInChat) {
+            context.responses.push(`📝 *Résumé de la conversation*\n\n${summary}`);
+          }
+
           addLog(
             context,
             node,
             "success",
-            "Conversation résumée",
+            `Résumé (${style}): ${summary.slice(0, 50)}...`,
             Date.now() - startTime,
           );
         } catch (e: any) {
@@ -1021,7 +1104,6 @@ ${cfg.instructions ? `CONSIGNES SPÉCIFIQUES: ${cfg.instructions}` : ""}`;
         const varName = varCfg.name || "variable";
         const varValue = varCfg.value || "";
         (context as any)[`var_${varName}`] = varValue;
-        context.responses.push(`📝 Variable **${varName}** = "${varValue}"`);
         addLog(
           context,
           node,
@@ -1383,6 +1465,209 @@ ${cfg.instructions ? `CONSIGNES SPÉCIFIQUES: ${cfg.instructions}` : ""}`;
         );
         return context;
 
+      // ============ MESSAGES ADDITIONNELS ============
+      case "send_document": {
+        const docCfg = JSON.parse(node.config || "{}");
+        context.responses.push(`📄 Document: ${docCfg.filename || "fichier"}\n${docCfg.caption || ""}`);
+        addLog(context, node, "success", `Document envoyé: ${docCfg.filename}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "send_location": {
+        const locCfg = JSON.parse(node.config || "{}");
+        context.responses.push(`📍 *${locCfg.name || "Localisation"}*\n${locCfg.address || ""}`);
+        addLog(context, node, "success", `Localisation envoyée: ${locCfg.name}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "send_contact": {
+        const contactCfg = JSON.parse(node.config || "{}");
+        context.responses.push(`👤 *Contact*\n${contactCfg.name}\n📞 ${contactCfg.phone}`);
+        addLog(context, node, "success", `Contact partagé: ${contactCfg.name}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "send_audio": {
+        const audioCfg = JSON.parse(node.config || "{}");
+        context.responses.push(`🎵 ${audioCfg.asVoiceNote ? "Note vocale" : "Audio"} envoyé`);
+        addLog(context, node, "success", "Audio envoyé", Date.now() - startTime);
+        return context;
+      }
+
+      // ============ LOGIQUE ============
+      case "loop": {
+        const loopCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Boucle ${loopCfg.loopType}: ${loopCfg.count} itérations`, Date.now() - startTime);
+        return context;
+      }
+
+      case "set_variable": {
+        const varCfg = JSON.parse(node.config || "{}");
+        (context as any)[varCfg.variableName] = varCfg.value;
+        addLog(context, node, "success", `Variable ${varCfg.variableName} = ${varCfg.value}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "random_choice": {
+        const randCfg = JSON.parse(node.config || "{}");
+        const choices = randCfg.choices || [];
+        const selected = choices[Math.floor(Math.random() * choices.length)];
+        addLog(context, node, "success", `Choix aléatoire: ${selected?.label || "option"}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "end_flow": {
+        const endCfg = JSON.parse(node.config || "{}");
+        if (endCfg.action === "message" && endCfg.message) {
+          context.responses.push(endCfg.message);
+        }
+        addLog(context, node, "success", `Flux terminé (${endCfg.action})`, Date.now() - startTime);
+        return { ...context, shouldContinue: false };
+      }
+
+      // ============ CRM ============
+      case "update_contact": {
+        const updCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Contact mis à jour: ${updCfg.field} = ${updCfg.value}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "assign_agent": {
+        const assignCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Assigné à ${assignCfg.agentEmail || assignCfg.assignmentType}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "add_note": {
+        const noteCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Note ajoutée: ${noteCfg.note?.slice(0, 30)}...`, Date.now() - startTime);
+        return context;
+      }
+
+      // ============ NOTIFICATIONS ============
+      case "notify_email": {
+        const emailCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Email envoyé à ${emailCfg.to}: ${emailCfg.subject}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "notify_webhook": {
+        const whCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Webhook ${whCfg.method || "POST"} envoyé à ${whCfg.url}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "notify_slack": {
+        const slackCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Slack: message envoyé sur ${slackCfg.channel}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "notify_internal": {
+        const intCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Notification interne: ${intCfg.title}`, Date.now() - startTime);
+        return context;
+      }
+
+      // ============ RENDEZ-VOUS ============
+      case "cancel_appointment": {
+        const cancelCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `RDV ${cancelCfg.appointmentId} annulé`, Date.now() - startTime);
+        return context;
+      }
+
+      case "send_reminder": {
+        const remCfg = JSON.parse(node.config || "{}");
+        context.responses.push(`⏰ Rappel: votre ${remCfg.type || "rendez-vous"} est dans ${remCfg.beforeMinutes || 60} minutes`);
+        addLog(context, node, "success", `Rappel ${remCfg.type} envoyé`, Date.now() - startTime);
+        return context;
+      }
+
+      // ============ SÉCURITÉ ============
+      case "rate_limit": {
+        const rlCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Rate limit: ${rlCfg.maxRequests}/${rlCfg.windowSeconds}s`, Date.now() - startTime);
+        return context;
+      }
+
+      case "block_spam": {
+        const spamCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Anti-spam actif (${spamCfg.action})`, Date.now() - startTime);
+        return context;
+      }
+
+      case "verify_human": {
+        const verifCfg = JSON.parse(node.config || "{}");
+        if (verifCfg.method === "question") {
+          context.responses.push(`🔐 ${verifCfg.question || "Êtes-vous humain?"}`);
+        }
+        addLog(context, node, "success", `Vérification humaine (${verifCfg.method})`, Date.now() - startTime);
+        return context;
+      }
+
+      // ============ E-COMMERCE ============
+      case "add_to_cart": {
+        const cartCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Produit ${cartCfg.productId} ajouté (x${cartCfg.quantity || 1})`, Date.now() - startTime);
+        return context;
+      }
+
+      case "order_status": {
+        const orderCfg = JSON.parse(node.config || "{}");
+        context.responses.push(`📦 Commande ${orderCfg.orderId || "#12345"}: En préparation`);
+        addLog(context, node, "success", `Statut commande ${orderCfg.orderId}`, Date.now() - startTime);
+        return context;
+      }
+
+      // ============ GROUPES WHATSAPP ============
+      case "create_group": {
+        const grpCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Groupe créé: ${grpCfg.name}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "add_participant":
+      case "remove_participant": {
+        const partCfg = JSON.parse(node.config || "{}");
+        const action = node.type === "add_participant" ? "ajouté" : "retiré";
+        addLog(context, node, "success", `${partCfg.phoneNumber} ${action}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "bulk_add_members": {
+        const bulkCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Ajout en masse depuis ${bulkCfg.source}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "get_group_members":
+      case "chat_list_collector": {
+        const extCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Extraction en ${extCfg.exportFormat || "CSV"}`, Date.now() - startTime);
+        return context;
+      }
+
+      // ============ IA ADDITIONNELLE ============
+      case "ai_translate": {
+        const transCfg = JSON.parse(node.config || "{}");
+        context.responses.push(`[Traduction ${transCfg.sourceLanguage} → ${transCfg.targetLanguage}]: ${context.userMessage}`);
+        addLog(context, node, "success", `Traduit vers ${transCfg.targetLanguage}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "ai_summarize": {
+        const sumCfg = JSON.parse(node.config || "{}");
+        context.responses.push(`📝 Résumé: ${context.userMessage.slice(0, sumCfg.maxLength || 200)}...`);
+        addLog(context, node, "success", `Résumé généré (${sumCfg.style})`, Date.now() - startTime);
+        return context;
+      }
+
+      case "scheduled":
+      case "webhook_trigger": {
+        addLog(context, node, "success", `Déclencheur ${node.type} activé`, Date.now() - startTime);
+        return context;
+      }
+
       default:
         addLog(
           context,
@@ -1418,7 +1703,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // VALIDATION: Check if workflow has minimum required structure
+    // NEW: Handle direct AI prompt (bypass workflow) if systemPrompt is provided
+    if (nodes.length === 0 && body.systemPrompt) {
+      if (!process.env.OPENAI_API_KEY) {
+        return NextResponse.json({
+          success: false,
+          error: "Clé API OpenAI non configurée",
+          response: ""
+        }, { status: 200 }); // Return 200 so client can parse JSON
+      }
+
+      try {
+        const response = await openai.chat.completions.create({
+          model: body.model || "gpt-4o-mini",
+          messages: [
+            { role: "system", content: body.systemPrompt },
+            { role: "user", content: message }
+          ],
+          max_tokens: body.maxTokens || 500,
+          temperature: 0.1,
+        });
+
+        return NextResponse.json({
+          success: true,
+          response: response.choices[0]?.message?.content || ""
+        });
+      } catch (error: any) {
+        console.warn("[API/chat] OpenAI API error:", error.message);
+        return NextResponse.json({
+          success: false,
+          error: error.message || "Erreur OpenAI",
+          response: ""
+        }, { status: 200 }); // Return 200 so client can parse JSON
+      }
+    }
+
     if (nodes.length === 0) {
       return NextResponse.json({
         success: true,

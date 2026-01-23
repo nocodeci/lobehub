@@ -177,3 +177,53 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* n8n Style Grid */
+.n8n-grid {
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.dark .n8n-grid {
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+}
+
+/* n8n Flow Animation */
+@keyframes flowLine {
+  from {
+    stroke-dashoffset: 40;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.flow-animating {
+  stroke-dasharray: 8 12;
+  animation: flowLine 1s linear infinite;
+  stroke-opacity: 1 !important;
+  stroke-width: 3.5;
+  filter: drop-shadow(0 0 4px #87a9ff);
+}
+
+@keyframes glowPulse {
+  0% {
+    filter: drop-shadow(0 0 2px #ff6d5a);
+    opacity: 0.4;
+  }
+
+  50% {
+    filter: drop-shadow(0 0 8px #ff6d5a);
+    opacity: 1;
+  }
+
+  100% {
+    filter: drop-shadow(0 0 2px #ff6d5a);
+    opacity: 0.4;
+  }
+}
+
+.glow-active {
+  animation: glowPulse 1.5s ease-in-out infinite;
+}

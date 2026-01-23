@@ -58,6 +58,29 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = (session.user as any).id;
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Utilisateur invalide (id manquant)" },
+        { status: 400 },
+      );
+    }
+
+    // Ensure the user exists in the local DB to satisfy FK constraints.
+    // This app uses external/shared auth (JWT). The local DB may not have the user row yet.
+    const sessionEmail = session.user.email || `${userId}@local.invalid`;
+    const sessionName = session.user.name || "Utilisateur";
+    const existingUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (!existingUser) {
+      await prisma.user.create({
+        data: {
+          id: userId,
+          name: sessionName,
+          email: sessionEmail,
+          password: "EXTERNAL_AUTH",
+        },
+      });
+    }
+
     const body = await request.json();
 
     const {
@@ -86,20 +109,25 @@ export async function POST(request: NextRequest) {
     // Create the WhatsApp instance ID (unique per automation)
     const whatsappInstanceId = `${userId}_${id}`;
 
-    // Check if automation with this ID already exists (update case)
-    const existingAutomation = await prisma.automation.findFirst({
-      where: {
-        id,
-        userId,
-      },
+    // Check if automation with this ID already exists
+    let targetId = id;
+    let existingAutomation = await prisma.automation.findUnique({
+      where: { id: targetId },
     });
+
+    // Handle collision or ownership
+    if (existingAutomation && existingAutomation.userId !== userId) {
+      console.warn(`ID collision detected for ID: ${targetId}. Generating new ID.`);
+      targetId = `auto_${Math.random().toString(36).substr(2, 9)}`;
+      existingAutomation = null; // Proceed to create with new ID
+    }
 
     let automation;
 
     if (existingAutomation) {
       // Update existing automation
       automation = await prisma.automation.update({
-        where: { id: existingAutomation.id },
+        where: { id: targetId },
         data: {
           name,
           description,
@@ -110,18 +138,19 @@ export async function POST(request: NextRequest) {
           triggerKeywords: triggerKeywords || [],
           aiInstructions,
           whatsappNumber,
-          whatsappInstanceId,
+          whatsappInstanceId: `${userId}_${targetId}`, // Update instance ID with correct ID
           telegramBotToken,
           isActive: isActive ?? false,
           status: isActive ? "ACTIVE" : "DRAFT",
           updatedAt: new Date(),
         },
       });
+      console.log("Automation updated successfully:", automation.id);
     } else {
       // Create new automation
       automation = await prisma.automation.create({
         data: {
-          id, // Use the automationId from frontend
+          id: targetId && targetId.trim() !== "" ? targetId : undefined,
           userId,
           name,
           description,
@@ -132,12 +161,13 @@ export async function POST(request: NextRequest) {
           triggerKeywords: triggerKeywords || [],
           aiInstructions,
           whatsappNumber,
-          whatsappInstanceId,
+          whatsappInstanceId: `${userId}_${targetId || 'new'}`,
           telegramBotToken,
           isActive: isActive ?? false,
           status: isActive ? "ACTIVE" : "DRAFT",
         },
       });
+      console.log("Automation created successfully:", automation.id);
     }
 
     return NextResponse.json({
@@ -154,11 +184,18 @@ export async function POST(request: NextRequest) {
         : "Automatisation créée avec succès",
     });
   } catch (error: any) {
-    console.error("Error creating/updating automation:", error);
+    console.error("CRITICAL ERROR in POST /api/automations:", error);
+    // Log the payload for debugging (be careful with sensitive info, but here it's workflow data)
+    try {
+      const body = await request.json();
+      console.log("FAILED PAYLOAD:", JSON.stringify(body, null, 2));
+    } catch (e) { }
+
     return NextResponse.json(
       {
         error: "Erreur lors de la sauvegarde de l'automatisation",
-        details: error?.message || String(error)
+        details: error?.message || String(error),
+        code: error?.code // Prisma error codes (e.g. P2002)
       },
       { status: 500 }
     );

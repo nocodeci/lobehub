@@ -15,17 +15,24 @@ import {
     Loader2,
     QrCode,
     Share2,
+    Clock,
+    Bot,
+    User,
     SendHorizontal
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { QRCodeCanvas } from "qrcode.react";
+import { executeNode, ExecutionContext, Message as ExecutorMessage } from "../../utils/workflow-executor";
 
+// Move Message interface if necessary or use the one from executor
+// For now, let's keep the internal Message interface but ensure compatibility
 interface Message {
     id: number;
     text: string;
     sender: 'user' | 'bot';
     time: string;
     imageUrl?: string;
+    buttons?: { text: string; action: string }[];
     status?: 'sending' | 'sent' | 'delivered' | 'read';
 }
 
@@ -35,16 +42,28 @@ interface WhatsAppSimulatorProps {
     onConnect?: () => void;
     onProcessingChange?: (isProcessing: boolean) => void;
     onExecutionResult?: (result: ExecutionResult) => void;
+    setIsFlowAnimate?: (isAnimate: boolean) => void;
+    setExecutionSequence?: (sequence: any[]) => void;
+    setActiveStep?: (step: number | null) => void;
+    setNodeStatuses?: (statuses: Record<number, "success" | "error" | "warning" | "skipped" | "running">) => void;
     template?: 'support' | 'ecommerce' | 'appointment' | 'default';
     nodes?: any[];
+    products?: any[];
+    currency?: string;
+    targetPhoneNumber?: string | null;
+    onNodeResult?: (nodeId: number, result: string, data?: any) => void;
 }
 
 export interface NodeExecutionStatus {
     nodeId: number;
     nodeType: string;
-    status: 'success' | 'error' | 'skipped';
+    nodeName: string;
+    status: 'success' | 'error' | 'skipped' | 'warning';
     message?: string;
+    data?: any;
     duration?: number;
+    waitDelay?: number;
+    timestamp: string;
 }
 
 export interface ExecutionResult {
@@ -59,8 +78,16 @@ export function WhatsAppSimulator({
     onConnect,
     onProcessingChange,
     onExecutionResult,
+    setIsFlowAnimate,
+    setExecutionSequence,
+    setActiveStep,
+    setNodeStatuses,
     template = 'default',
-    nodes = []
+    nodes = [],
+    products = [],
+    currency = "FCFA",
+    targetPhoneNumber = null,
+    onNodeResult
 }: WhatsAppSimulatorProps) {
     const isTelegram = nodes.some(n => n.type === 'telegram_message' || n.type === 'tg_buttons');
 
@@ -87,6 +114,106 @@ export function WhatsAppSimulator({
     const scrollRef = useRef<HTMLDivElement>(null);
     const isLoaded = useRef(false);
 
+    const connectedSessionRef = useRef(connectedSession);
+    const targetClientRef = useRef(targetClient);
+    const statusRef = useRef(status);
+    const isLinkedToPhoneRef = useRef(isLinkedToPhone);
+    const isProductionRef = useRef(isProduction);
+    const targetPhoneNumberRef = useRef<string | null>(targetPhoneNumber);
+
+    useEffect(() => {
+        connectedSessionRef.current = connectedSession;
+    }, [connectedSession]);
+
+    useEffect(() => {
+        targetClientRef.current = targetClient;
+    }, [targetClient]);
+
+    useEffect(() => {
+        statusRef.current = status;
+    }, [status]);
+
+    useEffect(() => {
+        isLinkedToPhoneRef.current = isLinkedToPhone;
+    }, [isLinkedToPhone]);
+
+    useEffect(() => {
+        isProductionRef.current = isProduction;
+    }, [isProduction]);
+
+    useEffect(() => {
+        targetPhoneNumberRef.current = targetPhoneNumber;
+    }, [targetPhoneNumber]);
+
+    const digitsOnly = (value: string) => value.replace(/[^0-9]/g, "");
+
+    // Côte d'Ivoire numbers are often displayed with an extra leading 0 after the country code
+    // (+225 05xxxxxxxx), while WhatsApp JIDs can omit that 0 (2255xxxxxxxx).
+    const ciVariants = (digits: string) => {
+        const d = digitsOnly(digits);
+        const variants = new Set<string>();
+        if (!d) return [] as string[];
+
+        variants.add(d);
+
+        if (d.startsWith('2250')) {
+            variants.add(`225${d.slice(4)}`);
+        } else if (d.startsWith('225')) {
+            variants.add(`2250${d.slice(3)}`);
+        } else if (d.length === 10 && d.startsWith('0')) {
+            // local -> E164 with CI prefix
+            variants.add(`225${d}`);
+            variants.add(`225${d.slice(1)}`);
+        }
+
+        return Array.from(variants);
+    };
+
+    const toBridgeRecipientDigits = (input: string) => {
+        const d = digitsOnly(input);
+        if (d.startsWith('2250')) return `225${d.slice(4)}`;
+        return d;
+    };
+
+    const forwardBotMessageToRealClient = async (text: string) => {
+        const cs = connectedSessionRef.current;
+        const tc = targetClientRef.current;
+        const st = statusRef.current;
+
+        // IMPORTANT: Always prefer targetClient.jid (the real client session) over targetPhoneNumber.
+        // targetPhoneNumber may incorrectly point to the automation's WhatsApp, not the real client.
+        const recipientJid = tc?.jid ? digitsOnly(tc.jid) : "";
+
+        console.log("[WhatsApp Simulator] Bot forwarding to client:", {
+            master: cs?.jid,
+            masterUserId: cs?.bridgeUserId,
+            client: recipientJid,
+            clientUserId: tc?.bridgeUserId,
+        });
+
+        // On envoie en réel uniquement si le lien réel est activé (ou prod) ET qu'on a une session master + un client cible.
+        const shouldSendReal = (isProductionRef.current || isLinkedToPhoneRef.current)
+            && st === 'CONNECTED'
+            && !!cs?.bridgeUserId
+            && !!recipientJid;
+
+        if (!shouldSendReal || !cs) return;
+
+        try {
+            await fetch('/api/whatsapp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: cs.bridgeUserId,
+                    recipient: `${recipientJid}@s.whatsapp.net`,
+                    message: text
+                })
+            });
+        } catch (error) {
+            console.error('[WhatsApp Simulator] Failed to forward bot message to real client:', error);
+        }
+    };
+
     // Fetch real sessions from bridge
     useEffect(() => {
         const fetchSessions = async () => {
@@ -99,13 +226,55 @@ export function WhatsAppSimulator({
                     console.log("[WhatsApp Simulator] Bridge check - Connected sessions:", connectedSessions.length);
 
                     if (connectedSessions.length > 0) {
-                        // On cherche en priorité la plateforme smbi pour le master
-                        const masterNode = connectedSessions.find((s: any) => s.platform === 'smbi') || connectedSessions[0];
+                        const isNumericUserId = (id: any) => /^\d+$/.test(String(id || ""));
+                        const isSimSession = (s: any) =>
+                            s?.platform === 'smbi' || s?.userId === 'admin' || isNumericUserId(s?.userId);
 
-                        // Le client est la session qui n'est pas le master
-                        const clientNode = connectedSessions.find((s: any) => s.userId !== masterNode.userId);
+                        // targetPhoneNumber is treated as the preferred CLIENT number when provided.
+                        const desiredClientDigits = targetPhoneNumberRef.current
+                            ? digitsOnly(targetPhoneNumberRef.current)
+                            : "";
+                        const desiredVariants = desiredClientDigits ? ciVariants(desiredClientDigits) : [];
+
+                        const findSessionByJid = (desiredList: string[]) => {
+                            if (!desiredList.length) return null;
+                            return (
+                                connectedSessions.find((s: any) => {
+                                    const jidDigits = digitsOnly(
+                                        String(s?.jid || "").split(':')[0].split('@')[0],
+                                    );
+                                    return desiredList.includes(jidDigits);
+                                }) || null
+                            );
+                        };
+
+                        const explicitClientNode = findSessionByJid(desiredVariants);
+
+                        // Master: prefer SIM-like sessions, ideally not equal to the explicit client.
+                        const masterNode =
+                            connectedSessions.find(
+                                (s: any) => isSimSession(s) && s.userId !== explicitClientNode?.userId,
+                            ) ||
+                            connectedSessions.find((s: any) => isSimSession(s)) ||
+                            connectedSessions.find(
+                                (s: any) => s.userId !== explicitClientNode?.userId,
+                            ) ||
+                            connectedSessions[0];
+
+                        // Client: prefer explicit client by JID match; otherwise pick the other session.
+                        const fallbackClientNode = connectedSessions.find(
+                            (s: any) => s.userId !== masterNode.userId,
+                        );
+
+                        const clientNode = explicitClientNode || fallbackClientNode;
 
                         if (masterNode) {
+                            console.log(
+                                "[WhatsApp Simulator] Selected master:",
+                                masterNode.userId,
+                                masterNode.jid ? `(+${digitsOnly(String(masterNode.jid).split(':')[0].split('@')[0])})` : "",
+                                desiredVariants.length ? `(client desired ${desiredVariants.map(v => `+${v}`).join(' | ')})` : "",
+                            );
                             setConnectedSession({
                                 name: masterNode.pushName || (masterNode.userId === 'admin' ? 'Master SIM' : `SIM ${masterNode.userId.slice(-4)}`),
                                 jid: masterNode.jid?.split(':')[0]?.split('@')[0] || "",
@@ -115,7 +284,15 @@ export function WhatsAppSimulator({
                         }
 
                         if (clientNode && clientNode.jid) {
-                            console.log("[WhatsApp Simulator] Setting target client (Yohan):", clientNode.userId);
+                            const clientDigits = digitsOnly(
+                                String(clientNode.jid).split(':')[0].split('@')[0],
+                            );
+                            console.log(
+                                "[WhatsApp Simulator] Setting target client:",
+                                clientNode.userId,
+                                clientDigits ? `(+${clientDigits})` : "",
+                                desiredVariants.length ? `(desired ${desiredVariants.map(v => `+${v}`).join(' | ')})` : "",
+                            );
                             setTargetClient({
                                 name: clientNode.pushName || `Client ${clientNode.jid?.split(':')[0]?.slice(-4) || ''}`,
                                 jid: clientNode.jid.split(':')[0].split('@')[0],
@@ -214,6 +391,169 @@ export function WhatsAppSimulator({
         }
     }, [messages]);
 
+    // Helper logic to execute the whole workflow
+    const executeWorkflow = async (userMsg: string) => {
+        setIsTyping(true);
+        const executedNodes: NodeExecutionStatus[] = [];
+        const logs: string[] = [];
+
+        // Find trigger nodes or starting node
+        let currentNode = nodes.find(n => n.type === 'keyword' || n.type === 'whatsapp_message' || n.type === 'telegram_message');
+        if (!currentNode && nodes.length > 0) currentNode = nodes[0];
+
+        const context: ExecutionContext = {
+            lastUserMessage: userMsg,
+            products,
+            currency,
+            addMessage: (newMsg: Omit<ExecutorMessage, "id" | "time">) => {
+                const resolvedText = (newMsg as any)?.text;
+
+                setMessages(prev => [...prev, {
+                    ...newMsg,
+                    id: Date.now() + Math.random(),
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                } as Message]);
+
+                // Si on est en mode réel, on forward aussi les messages BOT (réponses automation)
+                if (newMsg.sender === 'bot' && typeof resolvedText === 'string' && resolvedText.trim()) {
+                    void forwardBotMessageToRealClient(resolvedText);
+                }
+            }
+        };
+
+        // 🔥 Déclencher l'animation AVANT l'exécution
+        if (setIsFlowAnimate) setIsFlowAnimate(true);
+
+        const nodeStatusMap: Record<number, "success" | "error" | "warning" | "skipped" | "running"> = {};
+        const loopCounters = new Map<number, number>();
+
+        let nodeIndex = 0;
+        while (currentNode) {
+            const startTime = Date.now();
+
+            // Find the visual index of current node in the nodes array
+            const visualNodeIndex = nodes.findIndex(n => n.id === currentNode!.id);
+
+            // 🔥 STEP 1: Set node as RUNNING (blue pulsing) BEFORE execution
+            console.log(`🔄 [${nodeIndex}] Running: ${currentNode.name}`);
+            if (setActiveStep) setActiveStep(visualNodeIndex);
+            nodeStatusMap[currentNode.id] = "running";
+            if (setNodeStatuses) setNodeStatuses({ ...nodeStatusMap });
+
+            // Execute the node
+            const result = await executeNode(currentNode, context);
+            const duration = Date.now() - startTime;
+
+            // 🔥 STEP 2: Update to final status (success/error) AFTER execution
+            console.log(`✓ [${nodeIndex}] Completed: ${currentNode.name} -> ${result.success ? 'success' : 'error'}`);
+            nodeStatusMap[currentNode.id] = result.success ? 'success' : 'error';
+            if (setNodeStatuses) setNodeStatuses({ ...nodeStatusMap });
+            if (onNodeResult && result.message) onNodeResult(currentNode.id, result.message, result.data);
+
+            const nodeStatus: NodeExecutionStatus = {
+                nodeId: currentNode.id,
+                nodeType: currentNode.type,
+                nodeName: currentNode.name,
+                status: result.success ? 'success' : 'error',
+                message: result.message,
+                data: result.data,
+                duration,
+                waitDelay: result.waitDelay || 600,
+                timestamp: new Date().toISOString()
+            };
+
+            executedNodes.push(nodeStatus);
+            logs.push(`[${currentNode.name}] ${result.message}`);
+
+            // Update execution sequence for logs
+            if (setExecutionSequence) {
+                setExecutionSequence([...executedNodes]);
+            }
+
+            // Brief pause to show status change
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // Decide where to go next
+            let nextNodeId: number | undefined = currentNode.connectedTo;
+
+            if (currentNode.type === 'condition' || currentNode.type === 'random_choice' || currentNode.type === 'loop') {
+                let passed = false;
+
+                if (currentNode.type === 'loop') {
+                    const loopId = currentNode.id;
+                    const currentCount = loopCounters.get(loopId) || 0;
+                    const maxCount = result.data?.loopCount || 3;
+
+                    if (currentCount < maxCount) {
+                        passed = true;
+                        loopCounters.set(loopId, currentCount + 1);
+                        logs.push(`[${currentNode.name}] Itération ${currentCount + 1}/${maxCount}`);
+                    } else {
+                        passed = false;
+                        loopCounters.delete(loopId);
+                        logs.push(`[${currentNode.name}] Boucle terminée`);
+                    }
+                } else {
+                    passed = result.data?.conditionPassed || (currentNode.type === 'random_choice' && result.data?.selectedIndex === 0);
+                }
+
+                if (passed) {
+                    nextNodeId = currentNode.connectedToTrue && currentNode.connectedToTrue !== -1 ? currentNode.connectedToTrue : undefined;
+                } else {
+                    nextNodeId = currentNode.connectedToFalse && currentNode.connectedToFalse !== -1 ? currentNode.connectedToFalse : undefined;
+                }
+            }
+
+            if (!result.success && currentNode.type === 'keyword') {
+                logs.push(`[${currentNode.name}] Mot-clé non trouvé - Arrêt du workflow`);
+                break;
+            }
+
+            // 🔥 STEP 3: Animate wire to next node BEFORE moving to next
+            const nextNode = nextNodeId ? nodes.find(n => n.id === nextNodeId) : null;
+
+            if (nextNode) {
+                console.log(`→ [${nodeIndex}] Wire animation to next node`);
+                if (setActiveStep) setActiveStep(visualNodeIndex + 0.5);
+                await new Promise(resolve => setTimeout(resolve, 500));
+            } else if (currentNode.type === 'condition' || currentNode.type === 'random_choice') {
+                // Determine if we stopped because a branch wasn't connected
+                const passed = result.data?.conditionPassed || (currentNode.type === 'random_choice' && result.data?.selectedIndex === 0);
+                logs.push(`[${currentNode.name}] Branche ${passed ? 'VRAI' : 'FAUX'} non connectée - Arrêt du flux`);
+                break;
+            }
+
+            // Move to next node
+            currentNode = nextNode || undefined;
+            nodeIndex++;
+
+            if (executedNodes.length > 20) {
+                logs.push('[SYSTEM] Limite de 20 nodes atteinte - Arrêt de sécurité');
+                break;
+            }
+        }
+
+        if (onExecutionResult) {
+            onExecutionResult({
+                success: true,
+                executedNodes,
+                logs
+            });
+        }
+
+        setIsTyping(false);
+
+        // 🔥 Animation terminée - reset activeStep mais garder les statuts
+        if (setActiveStep) setActiveStep(null);
+
+        // Garder les statuts visibles quelques secondes
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Puis reset
+        if (setNodeStatuses) setNodeStatuses({});
+        if (setIsFlowAnimate) setIsFlowAnimate(false);
+    };
+
     const handleSend = async () => {
         if (!inputValue.trim()) return;
 
@@ -237,14 +577,14 @@ export function WhatsAppSimulator({
 
         if (shouldSendReal && targetClient) {
             try {
-                // Le MASTER (Service) envoie au CLIENT (Yohan)
-                console.log(`[WhatsApp Simulator] MANUAL SEND: MASTER ${connectedSession.name} (${connectedSession.jid}) → CLIENT ${targetClient.name} (${targetClient.jid})`);
+                // Le simulateur simule le CLIENT qui écrit au MASTER (entrant réel)
+                console.log(`[WhatsApp Simulator] MANUAL SEND: CLIENT ${targetClient.name} (${targetClient.jid}) → MASTER ${connectedSession.name} (${connectedSession.jid})`);
                 const response = await fetch('/api/whatsapp', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        userId: connectedSession.bridgeUserId, // Envoie DEPUIS le master (Service)
-                        recipient: `${targetClient.jid}@s.whatsapp.net`, // VERS le client (Yohan)
+                        userId: targetClient.bridgeUserId, // Envoie DEPUIS le client
+                        recipient: `${connectedSession.jid}@s.whatsapp.net`, // VERS le master
                         message: userInput
                     })
                 });
@@ -266,115 +606,91 @@ export function WhatsAppSimulator({
 
         // If not strictly production, also run the AI/Automation simulation to show it in the UI
         if (!isProduction) {
-            // Use OpenAI for intelligent responses
-            setIsTyping(true);
+            if (nodes && nodes.length > 0) {
+                // Use the new local workflow executor
+                await executeWorkflow(userInput);
+            } else {
+                // Fallback to legacy AI assistant if no nodes
+                setIsTyping(true);
+                try {
+                    // Build conversation history (last 10 messages for context)
+                    const conversationHistory = messages
+                        .slice(-10)
+                        .map(m => ({ sender: m.sender, text: m.text }));
 
-            try {
-                // Build conversation history (last 10 messages for context)
-                const conversationHistory = messages
-                    .slice(-10)
-                    .map(m => ({ sender: m.sender, text: m.text }));
-
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: userInput,
-                        template,
-                        conversationHistory,
-                        nodes // Sending nodes structure to make AI aware of every block
-                    })
-                });
-
-                const data = await response.json();
-
-                // Propagate execution results to parent for visual feedback
-                if (onExecutionResult && data.executedNodes) {
-                    onExecutionResult({
-                        success: data.success,
-                        executedNodes: data.executedNodes,
-                        logs: data.logs || []
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: userInput,
+                            template,
+                            conversationHistory
+                        })
                     });
-                }
 
-                // Only add bot response if it's not empty (technical warnings are empty and logged elsewhere)
-                if (data.success && data.response) {
-                    const isImage = data.response.startsWith('🖼️');
-                    let cleanText = data.response;
-                    let imageUrl = undefined;
+                    const data = await response.json();
 
-                    if (isImage) {
-                        const parts = data.response.split('\n');
-                        imageUrl = (parts[1] || "").trim(); // The second line is the URL
-                        cleanText = parts[0]; // The first line is the emoji/text
+                    // Propagate execution results to parent for visual feedback
+                    if (onExecutionResult && data.executedNodes) {
+                        onExecutionResult({
+                            success: data.success,
+                            executedNodes: data.executedNodes,
+                            logs: data.logs || []
+                        });
                     }
 
-                    const botResponse: Message = {
-                        id: Date.now() + 1,
-                        text: cleanText,
-                        imageUrl: imageUrl,
-                        sender: 'bot',
-                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    };
-                    setMessages(prev => [...prev, botResponse]);
+                    // Only add bot response if it's not empty (technical warnings are empty and logged elsewhere)
+                    if (data.success && data.response) {
+                        const isImage = data.response.startsWith('🖼️');
+                        let cleanText = data.response;
+                        let imageUrl = undefined;
 
-                    // Si le lien réel est activé, envoyer aussi la réponse de l'IA au master
-                    // La réponse part du CLIENT (Yohan) vers le MASTER (Service)
-                    if (isLinkedToPhone && targetClient && connectedSession) {
-                        try {
-                            if (!targetClient.bridgeUserId) {
-                                console.error("[WhatsApp Simulator] AI Response: targetClient.bridgeUserId is missing");
-                                return;
-                            }
-
-                            // La réponse part du CLIENT (Yohan) vers le MASTER (Service)
-                            console.log(`[WhatsApp Simulator] AI RESPONSE: CLIENT ${targetClient.name} (${targetClient.jid}) → MASTER ${connectedSession.name} (${connectedSession.jid})`);
-                            const aiResponse = await fetch('/api/whatsapp', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    userId: targetClient.bridgeUserId, // Envoie DEPUIS le client (Yohan)
-                                    recipient: `${connectedSession.jid}@s.whatsapp.net`, // VERS le master (Service)
-                                    message: cleanText
-                                })
-                            });
-
-                            const aiData = await aiResponse.json();
-                            console.log(`[WhatsApp Simulator] AI Send Response:`, aiData);
-
-                            if (!aiData.success) {
-                                console.error("[WhatsApp Simulator] AI API Error:", aiData);
-                            }
-                        } catch (aiError) {
-                            console.error("[WhatsApp Simulator] AI Network Error:", aiError);
+                        if (isImage) {
+                            const parts = data.response.split('\n');
+                            imageUrl = (parts[1] || "").trim(); // The second line is the URL
+                            cleanText = parts[0]; // The first line is the emoji/text
                         }
+
+                        const botResponse: Message = {
+                            id: Date.now() + 1,
+                            text: cleanText,
+                            imageUrl: imageUrl,
+                            sender: 'bot',
+                            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        };
+                        setMessages(prev => [...prev, botResponse]);
+
+                        // Si le lien réel est activé, forward la réponse IA vers le client cible (même logique que les nodes)
+                        if (isLinkedToPhone || isProduction) {
+                            void forwardBotMessageToRealClient(cleanText);
+                        }
+                    } else if (!data.success) {
+                        const botResponse: Message = {
+                            id: Date.now() + 1,
+                            text: "Désolé, une erreur s'est produite.",
+                            sender: 'bot',
+                            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        };
+                        setMessages(prev => [...prev, botResponse]);
                     }
-                } else if (!data.success) {
-                    const botResponse: Message = {
+                } catch (error) {
+                    console.error("AI response failed:", error);
+                    const errorMessage: Message = {
                         id: Date.now() + 1,
-                        text: "Désolé, une erreur s'est produite.",
+                        text: "Désolé, je ne suis pas disponible pour le moment.",
                         sender: 'bot',
                         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                     };
-                    setMessages(prev => [...prev, botResponse]);
+                    setMessages(prev => [...prev, errorMessage]);
+                } finally {
+                    setIsTyping(false);
                 }
-            } catch (error) {
-                console.error("AI response failed:", error);
-                const errorMessage: Message = {
-                    id: Date.now() + 1,
-                    text: "Désolé, je ne suis pas disponible pour le moment.",
-                    sender: 'bot',
-                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                };
-                setMessages(prev => [...prev, errorMessage]);
-            } finally {
-                setIsTyping(false);
             }
         }
     };
 
     return (
-        <div className="relative mx-auto" style={{ width: '300px' }}>
+        <div className="relative mx-auto w-full max-w-[280px] scale-95 origin-top">
             {/* iPhone Frame */}
             <div className="relative">
                 {/* Side Buttons */}
@@ -384,10 +700,10 @@ export function WhatsAppSimulator({
                 <div className="absolute -right-[2px] top-[120px] w-[3px] h-[60px] bg-[#a8a8a8] rounded-r-sm" />
 
                 <div
-                    className="relative rounded-[42px] p-[10px] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.4)]"
+                    className="relative rounded-[42px] p-[8px] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.4)]"
                     style={{ background: 'linear-gradient(145deg, #c0c0c0 0%, #a8a8a8 30%, #b8b8b8 50%, #909090 100%)' }}
                 >
-                    <div className={`relative ${isTelegram ? 'bg-[#0e212f]' : 'bg-[#111b21]'} rounded-[32px] overflow-hidden`} style={{ height: '560px' }}>
+                    <div className={`relative ${isTelegram ? 'bg-[#0e212f]' : 'bg-[#111b21]'} rounded-[32px] overflow-hidden`} style={{ height: '520px' }}>
                         {/* Status Bar */}
                         <div className={`h-[44px] ${isTelegram ? 'bg-[#17212b]' : 'bg-[#202c33]'} flex items-end justify-between px-6 pb-1 text-[11px] text-white font-semibold`}>
                             <span>9:41</span>
@@ -444,7 +760,7 @@ export function WhatsAppSimulator({
                         </header>
 
                         {/* Chat Area */}
-                        <div className="flex-1 relative overflow-hidden h-[calc(560px-44px-48px-50px)]">
+                        <div className="flex-1 relative overflow-hidden h-[calc(520px-44px-48px-50px)]">
                             <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: `url("/whatsapp-bg.png")`, backgroundRepeat: 'repeat', backgroundSize: '300px' }} />
 
                             <div ref={scrollRef} className="absolute inset-0 overflow-y-auto px-2 py-2 custom-scrollbar">
