@@ -13,13 +13,163 @@ const OpenAIIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// Bloc GPT Analyze / GPT Respond
-export function GPTConfig({ node, updateConfig }: BlockConfigProps) {
+// Bloc GPT Analyze (Analyse d'intention)
+export function GPTAnalyzeConfig({ node, updateConfig }: BlockConfigProps) {
+  const config = parseConfig(node.config, {
+    model: "gpt-4o-mini",
+    system: "Tu es un expert en analyse d'intention client. Analyse le message et catégorise-le précisément.",
+    categories: "Vente, Support, Facturation, Plainte, Autre",
+    outputFields: ["type", "urgency", "autoResolvable"],
+    typeValues: "technique, compte, produit, autre",
+    temperature: 0,
+  });
+
+  const toggleField = (field: string) => {
+    const currentFields = config.outputFields || [];
+    const newFields = currentFields.includes(field)
+      ? currentFields.filter((f: string) => f !== field)
+      : [...currentFields, field];
+    updateConfig({ ...config, outputFields: newFields });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="p-5 rounded-2xl bg-gradient-to-br from-[#10a37f22] to-transparent border border-[#10a37f33] space-y-5 relative overflow-hidden group">
+        <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
+          <Brain className="h-24 w-24 text-[#10a37f]" />
+        </div>
+
+        <div className="flex items-center justify-between relative">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded-lg bg-[#10a37f22] flex items-center justify-center border border-[#10a37f33]">
+              <Brain className="h-3.5 w-3.5 text-[#10a37f]" />
+            </div>
+            <label className="text-[10px] font-black uppercase text-white/80 tracking-widest">
+              Analyse Intention
+            </label>
+          </div>
+          <Badge className="bg-[#10a37f22] text-[#10a37f] border-none text-[8px] font-bold uppercase px-2 shadow-sm">
+            {config.model}
+          </Badge>
+        </div>
+
+        {/* Model Selection */}
+        <div className="space-y-2 relative">
+          <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
+            Modèle d&apos;Analyse
+          </label>
+          <select
+            value={config.model}
+            onChange={(e) => updateConfig({ ...config, model: e.target.value })}
+            className="w-full bg-black/60 border border-white/10 rounded-xl h-10 text-xs px-3 text-white appearance-none cursor-pointer hover:border-[#10a37f55] transition-all font-bold focus:ring-1 focus:ring-[#10a37f33]"
+          >
+            <option value="gpt-4o-mini">GPT-4o Mini (Ultra-rapide & Optimal)</option>
+            <option value="gpt-4o">GPT-4o (L'intelligence pure)</option>
+            <option value="o1-mini">o1-mini (Raisonnement logique)</option>
+          </select>
+        </div>
+
+        {/* Prompt Section */}
+        <div className="space-y-2 relative">
+          <div className="flex items-center justify-between px-1">
+            <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-widest">
+              Prompt & Directives
+            </label>
+            <Badge variant="outline" className="text-[7px] border-[#10a37f33] text-[#10a37f] font-black uppercase">
+              RECOMMANDÉ
+            </Badge>
+          </div>
+          <textarea
+            value={config.system}
+            onChange={(e) => updateConfig({ ...config, system: e.target.value })}
+            className="w-full h-32 bg-black/40 border border-white/10 rounded-2xl p-4 text-xs text-white/90 leading-relaxed font-medium focus:border-[#10a37f55] transition-all scrollbar-hide shadow-inner"
+            placeholder="Ex: Analyse si le client veut acheter, se plaindre ou demande une info technique..."
+          />
+        </div>
+
+        {/* Categories helper */}
+        <div className="space-y-2 relative">
+          <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
+            Catégories d&apos;Intention (séparées par virgules)
+          </label>
+          <Input
+            value={config.categories}
+            onChange={(e) => updateConfig({ ...config, categories: e.target.value })}
+            className="bg-black/40 border-white/10 h-10 text-xs font-bold"
+            placeholder="Vente, Support, Facturation..."
+          />
+          <p className="text-[8px] text-muted-foreground/50 px-1 italic">
+            Cela aide l&apos;IA à classer le message dans l&apos;une de ces catégories.
+          </p>
+        </div>
+
+        {/* Output Fields Configuration */}
+        <div className="space-y-3 pt-2 border-t border-white/5">
+          <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
+            Champs à détecter
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { id: 'type', label: 'Type de problème' },
+              { id: 'urgency', label: 'Urgence (1-5)' },
+              { id: 'autoResolvable', label: 'Auto-résolvable' },
+              { id: 'keywords', label: 'Mots-clés' }
+            ].map(field => (
+              <label
+                key={field.id}
+                className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all cursor-pointer ${(config.outputFields || []).includes(field.id)
+                    ? "bg-[#10a37f11] border-[#10a37f33] text-white"
+                    : "bg-white/5 border-white/5 text-muted-foreground hover:bg-white/10"
+                  }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={(config.outputFields || []).includes(field.id)}
+                  onChange={() => toggleField(field.id)}
+                  className="sr-only"
+                />
+                <div className={`h-1.5 w-1.5 rounded-full ${(config.outputFields || []).includes(field.id) ? "bg-[#10a37f] shadow-[0_0_5px_#10a37f]" : "bg-zinc-600"
+                  }`} />
+                <span className="text-[10px] font-black uppercase tracking-tighter">{field.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Detailed Type Values if 'type' enabled */}
+        {(config.outputFields || []).includes('type') && (
+          <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-300">
+            <label className="text-[9px] font-bold uppercase text-[#10a37f]/80 tracking-wider px-1">
+              Valeurs possibles pour le Type
+            </label>
+            <Input
+              value={config.typeValues}
+              onChange={(e) => updateConfig({ ...config, typeValues: e.target.value })}
+              className="bg-[#10a37f08] border-[#10a37f22] h-9 text-[10px] font-black italic"
+              placeholder="technique, facturation, compte, autre..."
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="p-4 rounded-xl bg-[#10a37f0a] border border-[#10a37f22] flex gap-3 shadow-inner">
+        <Sparkles className="h-4 w-4 text-[#10a37f] shrink-0 opacity-60" />
+        <p className="text-[9px] text-muted-foreground/80 leading-relaxed font-medium">
+          L&apos;IA retournera un objet JSON structuré contenant les champs sélectionnés.
+          Utilisez les conditions après ce bloc pour router le workflow.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Bloc GPT Respond (Réponse textuelle)
+export function GPTRespondConfig({ node, updateConfig }: BlockConfigProps) {
   const config = parseConfig(node.config, {
     model: "gpt-4o",
-    system: "",
+    system: "Tu es un assistant professionnel. Réponds de manière concise et utile.",
     temperature: 0.7,
-    maxTokens: 1000,
+    maxTokens: 500,
   });
 
   return (
@@ -32,10 +182,10 @@ export function GPTConfig({ node, updateConfig }: BlockConfigProps) {
         <div className="flex items-center justify-between relative">
           <div className="flex items-center gap-2">
             <div className="h-6 w-6 rounded-lg bg-[#10a37f22] flex items-center justify-center border border-[#10a37f33]">
-              <Bot className="h-3.5 w-3.5 text-[#10a37f]" />
+              <Sparkles className="h-3.5 w-3.5 text-[#10a37f]" />
             </div>
             <label className="text-[10px] font-black uppercase text-white/80 tracking-widest">
-              Intelligence
+              Réponse IA
             </label>
           </div>
           <Badge className="bg-[#10a37f22] text-[#10a37f] border-none text-[8px] font-bold uppercase px-2 shadow-sm">
@@ -45,76 +195,58 @@ export function GPTConfig({ node, updateConfig }: BlockConfigProps) {
 
         <div className="space-y-2 relative">
           <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
-            Modèle d&apos;Intelligence
+            Modèle de Rédaction
           </label>
-          <div className="relative">
-            <select
-              value={config.model}
-              onChange={(e) => updateConfig({ ...config, model: e.target.value })}
-              className="w-full bg-black/60 border border-white/10 rounded-xl h-10 text-xs px-3 text-white appearance-none cursor-pointer hover:border-[#10a37f55] transition-all font-bold focus:ring-1 focus:ring-[#10a37f33]"
-            >
-              <option value="gpt-4o">GPT-4o (L'intelligence pure)</option>
-              <option value="gpt-4o-mini">GPT-4o Mini (Ultra-rapide)</option>
-              <option value="o1-preview">o1-preview (Raisonnement avancé)</option>
-              <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Économique)</option>
-            </select>
-            <div className="absolute right-3 top-3 pointer-events-none">
-              <Sparkles className="h-4 w-4 text-[#10a37f] opacity-50" />
-            </div>
-          </div>
+          <select
+            value={config.model}
+            onChange={(e) => updateConfig({ ...config, model: e.target.value })}
+            className="w-full bg-black/60 border border-white/10 rounded-xl h-10 text-xs px-3 text-white appearance-none cursor-pointer hover:border-[#10a37f55] transition-all font-bold"
+          >
+            <option value="gpt-4o">GPT-4o (Meilleure qualité)</option>
+            <option value="gpt-4o-mini">GPT-4o Mini (Rapide & Économique)</option>
+          </select>
         </div>
 
         <div className="space-y-2 relative">
           <div className="flex items-center justify-between px-1">
             <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-widest">
-              Rôle & Instructions (Prompt)
+              Directives de Rédaction
             </label>
-            <Badge
-              variant="outline"
-              className="text-[7px] border-white/10 text-muted-foreground/50 font-black uppercase px-2"
-            >
-              System Message
-            </Badge>
           </div>
           <textarea
             value={config.system}
             onChange={(e) => updateConfig({ ...config, system: e.target.value })}
             className="w-full h-44 bg-black/40 border border-white/10 rounded-2xl p-4 text-xs text-white/90 leading-relaxed font-medium focus:border-[#10a37f55] transition-all scrollbar-hide shadow-inner"
-            placeholder="Tu es un assistant de vente chaleureux et efficace..."
+            placeholder="Réponds en tant qu'expert en relation client..."
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
-            Température (créativité)
-          </label>
-          <div className="flex items-center gap-3">
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={config.temperature}
-              onChange={(e) => updateConfig({ ...config, temperature: parseFloat(e.target.value) })}
-              className="flex-1 h-2 bg-black/40 rounded-full appearance-none cursor-pointer"
-            />
-            <span className="text-xs font-bold text-[#10a37f] w-8">{config.temperature}</span>
+          <div className="flex items-center justify-between px-1">
+            <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider">
+              Créativité (Température)
+            </label>
+            <span className="text-[10px] font-bold text-[#10a37f]">{config.temperature}</span>
           </div>
-          <p className="text-[8px] text-muted-foreground/50 px-1">
-            0 = Précis et cohérent | 1 = Créatif et varié
-          </p>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.1"
+            value={config.temperature}
+            onChange={(e) => updateConfig({ ...config, temperature: parseFloat(e.target.value) })}
+            className="w-full h-1.5 bg-black/40 rounded-full appearance-none cursor-pointer"
+          />
         </div>
-      </div>
-
-      <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex gap-3 shadow-inner">
-        <Sparkles className="h-4 w-4 text-primary shrink-0 opacity-40 animate-pulse" />
-        <p className="text-[9px] text-muted-foreground leading-relaxed font-medium italic">
-          <b>Astuce:</b> Plus vos instructions sont précises (rôle, ton, limites), plus les
-          réponses de l&apos;IA seront qualitatives.
-        </p>
       </div>
     </div>
   );
+}
+
+// Keep original GPTConfig for compatibility or generic use
+export function GPTConfig({ node, updateConfig }: BlockConfigProps) {
+  if (node.type === 'gpt_analyze') return <GPTAnalyzeConfig node={node} updateConfig={updateConfig} />;
+  return <GPTRespondConfig node={node} updateConfig={updateConfig} />;
 }
 
 // Bloc AI Translate

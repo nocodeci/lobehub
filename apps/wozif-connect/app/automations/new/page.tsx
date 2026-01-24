@@ -3589,15 +3589,13 @@ export default function NewWorkflowPage() {
 
       switch (nodeType) {
         case 'gpt_analyze':
+          const enabledFields = config.outputFields || ['type', 'urgency', 'autoResolvable', 'keywords'];
           return {
             intent: 'string - Intention détectée',
-            categories: 'array - Catégories identifiées',
-            ...(config.system?.includes('autoResolvable') && {
-              autoResolvable: 'string - Peut être résolu automatiquement (oui/non)',
-              urgency: 'number - Niveau d\'urgence (1-5)',
-              type: 'string - Type de problème',
-              keywords: 'array - Mots-clés extraits'
-            })
+            ...(enabledFields.includes('autoResolvable') && { autoResolvable: 'string - RÉSOLU: oui/non' }),
+            ...(enabledFields.includes('urgency') && { urgency: 'number - Urgence (1-5)' }),
+            ...(enabledFields.includes('type') && { type: 'string - Type de problème' }),
+            ...(enabledFields.includes('keywords') && { keywords: 'array - Mots-clés extraits' }),
           };
 
         case 'gpt_respond':
@@ -8963,8 +8961,8 @@ Ton but est de transformer chaque message en vente.
                           <div className="flex items-center gap-3">
                             {nodeInfo && (
                               <div className={`h-6 w-6 rounded flex items-center justify-center ${nodeInfo.category?.id === "triggers" ? "bg-emerald-500/20 text-emerald-400" :
-                                  nodeInfo.category?.id === "ai" ? "bg-purple-500/20 text-purple-400" :
-                                    "bg-primary/20 text-primary"
+                                nodeInfo.category?.id === "ai" ? "bg-purple-500/20 text-purple-400" :
+                                  "bg-primary/20 text-primary"
                                 }`}>
                                 <nodeInfo.icon className="h-4 w-4" />
                               </div>
@@ -9159,8 +9157,8 @@ Ton but est de transformer chaque message en vente.
                                   <button
                                     onClick={() => setParameterTab("parameters")}
                                     className={`px-3 py-1.5 text-[10px] font-medium rounded transition-colors ${parameterTab === "parameters"
-                                        ? "bg-white/10 text-white"
-                                        : "text-white/50 hover:text-white/70"
+                                      ? "bg-white/10 text-white"
+                                      : "text-white/50 hover:text-white/70"
                                       }`}
                                   >
                                     Parameters
@@ -9168,8 +9166,8 @@ Ton but est de transformer chaque message en vente.
                                   <button
                                     onClick={() => setParameterTab("settings")}
                                     className={`px-3 py-1.5 text-[10px] font-medium rounded transition-colors ${parameterTab === "settings"
-                                        ? "bg-white/10 text-white"
-                                        : "text-white/50 hover:text-white/70"
+                                      ? "bg-white/10 text-white"
+                                      : "text-white/50 hover:text-white/70"
                                       }`}
                                   >
                                     Settings
@@ -9309,7 +9307,16 @@ Ton but est de transformer chaque message en vente.
                                               const expectedOutputs = getNodeOutputs(node.type, node.config);
                                               const outputFields = Object.keys(expectedOutputs);
 
-                                              if (outputFields.length === 0) return null;
+                                              const isTrigger = [
+                                                "whatsapp_message",
+                                                "telegram_message",
+                                                "keyword",
+                                                "new_contact",
+                                                "scheduled",
+                                                "webhook_trigger",
+                                              ].includes(node.type);
+
+                                              if (outputFields.length === 0 || isTrigger) return null;
 
                                               const cfg = (defaultValue = {}) => {
                                                 try {
@@ -9385,8 +9392,8 @@ Ton but est de transformer chaque message en vente.
                                                                 <button
                                                                   onClick={() => updateCfg({ ...currentCfg, [`${fieldPath}.mode`]: 'fixed' })}
                                                                   className={`px-2 py-0.5 text-[10px] rounded transition-colors ${fieldMode === 'fixed'
-                                                                      ? 'bg-white/10 text-white'
-                                                                      : 'text-white/50 hover:text-white/70'
+                                                                    ? 'bg-white/10 text-white'
+                                                                    : 'text-white/50 hover:text-white/70'
                                                                     }`}
                                                                 >
                                                                   Fixed
@@ -9394,8 +9401,8 @@ Ton but est de transformer chaque message en vente.
                                                                 <button
                                                                   onClick={() => updateCfg({ ...currentCfg, [`${fieldPath}.mode`]: 'expression' })}
                                                                   className={`px-2 py-0.5 text-[10px] rounded transition-colors ${fieldMode === 'expression'
-                                                                      ? 'bg-white/10 text-white'
-                                                                      : 'text-white/50 hover:text-white/70'
+                                                                    ? 'bg-white/10 text-white'
+                                                                    : 'text-white/50 hover:text-white/70'
                                                                     }`}
                                                                 >
                                                                   Expression
