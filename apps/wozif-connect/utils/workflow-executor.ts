@@ -173,13 +173,16 @@ export async function executeNode(
 
             const analysisPrompt = prompt || `Analyse le message suivant et retourne un JSON avec les champs configurés: "${userMessage}"`;
 
+            const resolvedSystemPrompt = replaceVariables(finalSystemPrompt, context);
+            const resolvedAnalysisPrompt = replaceVariables(analysisPrompt, context);
+
             try {
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        message: analysisPrompt,
-                        systemPrompt: finalSystemPrompt,
+                        message: resolvedAnalysisPrompt,
+                        systemPrompt: resolvedSystemPrompt,
                         model: config.model || 'gpt-4o-mini',
                         maxTokens: config.maxTokens || 500
                     })
@@ -304,12 +307,15 @@ export async function executeNode(
                     systemPrompt += `\n\nContexte: L'intention détectée du client est "${context.intent}". Adapte ta réponse en conséquence.`;
                 }
 
+                const resolvedSystemPrompt = replaceVariables(systemPrompt, context);
+                const resolvedUserMessage = replaceVariables(userMessage, context);
+
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        message: userMessage,
-                        systemPrompt,
+                        message: resolvedUserMessage,
+                        systemPrompt: resolvedSystemPrompt,
                         model: model || 'gpt-4o'
                     })
                 });
@@ -2115,8 +2121,28 @@ function replaceVariables(text: string, context: ExecutionContext): string {
 
     // Dynamic replacement for all context variables using {{variable_name}} syntax
     // This allows arbitrary variables set by 'set_variable' or 'api_response'
+    // Supports nested paths like {{contact.phone}} and leading dots like {{.lastUserMessage}}
     return result.replace(/{{(.*?)}}/g, (match, key) => {
-        const value = context[key.trim()];
+        let path = key.trim();
+        if (path.startsWith('.')) path = path.substring(1);
+
+        const parts = path.split('.');
+        let value: any = context;
+
+        for (const part of parts) {
+            if (value && typeof value === 'object' && part in value) {
+                value = value[part];
+            } else {
+                value = undefined;
+                break;
+            }
+        }
+
+        // If not found in dynamic path, try direct key in context (backward compatibility)
+        if (value === undefined) {
+            value = context[path];
+        }
+
         return value !== undefined ? String(value) : match;
     });
 }

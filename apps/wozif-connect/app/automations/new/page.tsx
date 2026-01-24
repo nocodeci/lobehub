@@ -9307,16 +9307,19 @@ Ton but est de transformer chaque message en vente.
                                               const expectedOutputs = getNodeOutputs(node.type, node.config);
                                               const outputFields = Object.keys(expectedOutputs);
 
-                                              const isTrigger = [
+                                              const isTriggerOrSpecialized = [
                                                 "whatsapp_message",
                                                 "telegram_message",
                                                 "keyword",
                                                 "new_contact",
                                                 "scheduled",
                                                 "webhook_trigger",
+                                                "gpt_analyze",
+                                                "gpt_respond",
+                                                "ai_agent"
                                               ].includes(node.type);
 
-                                              if (outputFields.length === 0 || isTrigger) return null;
+                                              if (outputFields.length === 0 || isTriggerOrSpecialized) return null;
 
                                               const cfg = (defaultValue = {}) => {
                                                 try {
@@ -9868,26 +9871,7 @@ Ton but est de transformer chaque message en vente.
                                                                   </div>
                                                                 </FormField>
 
-                                                                <div className="pt-2">
-                                                                  <button
-                                                                    onClick={() => setShowAdvancedAnalyze(!showAdvancedAnalyze)}
-                                                                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
-                                                                  >
-                                                                    <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedAnalyze ? "rotate-180" : ""}`} />
-                                                                    <span>{showAdvancedAnalyze ? "Moins" : "Plus"}</span>
-                                                                  </button>
-                                                                </div>
 
-                                                                {showAdvancedAnalyze && (
-                                                                  <div className="space-y-4 pt-2">
-                                                                    <div className="text-xs font-medium text-muted-foreground">Paramètres avancés</div>
-                                                                    <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                                                                      <p className="text-[9px] text-muted-foreground/70 italic">
-                                                                        Les paramètres avancés seront disponibles ici.
-                                                                      </p>
-                                                                    </div>
-                                                                  </div>
-                                                                )}
                                                               </div>
                                                             </div>
                                                           );
@@ -9977,26 +9961,7 @@ Ton but est de transformer chaque message en vente.
                                                                   </div>
                                                                 </FormField>
 
-                                                                <div className="pt-2">
-                                                                  <button
-                                                                    onClick={() => setShowAdvancedGpt(!showAdvancedGpt)}
-                                                                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
-                                                                  >
-                                                                    <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedGpt ? "rotate-180" : ""}`} />
-                                                                    <span>{showAdvancedGpt ? "Moins" : "Plus"}</span>
-                                                                  </button>
-                                                                </div>
 
-                                                                {showAdvancedGpt && (
-                                                                  <div className="space-y-4 pt-2">
-                                                                    <div className="text-xs font-medium text-muted-foreground">Paramètres avancés</div>
-                                                                    <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                                                                      <p className="text-[9px] text-muted-foreground/70 italic">
-                                                                        Les paramètres avancés seront disponibles ici.
-                                                                      </p>
-                                                                    </div>
-                                                                  </div>
-                                                                )}
                                                               </div>
                                                             </div>
                                                           );
