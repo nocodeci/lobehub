@@ -86,6 +86,14 @@ function generateFallbackResponse(intent: string | undefined, message: string): 
     }
 }
 
+// Helper to extract value from object using dot notation path
+function extractValueByPath(obj: any, path: string): any {
+    if (!path || !obj) return null;
+    return path.split('.').reduce((current: any, key: string) => {
+        return current?.[key];
+    }, obj);
+}
+
 // Helper to send real WhatsApp message during manual execution
 async function sendRealWhatsAppMessage(userId: string | undefined, recipient: string | undefined, payload: any) {
     if (!userId || !recipient) {
@@ -172,20 +180,26 @@ export async function executeNode(
 
         case 'gpt_analyze': {
             // STRICT intent classification - NO response generation
-            const { categories, aiInstructions, system, prompt, outputFields, typeValues, urgencyMin, urgencyMax } = config;
+            const { categories, aiInstructions, system, prompt, outputFields, typeValues, urgencyMin, urgencyMax, customOutputs } = config;
             const userMessage = context.lastUserMessage;
             const systemPrompt = system || aiInstructions || "";
 
             console.log(`🔍 Classification d'intention...`);
 
-            const customCategories = categories || "";
+            // Prioritize typeValues for categories, fallback to categories
+            const customCategories = typeValues || categories || "";
             const enabledFields = outputFields || ['type', 'urgency', 'autoResolvable', 'keywords'];
+            const customOutputsList = customOutputs || [];
 
             // Build JSON schema based on enabled outputs
             const jsonSchema: any = {};
             if (enabledFields.includes('type')) {
-                const typeOptions = typeValues ? typeValues.split(',').map((v: string) => v.trim()) : ['technique', 'facturation', 'compte', 'produit', 'autre'];
-                jsonSchema.type = `string - Type de problème parmi: ${typeOptions.join(', ')}`;
+                const combinedCategories = typeValues || categories || "";
+                let typeOptions = combinedCategories ? combinedCategories.split(',').map((v: string) => v.trim()) : ['technique', 'facturation', 'compte', 'produit'];
+                // Always ensure 'autre' is an option for the AI
+                if (!typeOptions.includes('autre')) typeOptions.push('autre');
+
+                jsonSchema.type = `string - Type d'intention parmi: ${typeOptions.join(', ')}. Utilise 'autre' si aucune catégorie ne correspond parfaitement.`;
             }
             if (enabledFields.includes('urgency')) {
                 const min = urgencyMin || 1;
@@ -199,18 +213,32 @@ export async function executeNode(
                 jsonSchema.keywords = 'array - Mots-clés extraits du message';
             }
 
-            // Use custom system prompt if provided, otherwise use default
-            const finalSystemPrompt = systemPrompt || (() => {
-                const fieldsDesc = Object.entries(jsonSchema).map(([key, desc]) => `- ${key}: ${desc}`).join('\n');
-                let p = `Tu es un expert en analyse d'intention client. Analyse le message et retourne UNIQUEMENT un JSON avec les champs suivants:\n${fieldsDesc}\n\n`;
-                if (customCategories) {
-                    p += `Voici les catégories d'intention à considérer en priorité:\n${customCategories}\n\n`;
+            // Add custom output fields to JSON schema
+            customOutputsList.forEach((output: any) => {
+                if (output.name && output.description) {
+                    jsonSchema[output.name] = `string - ${output.description}`;
                 }
-                p += `RÈGLES STRICTES:\n1. Réponds UNIQUEMENT en JSON valide\n2. NE JAMAIS répondre au message du client\n3. Utilise exactement les champs demandés`;
+            });
+
+            // Use custom system prompt if provided, but prioritize automatic one if categories/typeValues are specified
+            const finalSystemPrompt = (systemPrompt && !customCategories) ? systemPrompt : (() => {
+                const fieldsDesc = Object.entries(jsonSchema).map(([key, desc]) => `- ${key}: ${desc}`).join('\n');
+                let p = `Tu es un expert en analyse d'intention client. Ton rôle est de classer le message de l'utilisateur et d'extraire les informations demandées.\n\n`;
+                p += `Tu DOIS retourner UNIQUEMENT un objet JSON valide avec les champs suivants:\n${fieldsDesc}\n\n`;
+
+                if (customCategories) {
+                    p += `Voici les catégories d'intention à considérer (le champ 'type' doit impérativement être l'une de celles-ci):\n${customCategories}\n\n`;
+                }
+
+                if (systemPrompt && customCategories) {
+                    p += `Instructions additionnelles:\n${systemPrompt}\n\n`;
+                }
+
+                p += `RÈGLES CRITIQUES:\n1. Réponds EXCLUSIVEMENT en JSON\n2. NE JAMAIS inclure de texte avant ou après le JSON\n3. NE JAMAIS répondre au client directement\n4. Si tu hésites, utilise 'autre' pour le type d'intention.`;
                 return p;
             })();
 
-            const analysisPrompt = prompt || `Analyse le message suivant et retourne un JSON avec les champs configurés: "${userMessage}"`;
+            const analysisPrompt = prompt || `Analyse l'intention du message suivant de l'utilisateur: "${userMessage}"`;
 
             const resolvedSystemPrompt = replaceVariables(finalSystemPrompt, context);
             const resolvedAnalysisPrompt = replaceVariables(analysisPrompt, context);
@@ -224,7 +252,7 @@ export async function executeNode(
                         systemPrompt: resolvedSystemPrompt,
                         model: config.model || 'gpt-4o-mini',
                         maxTokens: config.maxTokens || 500,
-                        temperature: config.temperature !== undefined ? config.temperature : 0.7
+                        temperature: config.temperature !== undefined ? config.temperature : 0.1
                     })
                 });
 
@@ -257,6 +285,8 @@ export async function executeNode(
                 }
 
                 let responseText = data.response?.trim() || "autre";
+                console.log(`📡 Réponse IA brute: "${responseText}"`);
+                console.log(`📝 Prompt envoyé: "${resolvedAnalysisPrompt}"`);
 
                 // Try to parse as JSON first (for complex analysis outputs)
                 try {
@@ -284,6 +314,15 @@ export async function executeNode(
                                 } else {
                                     finalData[field] = null;
                                 }
+                            }
+                        });
+
+                        // Process custom outputs - extract values using paths
+                        const customOutputsList = customOutputs || [];
+                        customOutputsList.forEach((output: any) => {
+                            if (output.name && output.path) {
+                                const extractedValue = extractValueByPath(parsed, output.path);
+                                finalData[output.name] = extractedValue;
                             }
                         });
 

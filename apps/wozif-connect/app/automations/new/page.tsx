@@ -1244,6 +1244,52 @@ const currencySymbols: Record<string, string> = {
 
 type ViewMode = "templates" | "builder" | "ai-assist" | "products";
 
+type AIAgentInputPort = "ai_languageModel" | "ai_memory" | "ai_tool";
+
+const isNodeCompatibleWithAIAgentPort = (
+  nodeId: string,
+  port: AIAgentInputPort,
+): boolean => {
+  if (port === "ai_languageModel") {
+    return nodeId === "gpt_respond" || nodeId === "ai_agent";
+  }
+  if (port === "ai_memory") {
+    return nodeId === "database_query" || nodeId === "google_sheets";
+  }
+  if (port === "ai_tool") {
+    return (
+      nodeId === "http_request" ||
+      nodeId === "run_javascript" ||
+      nodeId === "google_sheets" ||
+      nodeId === "database_query" ||
+      nodeId === "send_text" ||
+      nodeId === "send_image" ||
+      nodeId === "send_document" ||
+      nodeId === "send_location" ||
+      nodeId === "send_contact" ||
+      nodeId === "send_audio" ||
+      nodeId === "show_catalog" ||
+      nodeId === "add_to_cart" ||
+      nodeId === "show_cart" ||
+      nodeId === "checkout" ||
+      nodeId === "order_status" ||
+      nodeId === "save_contact" ||
+      nodeId === "add_tag" ||
+      nodeId === "remove_tag" ||
+      nodeId === "update_contact" ||
+      nodeId === "assign_agent" ||
+      nodeId === "add_note" ||
+      nodeId === "condition" ||
+      nodeId === "delay" ||
+      nodeId === "loop" ||
+      nodeId === "set_variable" ||
+      nodeId === "random_choice" ||
+      nodeId === "end_flow"
+    );
+  }
+  return true;
+};
+
 type WorkflowNode = {
   id: number;
   type: string;
@@ -1258,6 +1304,7 @@ type WorkflowNode = {
     true?: number;
     false?: number;
   };
+  aiConnections?: Partial<Record<AIAgentInputPort, number>>;
 };
 
 // Schema Header Component (n8n style)
@@ -1657,8 +1704,8 @@ function DraggableNode({
   onOpenSettings: () => void;
   zoom: number;
   onStartConnect?: (branch?: "true" | "false") => void;
-  onCompleteConnect?: () => void;
-  onAddNext?: () => void;
+  onCompleteConnect?: (targetPort?: "main" | AIAgentInputPort) => void;
+  onAddNext?: (targetPort?: "main" | AIAgentInputPort) => void;
   isConnecting?: boolean;
   isDisconnected?: boolean;
   isWhatsAppConnected?: boolean;
@@ -1751,7 +1798,11 @@ function DraggableNode({
       }
       if (type === "ai_agent") {
         // AI Agent is configured if it has a system prompt or model selected
-        return !config.systemPrompt && !config.model;
+        const hasChatModel = !!node.aiConnections?.ai_languageModel;
+        const hasMemory = !!node.aiConnections?.ai_memory;
+        const hasTool = !!node.aiConnections?.ai_tool;
+        // Chat Model is optional (can use built-in model). Memory & Tool are required.
+        return (!config.systemPrompt && !config.model) || !hasMemory || !hasTool;
       }
       if (type === "sentiment") {
         // Sentiment is configured by default (has sensible defaults)
@@ -1816,7 +1867,7 @@ function DraggableNode({
   const bottomInputs = nodeInfo?.bottomInputs || [];
 
   // For AI Agent nodes, we need extra height for bottom handles
-  const totalHeight = isAiAgentNode ? nodeHeight + 80 : nodeHeight;
+  const totalHeight = isAiAgentNode ? nodeHeight + 120 : nodeHeight;
 
   return (
     <motion.div
@@ -1845,6 +1896,7 @@ function DraggableNode({
         left: node.x,
         top: node.y,
         width: nodeWidth,
+        height: totalHeight,
       }}
     >
       {/* Premium Focus Aura & Industrial Brackets */}
@@ -1990,17 +2042,20 @@ function DraggableNode({
         )}
 
         {/* Drag indicator */}
-        <div className={`absolute ${isAiAgentNode ? "bottom-2 right-2" : "bottom-1 right-1"} opacity-30`}>
+        <div
+          className={`absolute ${isAiAgentNode ? "bottom-2 right-2" : "bottom-1 right-1"} opacity-30`}
+        >
           <GripVertical className="h-3 w-3" />
         </div>
 
         {/* Connection Input Handle (left side) - clickable to receive connection */}
         <div
+          data-handle-key={`node:${node.id}:in:main`}
           className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer group/input"
           onClick={(e) => {
             e.stopPropagation();
             if (isConnecting && onCompleteConnect) {
-              onCompleteConnect();
+              onCompleteConnect("main");
             }
           }}
         >
@@ -2018,6 +2073,7 @@ function DraggableNode({
           <>
             {/* Output Handle VRAI (top right) */}
             <div
+              data-handle-key={`node:${node.id}:out:true`}
               className="absolute right-0 top-1/4 translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer group/output-true"
               onClick={(e) => {
                 e.stopPropagation();
@@ -2037,6 +2093,7 @@ function DraggableNode({
             </div>
             {/* Output Handle FAUX (bottom right) */}
             <div
+              data-handle-key={`node:${node.id}:out:false`}
               className="absolute right-0 top-3/4 translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer group/output-false"
               onClick={(e) => {
                 e.stopPropagation();
@@ -2057,6 +2114,7 @@ function DraggableNode({
           </>
         ) : (
           <div
+            data-handle-key={`node:${node.id}:out:main`}
             className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer group/output"
             onClick={(e) => {
               e.stopPropagation();
@@ -2084,7 +2142,7 @@ function DraggableNode({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              if (onAddNext) onAddNext();
+              if (onAddNext) onAddNext("main");
             }}
             className="h-6 w-6 rounded-md bg-[#252525] border border-zinc-600 hover:border-[#87a9ff] hover:bg-[#87a9ff]/10 flex items-center justify-center text-zinc-500 hover:text-[#87a9ff] transition-all shadow-xl"
           >
@@ -2092,6 +2150,64 @@ function DraggableNode({
           </button>
         </div>
       </div>
+
+      {/* AI Agent Bottom Input Handles (n8n inspired) */}
+      {isAiAgentNode && bottomInputs.length > 0 && (
+        <div className="absolute left-0 top-20 w-full pointer-events-none">
+          {bottomInputs.slice(0, 3).map((label: string, idx: number) => {
+            const leftPositions = [40, 136, 184];
+            const left = leftPositions[idx] ?? 40;
+            const ports: AIAgentInputPort[] = [
+              "ai_languageModel",
+              "ai_memory",
+              "ai_tool",
+            ];
+            const port = ports[idx] ?? "ai_languageModel";
+            return (
+              <div
+                key={`${node.id}-bottom-input-${idx}`}
+                className="absolute"
+                style={{ left }}
+              >
+                <div className="relative -translate-x-1/2 w-6 h-[56px]">
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 text-[10px] text-white/60 whitespace-nowrap pointer-events-none">
+                    {label}
+                  </div>
+
+                  {/* Clickable target handle */}
+                  <button
+                    type="button"
+                    className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-auto"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isConnecting && onCompleteConnect) onCompleteConnect(port);
+                    }}
+                    title={label}
+                  >
+                    <div className="h-3 w-3 rotate-45 bg-[#252525] border-2 border-zinc-600" />
+                  </button>
+
+                  {/* Vertical line */}
+                  <div className="absolute top-6 left-1/2 -translate-x-1/2 w-0.5 h-7 bg-zinc-600" />
+
+                  {/* Plus */}
+                  <button
+                    type="button"
+                    className={`absolute bottom-0 left-1/2 -translate-x-1/2 pointer-events-auto h-6 w-6 rounded-md bg-[#252525] border border-zinc-600 hover:border-[#87a9ff] hover:bg-[#87a9ff]/10 flex items-center justify-center text-zinc-500 hover:text-[#87a9ff] transition-all shadow-xl ${showToolbar || isSelected ? "opacity-100" : "opacity-0"}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onAddNext) onAddNext(port);
+                    }}
+                    title="Ajouter"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Node Label - using fixed width to avoid shifting the box */}
       {!isAiAgentNode && (
@@ -2199,6 +2315,7 @@ export default function NewWorkflowPage() {
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [parameterTab, setParameterTab] = useState<"parameters" | "settings">("parameters");
   const [parameterMode, setParameterMode] = useState<Record<string, "fixed" | "expression">>({});
+  const [newIntent, setNewIntent] = useState("");
   const [products, setProducts] = useState<Product[]>(sampleProducts);
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<number>>(
     new Set(),
@@ -2647,10 +2764,22 @@ export default function NewWorkflowPage() {
   };
 
   // Complete connection when clicking on target node
-  const handleNodeConnect = (targetNodeId: number) => {
+  const handleNodeConnect = (targetNodeId: number, targetPort: "main" | AIAgentInputPort = "main") => {
     if (connectingFrom !== null && connectingFrom !== targetNodeId) {
       setNodes((prevNodes) =>
         prevNodes.map((n) => {
+          // Port-typed connections INTO AI Agent inputs (target side)
+          if (n.id === targetNodeId && n.type === "ai_agent" && targetPort !== "main") {
+            return {
+              ...n,
+              aiConnections: {
+                ...(n.aiConnections || {}),
+                [targetPort]: connectingFrom,
+              },
+            };
+          }
+
+          // Default connections (source side)
           if (n.id === connectingFrom) {
             // If connecting from a condition node with a specific branch
             if (connectingBranch) {
@@ -2727,11 +2856,64 @@ export default function NewWorkflowPage() {
     x2: number;
     y2: number;
   } | null>(null);
+
+  const [handlePositions, setHandlePositions] = useState<
+    Record<string, { x: number; y: number }>
+  >({});
+
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const canvasContentRef = useRef<HTMLDivElement>(null);
+
+  const getHandlePos = useCallback(
+    (key: string) => handlePositions[key],
+    [handlePositions],
+  );
+
+  useEffect(() => {
+    // Measure handle DOM positions and map them into *unscaled* canvas coordinates.
+    // This makes edges line up perfectly regardless of node width, borders, or zoom.
+    if (typeof window === "undefined") return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const raf = window.requestAnimationFrame(() => {
+      const canvasRect = canvas.getBoundingClientRect();
+      const next: Record<string, { x: number; y: number }> = {};
+
+      for (const n of nodes) {
+        const keys = [
+          `node:${n.id}:in:main`,
+          `node:${n.id}:out:main`,
+          `node:${n.id}:out:true`,
+          `node:${n.id}:out:false`,
+        ];
+        for (const key of keys) {
+          const el = document.querySelector(`[data-handle-key="${key}"]`) as HTMLElement | null;
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          const cx = r.left + r.width / 2;
+          const cy = r.top + r.height / 2;
+          next[key] = {
+            x: (cx - canvasRect.left + canvas.scrollLeft) / zoom,
+            y: (cy - canvasRect.top + canvas.scrollTop) / zoom,
+          };
+        }
+      }
+
+      setHandlePositions(next);
+    });
+
+    return () => window.cancelAnimationFrame(raf);
+  }, [nodes, zoom]);
   const [isSelecting, setIsSelecting] = useState(false);
   const [nodePickerPos, setNodePickerPos] = useState<{
     x: number;
     y: number;
     index: number;
+    agentTarget?: {
+      agentId: number;
+      port: AIAgentInputPort;
+    };
   } | null>(null);
 
   // Zoom controls
@@ -2775,7 +2957,6 @@ export default function NewWorkflowPage() {
   }, [selectedNodeIds, nodes, viewMode]);
 
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
-  const canvasRef = React.useRef<HTMLDivElement>(null);
 
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left click
@@ -2925,7 +3106,7 @@ export default function NewWorkflowPage() {
       return;
     }
 
-    const newNode = {
+    const newNode: WorkflowNode = {
       id: Date.now(),
       type: nodeType,
       name: nodeName,
@@ -2935,6 +3116,29 @@ export default function NewWorkflowPage() {
     };
     const newNodes = [...nodes];
     newNodes.splice(index, 0, newNode);
+
+    // If we inserted a node via AI Agent input '+', auto-wire it.
+    if (
+      nodePickerPos?.agentTarget &&
+      nodePickerPos.agentTarget.agentId &&
+      nodePickerPos.agentTarget.port
+    ) {
+      const { agentId, port } = nodePickerPos.agentTarget;
+      for (let i = 0; i < newNodes.length; i++) {
+        const n = newNodes[i];
+        if (n.id === agentId && n.type === "ai_agent") {
+          newNodes[i] = {
+            ...n,
+            aiConnections: {
+              ...(n.aiConnections || {}),
+              [port]: newNode.id,
+            },
+          };
+          break;
+        }
+      }
+    }
+
     setNodes(newNodes);
     setNodePickerPos(null);
     setSelectedNodeIds(new Set([newNode.id]));
@@ -8298,6 +8502,7 @@ Ton but est de transformer chaque message en vente.
                       }}
                     >
                       <div className="relative w-[4000px] h-[3000px]">
+                        <div ref={canvasContentRef} className="absolute inset-0" />
                         {/* n8n-style Background - Simple dot pattern */}
                         <div className="absolute inset-0 pointer-events-none">
                           <svg className="absolute inset-0 w-full h-full">
@@ -8383,6 +8588,51 @@ Ton but est de transformer chaque message en vente.
                                 </marker>
                               </defs>
                               {nodes.flatMap((node, idx) => {
+                                // AI Agent typed input connections (from source node output -> agent bottom port)
+                                if (node.type === "ai_agent" && node.aiConnections) {
+                                  const leftPositionsByPort: Record<AIAgentInputPort, number> = {
+                                    ai_languageModel: 40,
+                                    ai_memory: 136,
+                                    ai_tool: 184,
+                                  };
+
+                                  return (Object.keys(node.aiConnections) as AIAgentInputPort[])
+                                    .flatMap((port) => {
+                                      const sourceId = node.aiConnections?.[port];
+                                      if (!sourceId) return [];
+                                      const sourceNode = nodes.find((n) => n.id === sourceId);
+                                      if (!sourceNode) return [];
+
+                                      const sourceNodeWidth = sourceNode.type === "ai_agent" ? 224 : 96;
+                                      const startX = sourceNode.x + sourceNodeWidth;
+                                      const startY = sourceNode.y + 48;
+
+                                      const endX = node.x + (leftPositionsByPort[port] ?? 40);
+                                      // Matches DraggableNode bottom handle position: top-20 container + handle at top-3.
+                                      // We target the *center* of the 12px diamond (top-3 + 6px).
+                                      const endY = node.y + 80 + 12 + 6;
+
+                                      const dist = Math.abs(endX - startX);
+                                      const cpOffset = Math.min(dist * 0.4, 120);
+
+                                      const pathD = `M ${startX} ${startY} C ${startX + cpOffset} ${startY}, ${endX - cpOffset} ${endY}, ${endX} ${endY}`;
+
+                                      return (
+                                        <g key={`ai-conn-${sourceNode.id}-${node.id}-${port}`} className="group/line">
+                                          <path
+                                            d={pathD}
+                                            fill="none"
+                                            stroke="#b1b1b7"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            markerEnd="url(#n8n-arrow-head)"
+                                            className="group-hover/line:stroke-[#a78bfa] transition-colors duration-200"
+                                          />
+                                        </g>
+                                      );
+                                    });
+                                }
+
                                 // For condition nodes, handle conditional connections
                                 if (node.type === "condition" && node.conditionalConnections) {
                                   const connections: Array<{ target: WorkflowNode; branch: "true" | "false"; color: string; startY: number }> = [];
@@ -8412,13 +8662,16 @@ Ton but est de transformer chaque message en vente.
                                   }
 
                                   return connections.map(({ target: targetNode, color, startY, branch }) => {
-                                    const sourceNodeWidth = 96;
-                                    const targetNodeWidth = targetNode.type === "ai_agent" ? 224 : 96;
+                                    const startKey = `node:${node.id}:out:${branch}`;
+                                    const endKey = `node:${targetNode.id}:in:main`;
+                                    const start = getHandlePos(startKey);
+                                    const end = getHandlePos(endKey);
+                                    if (!start || !end) return null;
 
-                                    const startX = node.x + sourceNodeWidth;
-                                    const startYPos = node.y + startY;
-                                    const endX = targetNode.x;
-                                    const endY = targetNode.y + 48;
+                                    const startX = start.x;
+                                    const startYPos = start.y;
+                                    const endX = end.x;
+                                    const endY = end.y;
 
                                     const dist = Math.abs(endX - startX);
                                     const cpOffset = Math.min(dist * 0.4, 120);
@@ -8504,14 +8757,16 @@ Ton but est de transformer chaque message en vente.
                                 }
 
                                 if (targetNode) {
-                                  // Port offsets: AI Agent nodes are 224px wide, others are 96px
-                                  const sourceNodeWidth = node.type === "ai_agent" ? 224 : 96;
-                                  const targetNodeWidth = targetNode.type === "ai_agent" ? 224 : 96;
+                                  const startKey = `node:${node.id}:out:main`;
+                                  const endKey = `node:${targetNode.id}:in:main`;
+                                  const start = getHandlePos(startKey);
+                                  const end = getHandlePos(endKey);
+                                  if (!start || !end) return [];
 
-                                  const startX = node.x + sourceNodeWidth;
-                                  const startY = node.y + 48; // Center of 96px height
-                                  const endX = targetNode.x;
-                                  const endY = targetNode.y + 48;
+                                  const startX = start.x;
+                                  const startY = start.y;
+                                  const endX = end.x;
+                                  const endY = end.y;
 
                                   // Dynamic curve offset based on distance
                                   const dist = Math.abs(endX - startX);
@@ -8673,20 +8928,22 @@ Ton but est de transformer chaque message en vente.
                                   );
                                   if (!sourceNode) return null;
 
-                                  // Determine start Y position based on branch
-                                  let startYOffset = 48; // Default center
-                                  let strokeColor = '#87a9ff'; // Default color
+                                  const startKey = connectingBranch
+                                    ? `node:${sourceNode.id}:out:${connectingBranch}`
+                                    : `node:${sourceNode.id}:out:main`;
+                                  const start = getHandlePos(startKey);
+                                  if (!start) return null;
 
+                                  // Determine start color based on branch
+                                  let strokeColor = '#87a9ff'; // Default color
                                   if (connectingBranch === 'true') {
-                                    startYOffset = 24; // Top quarter
                                     strokeColor = '#10b981'; // Green
                                   } else if (connectingBranch === 'false') {
-                                    startYOffset = 72; // Bottom quarter
                                     strokeColor = '#ef4444'; // Red
                                   }
 
-                                  const startX = sourceNode.x + 96;
-                                  const startY = sourceNode.y + startYOffset;
+                                  const startX = start.x;
+                                  const startY = start.y;
                                   const endX = mousePos.x;
                                   const endY = mousePos.y;
 
@@ -8744,20 +9001,35 @@ Ton but est de transformer chaque message en vente.
                                     setConnectingFrom(node.id);
                                     setConnectingBranch(branch || null);
                                     setMousePos({
-                                      x: node.x + 96,
-                                      y: node.y + 48,
+                                      x: node.x + (node.type === "ai_agent" ? 224 : 96),
+                                      y: node.y + (branch === "true" ? 24 : branch === "false" ? 72 : 48),
                                     });
                                   }}
-                                  onCompleteConnect={() =>
-                                    handleNodeConnect(node.id)
+                                  onCompleteConnect={(targetPort) =>
+                                    handleNodeConnect(node.id, targetPort ?? "main")
                                   }
-                                  onAddNext={() =>
+                                  onAddNext={(targetPort) => {
+                                    if (node.type === "ai_agent" && targetPort && targetPort !== "main") {
+                                      const leftPositionsByPort: Record<AIAgentInputPort, number> = {
+                                        ai_languageModel: 40,
+                                        ai_memory: 136,
+                                        ai_tool: 184,
+                                      };
+                                      setNodePickerPos({
+                                        x: node.x + (leftPositionsByPort[targetPort] ?? 40),
+                                        y: node.y + 96,
+                                        index: idx + 1,
+                                        agentTarget: { agentId: node.id, port: targetPort },
+                                      });
+                                      return;
+                                    }
+
                                     setNodePickerPos({
                                       x: node.x + 140,
                                       y: node.y,
                                       index: idx + 1,
-                                    })
-                                  }
+                                    });
+                                  }}
                                   isConnecting={connectingFrom !== null}
                                   isDisconnected={node.connectedTo === -1}
                                   isWhatsAppConnected={isWhatsAppConnected}
@@ -8782,7 +9054,23 @@ Ton but est de transformer chaque message en vente.
                                     Insérer un bloc
                                   </h4>
                                   <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
-                                    {nodeCategories.map((category) => (
+                                    {nodeCategories
+                                      .map((category) => {
+                                        const requiredPort = nodePickerPos.agentTarget?.port;
+                                        if (!requiredPort) return { category, nodes: category.nodes };
+
+                                        return {
+                                          category,
+                                          nodes: category.nodes.filter((n) =>
+                                            isNodeCompatibleWithAIAgentPort(
+                                              n.id,
+                                              requiredPort,
+                                            ),
+                                          ),
+                                        };
+                                      })
+                                      .filter(({ nodes }) => nodes.length > 0)
+                                      .map(({ category, nodes }) => (
                                       <div
                                         key={category.id}
                                         className="space-y-1"
@@ -8791,7 +9079,7 @@ Ton but est de transformer chaque message en vente.
                                           {category.name}
                                         </p>
                                         <div className="grid grid-cols-1 gap-1">
-                                          {category.nodes.map((node) => {
+                                          {nodes.map((node) => {
                                             const isTriggerType =
                                               category.id === "triggers";
                                             const isDisabled =
@@ -9852,56 +10140,95 @@ Ton but est de transformer chaque message en vente.
                                                                   />
                                                                 </FormField>
 
-
-                                                                <div className="space-y-2">
+                                                                <div className="space-y-3">
                                                                   <div className="flex items-center justify-between">
-                                                                    <label className="text-sm text-white/80 font-medium">Instructions d'analyse</label>
-                                                                    <div className="flex items-center gap-1">
-                                                                      <button
-                                                                        onClick={async () => {
-                                                                          try {
-                                                                            const enabledFields = analyzeCfg.outputFields || ['type', 'urgency', 'autoResolvable', 'keywords'];
-                                                                            const fieldsDesc = enabledFields.map((f: string) => {
-                                                                              if (f === 'type') return `- type: Type de problème (${analyzeCfg.typeValues || 'technique,facturation,compte,produit,autre'})`;
-                                                                              if (f === 'urgency') return `- urgency: Niveau d'urgence (${analyzeCfg.urgencyMin || 1}-${analyzeCfg.urgencyMax || 5})`;
-                                                                              if (f === 'autoResolvable') return `- autoResolvable: Peut être résolu automatiquement (oui/non)`;
-                                                                              if (f === 'keywords') return `- keywords: Mots-clés extraits (array)`;
-                                                                              return `- ${f}`;
-                                                                            }).join('\n');
+                                                                    <label className="text-sm text-white/80 font-medium">Intentions à détecter</label>
+                                                                    <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded text-muted-foreground font-mono">
+                                                                      {(analyzeCfg.categories || "Vente, Support, Autre").split(',').length} intentions
+                                                                    </span>
+                                                                  </div>
 
-                                                                            const response = await fetch('/api/chat', {
-                                                                              method: 'POST',
-                                                                              headers: { 'Content-Type': 'application/json' },
-                                                                              body: JSON.stringify({
-                                                                                message: `Génère des instructions système pour analyser l'intention des clients. L'analyse doit retourner un JSON avec les champs suivants:\n${fieldsDesc}\n\nRéponds UNIQUEMENT en JSON avec ces champs.`,
-                                                                                systemPrompt: "Tu es un expert en analyse d'intention client.",
-                                                                                model: "gpt-4o-mini",
-                                                                                maxTokens: 200
-                                                                              })
-                                                                            });
-                                                                            if (response.ok) {
-                                                                              const data = await response.json();
-                                                                              if (data.success && data.response) {
-                                                                                updateCfg({ ...analyzeCfg, system: data.response.trim() });
-                                                                              }
-                                                                            }
-                                                                          } catch (error) {
-                                                                            console.error('Erreur:', error);
+                                                                  <div className="flex gap-2">
+                                                                    <input
+                                                                      type="text"
+                                                                      value={newIntent}
+                                                                      onChange={(e) => setNewIntent(e.target.value)}
+                                                                      onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter' && newIntent.trim()) {
+                                                                          const current = analyzeCfg.categories || "Vente, Support, Autre";
+                                                                          const list = current.split(',').map((s: string) => s.trim());
+                                                                          if (!list.includes(newIntent.trim())) {
+                                                                            updateCfg({ ...analyzeCfg, categories: [...list, newIntent.trim()].join(', ') });
+                                                                            setNewIntent("");
                                                                           }
-                                                                        }}
-                                                                        className="h-6 px-2 rounded-md hover:bg-white/5 flex items-center gap-1 text-[#10a37f] text-xs font-medium transition-colors"
+                                                                        }
+                                                                      }}
+                                                                      placeholder="Ajouter une intention (ex: Livraison)"
+                                                                      className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-[#10a37f]/50"
+                                                                    />
+                                                                    <button
+                                                                      onClick={() => {
+                                                                        if (newIntent.trim()) {
+                                                                          const current = analyzeCfg.categories || "Vente, Support, Autre";
+                                                                          const list = current.split(',').map((s: string) => s.trim());
+                                                                          if (!list.includes(newIntent.trim())) {
+                                                                            updateCfg({ ...analyzeCfg, categories: [...list, newIntent.trim()].join(', ') });
+                                                                            setNewIntent("");
+                                                                          }
+                                                                        }
+                                                                      }}
+                                                                      className="w-10 h-10 flex items-center justify-center bg-[#10a37f] hover:bg-[#10a37f]/80 rounded-lg text-white transition-colors"
+                                                                    >
+                                                                      <Plus className="h-4 w-4" />
+                                                                    </button>
+                                                                  </div>
+
+                                                                  <div className="flex flex-wrap gap-2">
+                                                                    {(analyzeCfg.categories || "Vente, Support, Autre").split(',').map((cat: string, idx: number) => (
+                                                                      <div
+                                                                        key={idx}
+                                                                        className="group flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 px-2.5 py-1.5 rounded-lg text-xs text-white/90 transition-all"
                                                                       >
-                                                                        <Sparkles className="h-3 w-3" />
-                                                                        Générer
-                                                                      </button>
+                                                                        <span className="font-medium">{cat.trim()}</span>
+                                                                        <button
+                                                                          onClick={() => {
+                                                                            const current = analyzeCfg.categories || "Vente, Support, Autre";
+                                                                            const list = current.split(',').map((s: string) => s.trim());
+                                                                            const filtered = list.filter((_: any, i: number) => i !== idx);
+                                                                            updateCfg({ ...analyzeCfg, categories: filtered.join(', ') });
+                                                                          }}
+                                                                          className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all"
+                                                                        >
+                                                                          <X className="h-3 w-3" />
+                                                                        </button>
+                                                                      </div>
+                                                                    ))}
+                                                                  </div>
+
+                                                                  <div className="pt-2 border-t border-white/5">
+                                                                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Suggestions</span>
+                                                                    <div className="flex flex-wrap gap-1.5 mt-2">
+                                                                      {['Livraison', 'Inscription', 'Prix', 'Rendez-vous', 'Remboursement', 'Plainte'].map((sugg: string) => (
+                                                                        <button
+                                                                          key={sugg}
+                                                                          onClick={() => {
+                                                                            const current = analyzeCfg.categories || "Vente, Support, Autre";
+                                                                            const list = current.split(',').map((s: string) => s.trim());
+                                                                            if (!list.includes(sugg)) {
+                                                                              updateCfg({ ...analyzeCfg, categories: [...list, sugg].join(', ') });
+                                                                            }
+                                                                          }}
+                                                                          className="px-2 py-1 rounded bg-white/5 hover:bg-[#10a37f]/10 text-white/40 hover:text-[#10a37f] text-[10px] transition-colors"
+                                                                        >
+                                                                          {sugg}
+                                                                        </button>
+                                                                      ))}
                                                                     </div>
                                                                   </div>
-                                                                  <MarkdownEditor
-                                                                    value={analyzeCfg.system || ""}
-                                                                    onChange={(value) => updateCfg({ ...analyzeCfg, system: value })}
-                                                                    placeholder="Décrivez comment analyser l'intention du client..."
-                                                                  />
                                                                 </div>
+
+
+
 
                                                                 <FormField label="Température (créativité)">
                                                                   <div className="flex items-center gap-3 flex-1">

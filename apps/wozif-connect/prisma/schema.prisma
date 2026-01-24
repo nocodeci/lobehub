@@ -31,6 +31,7 @@ model User {
   TeamMember     TeamMember[]
   WhatsAppConfig WhatsAppConfig?
   Automation     Automation[]
+  knowledgeBases KnowledgeBase[]
 }
 
 model Account {
@@ -269,6 +270,67 @@ model Automation {
   @@index([userId])
   @@index([status])
   @@index([isActive])
+}
+
+model KnowledgeBase {
+  id        String            @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  User      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sources   KnowledgeSource[]
+  documents KnowledgeDocument[]
+
+  @@index([userId])
+}
+
+model KnowledgeSource {
+  id              String         @id @default(cuid())
+  knowledgeBaseId String
+  type            String
+  name            String
+  config          Json?
+  status          String         @default("CONNECTED")
+  lastSyncedAt    DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  knowledgeBase   KnowledgeBase  @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  documents       KnowledgeDocument[]
+
+  @@index([knowledgeBaseId])
+}
+
+model KnowledgeDocument {
+  id              String          @id @default(cuid())
+  knowledgeBaseId String
+  sourceId        String?
+  type            String
+  title           String
+  fileUrl         String?
+  metadata        Json?
+  status          String          @default("READY")
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  knowledgeBase   KnowledgeBase   @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  source          KnowledgeSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  chunks          KnowledgeChunk[]
+
+  @@index([knowledgeBaseId])
+  @@index([sourceId])
+}
+
+model KnowledgeChunk {
+  id          String            @id @default(cuid())
+  documentId  String
+  content     String
+  chunkIndex  Int
+  metadata    Json?
+  createdAt   DateTime          @default(now())
+  document    KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([chunkIndex])
 }
 
 enum AutomationStatus {

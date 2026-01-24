@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
@@ -49,6 +50,7 @@ interface ExecutionContext {
   logs: NodeExecutionLog[];
   translatedMessage?: string;
   originalMessage?: string;
+  [key: string]: any;
 }
 
 // Sample products database
@@ -234,62 +236,82 @@ ${cfg.instructions ? `CONSIGNES SPÉCIFIQUES: ${cfg.instructions}` : ""}`;
         }
 
         try {
-          // Parse config for custom categories
+          // Parse config for custom categories and output fields
           let analyzeConfig: any = {};
           try {
             analyzeConfig = JSON.parse(node.config || "{}");
           } catch (e) { }
 
-          const customCategories = analyzeConfig.categories || analyzeConfig.aiInstructions || "";
+          // Get custom categories from config
+          let categoriesList = analyzeConfig.categories || analyzeConfig.aiInstructions || "";
+          const typeValues = analyzeConfig.typeValues || "";
+
+          // If custom categories are defined in typeValues (comma-separated), use them as priority
+          if (typeValues && typeValues.length > 0) {
+            categoriesList = typeValues.split(',').map((v: string) => v.trim()).join(', ');
+          }
 
           // STRICT intent classification prompt - NO response generation
-          const systemMsg = `Tu es un classificateur d'intention. Tu dois UNIQUEMENT retourner UNE catégorie d'intention parmi cette liste:
-- salutation (bonjour, salut, hello)
-- question_prix (combien, prix, coût, tarif)
-- demande_produit (article, produit, disponibilité)
-- plainte (problème, insatisfait, erreur, retard)
-- remerciement (merci, super, génial)
-- confirmation (oui, ok, d'accord, je confirme)
-- annulation (annuler, non, arrêter)
-- demande_aide (aide, assistance, support)
-- autre (tout le reste)
-${customCategories ? `\nCatégories additionnelles: ${customCategories}` : ""}
+          // Build JSON schema based on enabled outputs
+          const enabledFields = analyzeConfig.outputFields || ['type', 'urgency', 'autoResolvable', 'keywords'];
+          const jsonSchema: any = {};
+          if (enabledFields.includes('type')) {
+            const typeOptions = typeValues ? typeValues.split(',').map((v: string) => v.trim()) : ['technique', 'facturation', 'compte', 'produit', 'autre'];
+            jsonSchema.type = `string - Type d'intention parmi: ${typeOptions.join(', ')}`;
+          }
+          if (enabledFields.includes('urgency')) {
+            jsonSchema.urgency = "number - Niveau d'urgence entre 1 et 5";
+          }
+          if (enabledFields.includes('autoResolvable')) {
+            jsonSchema.autoResolvable = 'string - "oui" ou "non"';
+          }
+          if (enabledFields.includes('keywords')) {
+            jsonSchema.keywords = 'array - Mots-clés extraits';
+          }
+
+          const fieldsDesc = Object.entries(jsonSchema).map(([key, desc]) => `- ${key}: ${desc}`).join('\n');
+
+          const systemMsg = `Tu es un expert en analyse d'intention client. Analyse le message et retourne UNIQUEMENT un JSON avec les champs suivants:
+${fieldsDesc}
+
+${categoriesList ? `Voici les catégories d'intention à considérer en priorité:
+${categoriesList}` : ""}
 
 RÈGLES STRICTES:
-1. Réponds UNIQUEMENT par le nom de la catégorie (UN SEUL MOT ou deux mots avec underscore)
-2. NE JAMAIS répondre au message
-3. NE JAMAIS générer de phrase complète
-4. NE JAMAIS saluer ou poser de question
-
-Exemple:
-- Message: "Bonjour!" → salutation
-- Message: "Quel est le prix?" → question_prix
-- Message: "J'ai un problème" → plainte`;
+1. Réponds UNIQUEMENT en JSON valide
+2. NE JAMAIS répondre au message du client
+3. Si aucune catégorie ne correspond, utilise 'autre'`;
 
           const intentResult = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: analyzeConfig.model || "gpt-4o-mini",
             messages: [
               { role: "system", content: systemMsg },
-              { role: "user", content: `Classifie ce message: "${context.userMessage}"` },
+              { role: "user", content: `Analyse ce message: "${context.userMessage}"` },
             ],
-            max_tokens: 10,
-            temperature: 0.1,
+            response_format: { type: "json_object" },
+            temperature: analyzeConfig.temperature || 0.1,
           });
 
-          let intent = intentResult.choices[0]?.message?.content?.trim()?.toLowerCase() || "autre";
-
-          // Clean up: remove any extra text, keep only the intent word
-          intent = intent.split(/[\s,.!?]/)[0].replace(/[^a-z_]/g, "");
-          if (!intent || intent.length > 25) intent = "autre";
+          const data = JSON.parse(intentResult.choices[0]?.message?.content || "{}");
+          const intent = data.type || "autre";
 
           addLog(
             context,
             node,
             "success",
-            `Intention: ${intent}`,
+            `Intention détectée: ${intent}`,
             Date.now() - startTime,
           );
-          return { ...context, intent };
+
+          // Inject raw data into context
+          return {
+            ...context,
+            intent,
+            urgency: data.urgency,
+            autoResolvable: data.autoResolvable,
+            keywords: data.keywords,
+            analysisResults: data
+          };
         } catch (e: any) {
           addLog(
             context,
@@ -377,8 +399,82 @@ Exemple:
             `Erreur génération GPT: ${e.message}`,
             Date.now() - startTime,
           );
+          return context;
+        }
+
+      case "ai_agent": {
+        if (!process.env.OPENAI_API_KEY) {
+          context.responses.push("❌ Erreur: Clé API OpenAI non configurée.");
+          addLog(context, node, "error", "Clé API OpenAI manquante", Date.now() - startTime);
+          return context;
+        }
+
+        let agentCfg: any = {};
+        try {
+          agentCfg = JSON.parse(node.config || "{}");
+        } catch (e) { }
+
+        let contextInfo = "";
+
+        // RAG Logic: Search if knowledgeBaseId is provided
+        if (agentCfg.knowledgeBaseId) {
+          try {
+            const chunks = await prisma.knowledgeChunk.findMany({
+              where: {
+                document: {
+                  knowledgeBaseId: agentCfg.knowledgeBaseId,
+                },
+                content: {
+                  contains: context.userMessage, // Simple text search for MVP
+                  mode: "insensitive",
+                },
+              },
+              take: 5,
+              select: { content: true },
+            });
+
+            if (chunks.length > 0) {
+              contextInfo = "\n\nCONTEXTE ISSU DE LA BASE DE CONNAISSANCES:\n" +
+                chunks.map((c: any) => `- ${c.content}`).join("\n");
+            }
+          } catch (e) {
+            console.error("RAG Search Error:", e);
+          }
+        }
+
+        const personalityPresets: Record<string, string> = {
+          Expert: "Sois précis, technique et professionnel.",
+          Vendeur: "Sois persuasif, chaleureux et orienté vers la vente.",
+          Support: "Sois patient, aidant et empathique.",
+          Amical: "Sois relaxé, informel et utilise des emojis."
+        };
+        const personalityInstructions = personalityPresets[agentCfg.personality as string] || "";
+
+        const systemPrompt = `Tu es ${agentCfg.agentName || "un assistant IA"}.
+${agentCfg.instructions || "Réponds de manière utile."}
+${personalityInstructions}
+${agentCfg.strictMode ? "IMPORTANT: Réponds UNIQUEMENT en utilisant les informations du contexte fourni ci-dessous. Si l'information n'est pas présente, réponds que tu ne sais pas." : ""}
+${contextInfo}`;
+
+        try {
+          const aiResult = await openai.chat.completions.create({
+            model: agentCfg.model || "gpt-4o-mini",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: context.userMessage },
+            ],
+            temperature: agentCfg.temperature || 0.4,
+          });
+
+          const aiResponse = aiResult.choices[0]?.message?.content || "Désolé, je ne peux pas répondre pour le moment.";
+          context.responses.push(aiResponse);
+          addLog(context, node, "success", `Agent IA a répondu (${aiResponse.length} chars)`, Date.now() - startTime);
+        } catch (e: any) {
+          context.responses.push(`❌ Erreur Agent IA: ${e.message}`);
+          addLog(context, node, "error", `Erreur Agent: ${e.message}`, Date.now() - startTime);
         }
         return context;
+      }
 
       // ============ E-COMMERCE ============
       case "show_catalog":
@@ -1716,7 +1812,7 @@ export async function POST(request: NextRequest) {
       try {
         // Utiliser les messages fournis si disponibles (pour l'historique), sinon construire
         let messages: Array<{ role: string; content: string }> = [];
-        
+
         if (body.messages && Array.isArray(body.messages) && body.messages.length > 0) {
           // Utiliser les messages fournis (incluant l'historique)
           messages = body.messages;
