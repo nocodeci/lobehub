@@ -18,7 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" className="dark" suppressHydrationWarning>
-      <body className={`${inter.variable} ${outfit.variable} font-sans antialiased text-white selection:bg-primary selection:text-black overflow-x-hidden`}>
+      <body suppressHydrationWarning className={`${inter.variable} ${outfit.variable} font-sans antialiased text-white selection:bg-primary selection:text-black overflow-x-hidden`}>
         <AuthProvider>
           {/* Background Pattern Layer */}
           <div className="fixed inset-0 pointer-events-none z-0">

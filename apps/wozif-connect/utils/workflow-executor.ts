@@ -138,33 +138,40 @@ export async function executeNode(
 
         case 'gpt_analyze': {
             // STRICT intent classification - NO response generation
-            const { categories, aiInstructions, system, prompt } = config;
+            const { categories, aiInstructions, system, prompt, outputFields, typeValues, urgencyMin, urgencyMax } = config;
             const userMessage = context.lastUserMessage;
             const systemPrompt = system || aiInstructions || "";
 
             console.log(`🔍 Classification d'intention...`);
 
             const customCategories = categories || "";
+            const enabledFields = outputFields || ['type', 'urgency', 'autoResolvable', 'keywords'];
+            
+            // Build JSON schema based on enabled outputs
+            const jsonSchema: any = {};
+            if (enabledFields.includes('type')) {
+                const typeOptions = typeValues ? typeValues.split(',').map((v: string) => v.trim()) : ['technique', 'facturation', 'compte', 'produit', 'autre'];
+                jsonSchema.type = `string - Type de problème parmi: ${typeOptions.join(', ')}`;
+            }
+            if (enabledFields.includes('urgency')) {
+                const min = urgencyMin || 1;
+                const max = urgencyMax || 5;
+                jsonSchema.urgency = `number - Niveau d'urgence entre ${min} et ${max}`;
+            }
+            if (enabledFields.includes('autoResolvable')) {
+                jsonSchema.autoResolvable = 'string - Peut être résolu automatiquement: "oui" ou "non"';
+            }
+            if (enabledFields.includes('keywords')) {
+                jsonSchema.keywords = 'array - Mots-clés extraits du message';
+            }
 
             // Use custom system prompt if provided, otherwise use default
-            const finalSystemPrompt = systemPrompt || `Tu es un classificateur d'intention. Tu dois UNIQUEMENT retourner UNE catégorie parmi:
-- salutation (bonjour, salut, hello)
-- question_prix (combien, prix, coût, tarif)
-- demande_produit (article, produit, disponibilité)
-- plainte (problème, insatisfait, erreur, retard)
-- remerciement (merci, super, génial)
-- confirmation (oui, ok, d'accord, je confirme)
-- annulation (annuler, non, arrêter)
-- demande_aide (aide, assistance, support)
-- autre (tout le reste)
-${customCategories ? `\nCatégories additionnelles: ${customCategories}` : ""}
+            const finalSystemPrompt = systemPrompt || (() => {
+                const fieldsDesc = Object.entries(jsonSchema).map(([key, desc]) => `- ${key}: ${desc}`).join('\n');
+                return `Tu es un expert en analyse d'intention client. Analyse le message et retourne UNIQUEMENT un JSON avec les champs suivants:\n${fieldsDesc}\n\nRÈGLES STRICTES:\n1. Réponds UNIQUEMENT en JSON valide\n2. NE JAMAIS répondre au message du client\n3. Utilise exactement les champs demandés`;
+            })();
 
-RÈGLES STRICTES:
-1. Réponds UNIQUEMENT par le nom de la catégorie (UN SEUL MOT)
-2. NE JAMAIS répondre au message
-3. NE JAMAIS générer de phrase complète`;
-
-            const analysisPrompt = prompt || `Classifie: "${userMessage}"`;
+            const analysisPrompt = prompt || `Analyse le message suivant et retourne un JSON avec les champs configurés: "${userMessage}"`;
 
             try {
                 const response = await fetch('/api/chat', {
@@ -213,21 +220,46 @@ RÈGLES STRICTES:
                     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
                         const parsed = JSON.parse(jsonMatch[0]);
+                        
+                        // Ensure all enabled output fields are present
+                        const enabledFields = outputFields || ['type', 'urgency', 'autoResolvable', 'keywords'];
+                        const finalData: any = {};
+                        
+                        enabledFields.forEach((field: string) => {
+                            if (parsed[field] !== undefined) {
+                                finalData[field] = parsed[field];
+                            } else {
+                                // Provide default values for missing fields
+                                if (field === 'type') {
+                                    finalData[field] = 'autre';
+                                } else if (field === 'urgency') {
+                                    finalData[field] = 3; // Default medium urgency
+                                } else if (field === 'autoResolvable') {
+                                    finalData[field] = 'non';
+                                } else if (field === 'keywords') {
+                                    finalData[field] = [];
+                                } else {
+                                    finalData[field] = null;
+                                }
+                            }
+                        });
+                        
                         // Store all JSON fields in context
-                        Object.keys(parsed).forEach(key => {
-                            context[key] = parsed[key];
+                        Object.keys(finalData).forEach(key => {
+                            context[key] = finalData[key];
                         });
                         
                         // Also store in data for condition nodes
                         return {
                             success: true,
                             waitDelay: 1000,
-                            message: `Analyse: ${JSON.stringify(parsed)}`,
-                            data: parsed
+                            message: `Analyse: ${JSON.stringify(finalData)}`,
+                            data: finalData
                         };
                     }
                 } catch (e) {
                     // Not JSON, continue with simple intent classification
+                    console.warn('[gpt_analyze] Failed to parse JSON, using fallback');
                 }
 
                 // Simple intent classification (fallback)

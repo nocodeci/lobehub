@@ -92,6 +92,11 @@ export default function AutomationsPage() {
     const [prompt, setPrompt] = useState("");
     const [isGenerating, setIsGenerating] = useState(false);
     const [thinkingStep, setThinkingStep] = useState(0);
+    const [isMounted, setIsMounted] = useState(false);
+
+    React.useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const thinkingMessages = [
         "Analyse de votre demande...",
@@ -202,7 +207,7 @@ export default function AutomationsPage() {
 
                                             {/* Ambient Sparkles */}
                                             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                                                {[...Array(6)].map((_, i) => (
+                                                {isMounted && [...Array(6)].map((_, i) => (
                                                     <motion.div
                                                         key={i}
                                                         className="absolute bg-primary rounded-full"
@@ -327,8 +332,8 @@ export default function AutomationsPage() {
 
                                                     {/* Status Badge */}
                                                     <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${wf.status === 'active'
-                                                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                                            : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                                        : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                                                         }`}>
                                                         <div className={`h-1.5 w-1.5 rounded-full ${wf.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></div>
                                                         {wf.status === 'active' ? 'Actif' : 'Brouillon'}

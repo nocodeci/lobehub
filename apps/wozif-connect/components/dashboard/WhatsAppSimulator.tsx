@@ -104,7 +104,7 @@ export function WhatsAppSimulator({
         },
     ]);
     // Numéro simulé pour les tests
-    const SIMULATED_USER_NUMBER = "0703324674";
+    const SIMULATED_USER_NUMBER = "2250703324674";
     const [inputValue, setInputValue] = useState("");
     const [status, setStatus] = useState<'DISCONNECTED' | 'CONNECTED' | 'INITIALIZING'>('INITIALIZING');
     const [qrCode, setQrCode] = useState<string | null>(null);
@@ -219,8 +219,25 @@ export function WhatsAppSimulator({
     // Fetch real sessions from bridge
     useEffect(() => {
         const fetchSessions = async () => {
+            // Créer un AbortController pour gérer le timeout manuellement
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 secondes de timeout
+
             try {
-                const response = await fetch('http://localhost:8080/api/sessions');
+                const response = await fetch('http://localhost:8080/api/sessions', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    signal: controller.signal,
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
                 const data = await response.json();
                 if (data.success) {
                     // Trouver le master (la SIM qui envoie)
@@ -252,57 +269,49 @@ export function WhatsAppSimulator({
 
                         const explicitClientNode = findSessionByJid(desiredVariants);
 
-                        // Master: prefer SIM-like sessions, ideally not equal to the explicit client.
-                        const masterNode =
-                            connectedSessions.find(
-                                (s: any) => isSimSession(s) && s.userId !== explicitClientNode?.userId,
-                            ) ||
-                            connectedSessions.find((s: any) => isSimSession(s)) ||
-                            connectedSessions.find(
-                                (s: any) => s.userId !== explicitClientNode?.userId,
-                            ) ||
+                        // Roles Inversion according to user request:
+                        // Admin Dashboard nodes = Simulator User (Person talking to bot)
+                        // Builder/Client Dashboard nodes = Bot (Responder)
+
+                        // 1. Identify the BOT (The node connected in the builder matching targetPhoneNumberRef)
+                        const botNode = explicitClientNode || connectedSessions.find((s: any) => !isSimSession(s)) || connectedSessions[0];
+
+                        // 2. Identify the PERSON (The node connected in Admin dashboard / SIM)
+                        const personNode = connectedSessions.find((s: any) => isSimSession(s) && s.userId !== botNode?.userId) ||
+                            connectedSessions.find((s: any) => s.userId !== botNode?.userId) ||
                             connectedSessions[0];
 
-                        // Client: prefer explicit client by JID match; otherwise pick the other session.
-                        const fallbackClientNode = connectedSessions.find(
-                            (s: any) => s.userId !== masterNode.userId,
-                        );
-
-                        const clientNode = explicitClientNode || fallbackClientNode;
-
-                        if (masterNode) {
+                        if (botNode) {
                             console.log(
-                                "[WhatsApp Simulator] Selected master:",
-                                masterNode.userId,
-                                masterNode.jid ? `(+${digitsOnly(String(masterNode.jid).split(':')[0].split('@')[0])})` : "",
-                                desiredVariants.length ? `(client desired ${desiredVariants.map(v => `+${v}`).join(' | ')})` : "",
+                                "[WhatsApp Simulator] Bot Node (Responder):",
+                                botNode.userId,
+                                botNode.jid ? `(+${digitsOnly(String(botNode.jid).split(':')[0].split('@')[0])})` : ""
                             );
                             setConnectedSession({
-                                name: masterNode.pushName || (masterNode.userId === 'admin' ? 'Master SIM' : `SIM ${masterNode.userId.slice(-4)}`),
-                                jid: masterNode.jid?.split(':')[0]?.split('@')[0] || "",
-                                fullJid: masterNode.jid || "",
-                                bridgeUserId: masterNode.userId
+                                name: botNode.pushName || (botNode.userId === 'admin' ? 'Master SIM' : `BOT-${botNode.userId.slice(-4)}`),
+                                jid: botNode.jid?.split(':')[0]?.split('@')[0] || "",
+                                fullJid: botNode.jid || "",
+                                bridgeUserId: botNode.userId
                             });
                         }
 
-                        if (clientNode && clientNode.jid) {
-                            const clientDigits = digitsOnly(
-                                String(clientNode.jid).split(':')[0].split('@')[0],
+                        if (personNode) {
+                            const personDigits = digitsOnly(
+                                String(personNode.jid || "").split(':')[0].split('@')[0],
                             );
                             console.log(
-                                "[WhatsApp Simulator] Setting target client:",
-                                clientNode.userId,
-                                clientDigits ? `(+${clientDigits})` : "",
-                                desiredVariants.length ? `(desired ${desiredVariants.map(v => `+${v}`).join(' | ')})` : "",
+                                "[WhatsApp Simulator] Person Node (Simulator):",
+                                personNode.userId,
+                                personDigits ? `(+${personDigits})` : ""
                             );
                             setTargetClient({
-                                name: clientNode.pushName || `Client ${clientNode.jid?.split(':')[0]?.slice(-4) || ''}`,
-                                jid: clientNode.jid.split(':')[0].split('@')[0],
-                                bridgeUserId: clientNode.userId
+                                name: personNode.pushName || `Client ${personNode.jid?.split(':')[0]?.slice(-4) || ''}`,
+                                jid: personNode.jid?.split(':')[0]?.split('@')[0] || personNode.userId,
+                                bridgeUserId: personNode.userId
                             });
                         } else {
                             if (connectedSessions.length > 1) {
-                                console.warn("[WhatsApp Simulator] Found client node but JID is missing:", clientNode);
+                                console.warn("[WhatsApp Simulator] No suitable person node found.");
                             } else {
                                 console.warn("[WhatsApp Simulator] Only one session connected. Need 2 for real link.");
                             }
@@ -316,8 +325,21 @@ export function WhatsAppSimulator({
                         setTargetClient(null);
                     }
                 }
-            } catch (error) {
-                console.error("Failed to fetch sessions for simulator:", error);
+            } catch (error: any) {
+                clearTimeout(timeoutId);
+                // Ignorer silencieusement les erreurs de connexion si le serveur n'est pas disponible
+                // Cela permet au simulateur de fonctionner même sans le serveur WhatsApp
+                if (error.name === 'AbortError' || error.name === 'TypeError' || error.message?.includes('Failed to fetch') || error.message?.includes('network')) {
+                    // Le serveur WhatsApp n'est pas disponible, on désactive les fonctionnalités réelles
+                    setConnectedSession(null);
+                    setTargetClient(null);
+                    // Ne pas logger l'erreur en production pour éviter le spam dans la console
+                    if (process.env.NODE_ENV === 'development') {
+                        console.warn("WhatsApp server not available, simulator running in offline mode");
+                    }
+                } else {
+                    console.error("Failed to fetch sessions for simulator:", error);
+                }
             }
         };
 
@@ -459,21 +481,21 @@ export function WhatsAppSimulator({
 
             // Capture input context before execution
             const inputContext = JSON.parse(JSON.stringify(context));
-            
+
             // Execute the node
             const result = await executeNode(currentNode, context);
             const duration = Date.now() - startTime;
-            
+
             // Capture output context after execution
             const outputContext = JSON.parse(JSON.stringify(context));
-            
+
             // Store node output data in context for next nodes to access
             if (result.data && typeof result.data === 'object') {
                 Object.keys(result.data).forEach(key => {
                     context[key] = result.data[key];
                 });
             }
-            
+
             // Notify about node execution data for inspection
             if (onNodeExecutionData) {
                 onNodeExecutionData(
@@ -766,8 +788,8 @@ export function WhatsAppSimulator({
                             <div className="flex-1 min-w-0">
                                 <h3 className="text-[#e9edef] text-[13px] font-black tracking-tighter uppercase truncate">
                                     {isLinkedToPhone && targetClient
-                                        ? targetClient.name
-                                        : (connectedSession ? connectedSession.name : (isProduction ? (isTelegram ? "TELEGRAM CONNECT" : "CONNECT PRO") : (isTelegram ? "TELEGRAM BOT ✨" : "CONNECT ✨")))}
+                                        ? `CONNECT ✨ ${targetClient.name || `Client: ${targetClient.jid || SIMULATED_USER_NUMBER}`}`
+                                        : (connectedSession ? connectedSession.name : (isProduction ? (isTelegram ? "TELEGRAM CONNECT" : "CONNECT PRO") : (isTelegram ? "TELEGRAM BOT ✨" : `CONNECT ✨ Client: ${SIMULATED_USER_NUMBER}`)))}
                                 </h3>
                                 <div className="flex items-center gap-1.5">
                                     {connectedSession && (
@@ -786,15 +808,31 @@ export function WhatsAppSimulator({
                                 </div>
                             </div>
 
-                            {/* Real Link Toggle */}
-                            {!isProduction && status === 'CONNECTED' && connectedSession && (
+                            {/* Real Link Toggle - Bouton pour basculer entre mode demo et envoi réel */}
+                            {!isProduction && (
                                 <button
-                                    onClick={() => setIsLinkedToPhone(!isLinkedToPhone)}
-                                    disabled={!targetClient}
-                                    className={`p-1.5 rounded-lg transition-all ${isLinkedToPhone ? 'bg-emerald-500/20 text-emerald-500' : 'bg-white/5 text-zinc-500'} ${!targetClient ? 'opacity-30 cursor-not-allowed' : ''}`}
-                                    title={!targetClient ? "En attente d'une deuxième SIM (Client)..." : (isLinkedToPhone ? "Désactiver le lien réel" : "Relier à mon téléphone physique")}
+                                    onClick={() => {
+                                        if (targetClient && status === 'CONNECTED' && connectedSession) {
+                                            setIsLinkedToPhone(!isLinkedToPhone);
+                                        }
+                                    }}
+                                    disabled={!targetClient || status !== 'CONNECTED' || !connectedSession}
+                                    className={`relative w-11 h-6 rounded-full transition-colors flex items-center shrink-0 ${isLinkedToPhone && targetClient && status === 'CONNECTED' && connectedSession ? 'bg-[#00a884]' : 'bg-[#8696a0]'
+                                        } ${(!targetClient || status !== 'CONNECTED' || !connectedSession) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}`}
+                                    title={
+                                        !connectedSession || status !== 'CONNECTED'
+                                            ? "En attente de connexion WhatsApp..."
+                                            : !targetClient
+                                                ? "En attente d'une deuxième SIM (Client) pour activer l'envoi réel..."
+                                                : isLinkedToPhone
+                                                    ? 'Mode envoi réel activé - Cliquez pour passer en mode demo'
+                                                    : 'Mode demo - Cliquez pour activer l\'envoi réel'
+                                    }
                                 >
-                                    <ArrowLeft className={`w-4 h-4 transition-transform ${isLinkedToPhone ? 'rotate-180' : ''}`} />
+                                    <span
+                                        className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${isLinkedToPhone && targetClient && status === 'CONNECTED' && connectedSession ? 'left-6' : 'left-1'
+                                            }`}
+                                    />
                                 </button>
                             )}
                         </header>

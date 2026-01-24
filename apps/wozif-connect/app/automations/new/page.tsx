@@ -2,7 +2,7 @@
 
 import { useSession } from "next-auth/react";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { DashboardSidebar } from "@/components/dashboard/Sidebar";
 import { DashboardHeader } from "@/components/dashboard/Header";
 import { Button } from "@/components/ui/button";
@@ -87,8 +87,12 @@ import {
   Mic,
   Code,
   ChevronDown,
+  ChevronLeft,
   Database,
   ArrowRight,
+  MoreVertical,
+  FlaskConical,
+  PanelRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -99,6 +103,7 @@ import PhoneInput, {
 } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import en from "react-phone-number-input/locale/en";
+import { executeNode, ExecutionContext } from "@/utils/workflow-executor";
 
 // Labels personnalisés avec préfixes téléphoniques
 const customLabels: Record<string, string> = {
@@ -1314,13 +1319,13 @@ function ObjectItem({
   depth?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
-  
+
   const isObject = (typeof value === 'object' && value !== null) || Array.isArray(value);
-  const valueType = Array.isArray(value) ? 'array' : 
-                   value === null ? 'string' :
-                   typeof value === 'object' ? 'object' :
-                   typeof value as any;
-  
+  const valueType = Array.isArray(value) ? 'array' :
+    value === null ? 'string' :
+      typeof value === 'object' ? 'object' :
+        typeof value as any;
+
   return (
     <div>
       <div
@@ -1377,7 +1382,7 @@ function RecursiveObjectItem({
   depth?: number;
 }) {
   if (obj === null || obj === undefined) return null;
-  
+
   if (Array.isArray(obj)) {
     return (
       <>
@@ -1393,7 +1398,7 @@ function RecursiveObjectItem({
       </>
     );
   }
-  
+
   if (typeof obj === 'object') {
     return (
       <>
@@ -1409,7 +1414,7 @@ function RecursiveObjectItem({
       </>
     );
   }
-  
+
   return null;
 }
 
@@ -1470,6 +1475,7 @@ function SchemaItem({
 
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('text/plain', `{{${path}}}`);
+    e.dataTransfer.effectAllowed = 'copy';
   };
 
   return (
@@ -1491,11 +1497,11 @@ function SchemaItem({
         </div>
       )}
       {!isCollapsible && <div className="w-3" />}
-      
+
       <div className="flex-shrink-0 text-white/50">
         {getTypeIcon()}
       </div>
-      
+
       <div className="flex-1 min-w-0 flex items-center gap-2">
         <span className="text-[11px] font-mono text-white/70 group-hover:text-white">{name}</span>
         {displayValue && (
@@ -2061,10 +2067,10 @@ function DraggableNode({
           >
             <div
               className={`h-4 w-4 rounded-full bg-[#252525] border-2 transition-all
-                          ${isDisconnected ? "border-orange-400" : ""}
-                          ${isSelected || showToolbar ? "border-[#87a9ff]" : "border-zinc-600"}
-                          group-hover/output:border-[#87a9ff] group-hover/output:scale-125
-                      `}
+                        ${isDisconnected ? "border-orange-400" : ""}
+                        ${isSelected || showToolbar ? "border-[#87a9ff]" : "border-zinc-600"}
+                        group-hover/output:border-[#87a9ff] group-hover/output:scale-125
+                    `}
             />
           </div>
         )}
@@ -2190,6 +2196,9 @@ export default function NewWorkflowPage() {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(
     "triggers",
   );
+  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
+  const [parameterTab, setParameterTab] = useState<"parameters" | "settings">("parameters");
+  const [parameterMode, setParameterMode] = useState<Record<string, "fixed" | "expression">>({});
   const [products, setProducts] = useState<Product[]>(sampleProducts);
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<number>>(
     new Set(),
@@ -2370,8 +2379,25 @@ export default function NewWorkflowPage() {
 
   useEffect(() => {
     const checkConnection = async () => {
+      // Créer un AbortController pour gérer le timeout manuellement
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 secondes de timeout
+
       try {
-        const response = await fetch("http://localhost:8080/api/sessions");
+        const response = await fetch("http://localhost:8080/api/sessions", {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const data = await response.json();
         if (data.success) {
           // Vérifier si une instance admin/simulateur est connectée
@@ -2399,8 +2425,22 @@ export default function NewWorkflowPage() {
             }
           }
         }
-      } catch (error) {
-        console.error("Failed to fetch sessions for builder:", error);
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+        // Ignorer silencieusement les erreurs de connexion si le serveur n'est pas disponible
+        // Cela permet à l'application de fonctionner même sans le serveur WhatsApp
+        if (error.name === 'AbortError' || error.name === 'TypeError' || error.message?.includes('Failed to fetch') || error.message?.includes('network')) {
+          // Le serveur WhatsApp n'est pas disponible, on désactive les fonctionnalités WhatsApp
+          setIsWhatsAppConnected(false);
+          setIsClientWhatsAppConnected(false);
+          setClientWhatsAppNumber(null);
+          // Ne pas logger l'erreur en production pour éviter le spam dans la console
+          if (process.env.NODE_ENV === 'development') {
+            console.warn("WhatsApp server not available, running in offline mode");
+          }
+        } else {
+          console.error("Failed to fetch sessions for builder:", error);
+        }
       }
     };
 
@@ -3010,11 +3050,543 @@ export default function NewWorkflowPage() {
     />
   );
 
+  // Fonction pour résoudre une expression en utilisant les données d'exécution
+  const resolveExpression = (expression: string, currentNodeId: number): string => {
+    if (!expression || !expression.trim()) return '';
+
+    // Nettoyer l'expression (enlever {{ et }})
+    let cleanExpr = expression.replace(/^\{\{|\}\}$/g, '').trim();
+
+    // Si l'expression commence par un point (ex: .lastUserMessage), chercher dans le contexte global
+    if (cleanExpr.startsWith('.')) {
+      cleanExpr = cleanExpr.substring(1);
+    }
+
+    // Résoudre les chemins comme previous.output.field, contact.phone, etc.
+    const parts = cleanExpr.split('.');
+    let resolved: any = null;
+
+    // Chercher dans les nœuds précédents
+    const precedingNodes = nodes.filter(n => {
+      const node = nodes.find(nd => nd.id === currentNodeId);
+      if (!node) return false;
+      // Vérifier si ce nœud est connecté au nœud actuel
+      return n.connectedTo === currentNodeId ||
+        (node.type === 'condition' && (n.connectedToTrue === currentNodeId || n.connectedToFalse === currentNodeId));
+    });
+
+    // Si l'expression commence par "previous.output"
+    if (parts[0] === 'previous' && parts[1] === 'output') {
+      const lastNode = precedingNodes[precedingNodes.length - 1];
+      if (lastNode && nodeExecutionData[lastNode.id]?.output) {
+        resolved = nodeExecutionData[lastNode.id].output;
+        // Naviguer dans l'objet
+        for (let i = 2; i < parts.length; i++) {
+          resolved = resolved?.[parts[i]];
+        }
+      }
+    }
+    // Si l'expression commence par "contact"
+    else if (parts[0] === 'contact') {
+      // Utiliser les données d'exécution du trigger
+      const triggerNode = nodes.find(n => n.type === 'whatsapp_message' || n.type === 'telegram_message');
+      if (triggerNode && nodeExecutionData[triggerNode.id]?.output?.contact) {
+        resolved = nodeExecutionData[triggerNode.id].output.contact;
+        for (let i = 1; i < parts.length; i++) {
+          resolved = resolved?.[parts[i]];
+        }
+      }
+    }
+    // Si l'expression commence par "message"
+    else if (parts[0] === 'message') {
+      const triggerNode = nodes.find(n => n.type === 'whatsapp_message' || n.type === 'telegram_message');
+      if (triggerNode && nodeExecutionData[triggerNode.id]?.output) {
+        resolved = nodeExecutionData[triggerNode.id].output;
+        for (let i = 1; i < parts.length; i++) {
+          resolved = resolved?.[parts[i]];
+        }
+      }
+    }
+    // Variables globales ($workflow, etc.)
+    else if (parts[0] === '$workflow') {
+      if (parts[1] === 'id') {
+        resolved = automationId || 'N/A';
+      }
+    }
+    // Variables du contexte d'exécution (lastUserMessage, etc.)
+    else if (parts[0] === 'lastUserMessage' || cleanExpr === 'lastUserMessage') {
+      const triggerNode = nodes.find(n => n.type === 'whatsapp_message' || n.type === 'telegram_message');
+      if (triggerNode && nodeExecutionData[triggerNode.id]?.input?.lastUserMessage) {
+        resolved = nodeExecutionData[triggerNode.id].input.lastUserMessage;
+      } else if (triggerNode && nodeExecutionData[triggerNode.id]?.output?.text) {
+        resolved = nodeExecutionData[triggerNode.id].output.text;
+      }
+    }
+    // Autres variables du contexte
+    else {
+      // Chercher dans le contexte d'exécution du nœud actuel
+      if (nodeExecutionData[currentNodeId]?.input) {
+        const input = nodeExecutionData[currentNodeId].input;
+        resolved = input;
+        for (let i = 0; i < parts.length; i++) {
+          resolved = resolved?.[parts[i]];
+          if (resolved === undefined) break;
+        }
+      }
+
+      // Si pas trouvé, chercher dans les nœuds précédents
+      if (resolved === null || resolved === undefined) {
+        for (const prevNode of precedingNodes.reverse()) {
+          if (nodeExecutionData[prevNode.id]?.output) {
+            resolved = nodeExecutionData[prevNode.id].output;
+            for (let i = 0; i < parts.length; i++) {
+              resolved = resolved?.[parts[i]];
+            }
+            if (resolved !== undefined) break;
+          }
+        }
+      }
+    }
+
+    if (resolved === null || resolved === undefined) {
+      return '—';
+    }
+
+    // Formater la valeur
+    if (typeof resolved === 'object') {
+      return JSON.stringify(resolved);
+    }
+    return String(resolved);
+  };
+
+  // Composant ExpressionInput avec syntax highlighting et preview (style CodeMirror/n8n)
+  // Mémorisé pour éviter les re-renders inutiles
+  const ExpressionInput = React.memo(({
+    value: propValue,
+    onChange,
+    placeholder,
+    className = "",
+    isTextarea = false,
+    onDrop,
+    onDragOver,
+    onDragLeave,
+    currentNodeId
+  }: {
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+    className?: string;
+    isTextarea?: boolean;
+    onDrop?: (e: React.DragEvent) => void;
+    onDragOver?: (e: React.DragEvent) => void;
+    onDragLeave?: (e: React.DragEvent) => void;
+    currentNodeId?: number;
+  }) => {
+    const inputRef = useRef<HTMLTextAreaElement | HTMLInputElement>(null);
+    const highlightRef = useRef<HTMLDivElement>(null);
+    const [hoveredExpression, setHoveredExpression] = useState<string | null>(null);
+    const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number } | null>(null);
+    const [isFocused, setIsFocused] = useState(false);
+    // Approche complètement non contrôlée : gérer la valeur directement via le DOM
+    const onChangeRef = useRef(onChange);
+    const isMountedRef = useRef(true);
+    const [displayValue, setDisplayValue] = useState(propValue); // Pour le highlight uniquement
+    const handleChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const initialValueRef = useRef(propValue);
+    const isInitialMountRef = useRef(true);
+
+    // Mettre à jour la ref de onChange
+    useEffect(() => {
+      onChangeRef.current = onChange;
+    }, [onChange]);
+
+    // Synchroniser la valeur d'affichage uniquement si le champ n'est pas focus
+    useEffect(() => {
+      if (isInitialMountRef.current) {
+        isInitialMountRef.current = false;
+        initialValueRef.current = propValue;
+        return;
+      }
+
+      const activeElement = document.activeElement;
+      if (activeElement !== inputRef.current) {
+        // Mettre à jour la valeur de l'input si elle existe et n'est pas focus
+        if (inputRef.current && (inputRef.current instanceof HTMLTextAreaElement || inputRef.current instanceof HTMLInputElement)) {
+          inputRef.current.value = propValue;
+          setDisplayValue(propValue);
+        }
+      }
+    }, [propValue]);
+
+    // Handler pour onChange - met à jour uniquement l'affichage, pas le parent
+    const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
+      if (!isMountedRef.current) return;
+
+      const newValue = e.currentTarget.value;
+      setDisplayValue(newValue); // Pour le highlight uniquement
+
+      // Ne pas appeler onChange pendant la saisie - seulement au blur
+      // Cela évite complètement les re-renders pendant la saisie
+    }, []);
+
+    // Handler pour onBlur - synchronise avec le parent uniquement quand on quitte le champ
+    const handleBlur = useCallback((e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>) => {
+      const newValue = e.currentTarget.value;
+
+      // Synchroniser la valeur finale lors du blur
+      if (isMountedRef.current && newValue !== propValue) {
+        onChangeRef.current(newValue);
+      }
+
+      // Délai pour permettre les clics sur les éléments interactifs (dropdown, etc.)
+      setTimeout(() => {
+        const activeElement = document.activeElement;
+        const target = e.currentTarget;
+        // Vérifier si le focus est vraiment perdu (pas juste déplacé vers un enfant)
+        if (activeElement !== target && !target.contains(activeElement)) {
+          setIsFocused(false);
+        }
+      }, 150);
+    }, [propValue]);
+
+    // Cleanup au démontage
+    useEffect(() => {
+      isMountedRef.current = true;
+      return () => {
+        isMountedRef.current = false;
+        if (handleChangeTimeoutRef.current) {
+          clearTimeout(handleChangeTimeoutRef.current);
+        }
+      };
+    }, []);
+
+    // Fonction pour créer le HTML avec syntax highlighting
+    const getHighlightedHTML = (text: string): string => {
+      if (!text) return '';
+      // Échapper les caractères HTML
+      const escapeHtml = (str: string) => {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      };
+
+      // Regex pour trouver les expressions {{...}}
+      const regex = /\{\{([^}]+)\}\}/g;
+      let lastIndex = 0;
+      let match;
+      let result = '';
+
+      while ((match = regex.exec(text)) !== null) {
+        // Ajouter le texte avant l'expression
+        if (match.index > lastIndex) {
+          result += escapeHtml(text.substring(lastIndex, match.index));
+        }
+
+        const expr = match[1].trim();
+        const resolvedValue = currentNodeId ? resolveExpression(expr, currentNodeId) : '—';
+
+        // Ajouter l'expression colorée avec data attributes pour le tooltip
+        result += `<span 
+          class="text-[#10a37f] font-semibold cursor-help expression-tooltip" 
+          data-expression="${escapeHtml(expr)}"
+          data-resolved="${escapeHtml(resolvedValue)}"
+        >${escapeHtml(`{{${match[1]}}}`)}</span>`;
+
+        lastIndex = regex.lastIndex;
+      }
+
+      // Ajouter le texte restant
+      if (lastIndex < text.length) {
+        result += escapeHtml(text.substring(lastIndex));
+      }
+
+      return result || escapeHtml(text);
+    };
+
+    // Fonction pour résoudre toute l'expression (preview en bas)
+    const getResolvedPreview = (text: string): string => {
+      if (!text) return '';
+
+      // Remplacer toutes les expressions {{...}} par leurs valeurs résolues
+      const regex = /\{\{([^}]+)\}\}/g;
+      let result = text;
+      let match;
+
+      while ((match = regex.exec(text)) !== null) {
+        const expr = match[1].trim();
+        const resolved = currentNodeId ? resolveExpression(expr, currentNodeId) : '—';
+        result = result.replace(match[0], resolved);
+      }
+
+      return result;
+    };
+
+    // Synchroniser le scroll entre input et highlight
+    const syncScroll = () => {
+      if (inputRef.current && highlightRef.current) {
+        highlightRef.current.scrollTop = (inputRef.current as HTMLTextAreaElement).scrollTop || 0;
+        highlightRef.current.scrollLeft = (inputRef.current as HTMLInputElement).scrollLeft || 0;
+      }
+    };
+
+    // Classes de base (sans padding/height pour éviter les duplications)
+    const baseClasses = `w-full bg-white/5 border border-white/10 rounded-lg font-mono text-xs focus:border-primary/50 focus:outline-none transition-colors ${className}`;
+    // Classes spécifiques pour le type d'input
+    const inputClasses = isTextarea
+      ? `p-3 pr-10 resize-none min-h-[60px] overflow-y-auto text-transparent caret-white`
+      : `h-9 px-3 pr-10 text-transparent caret-white`;
+
+
+    if (isTextarea) {
+      return (
+        <div className="relative">
+          {/* Textarea transparent pour la saisie */}
+          <textarea
+            ref={inputRef as React.RefObject<HTMLTextAreaElement>}
+            defaultValue={initialValueRef.current}
+            key={`textarea-${currentNodeId || 'default'}`} // Key stable basée sur currentNodeId
+            onChange={(e) => {
+              syncScroll();
+              handleChange(e);
+            }}
+            onFocus={(e) => {
+              setIsFocused(true);
+              // Forcer le focus pour éviter qu'il soit perdu
+              if (e.currentTarget !== document.activeElement) {
+                e.currentTarget.focus();
+              }
+            }}
+            onBlur={handleBlur}
+            onScroll={syncScroll}
+            onDrop={(e) => {
+              e.preventDefault();
+              const data = e.dataTransfer.getData('text/plain');
+              if (data.startsWith('{{')) {
+                const textarea = e.currentTarget;
+                const currentValue = textarea.value;
+                const cursorPos = textarea.selectionStart || currentValue.length;
+                const newValue = currentValue.slice(0, cursorPos) + data + currentValue.slice(cursorPos);
+                textarea.value = newValue;
+                setDisplayValue(newValue);
+                // Déclencher onChange manuellement
+                const syntheticEvent = {
+                  currentTarget: textarea,
+                } as React.ChangeEvent<HTMLTextAreaElement>;
+                handleChange(syntheticEvent);
+                // Préserver le focus après le drop
+                requestAnimationFrame(() => {
+                  if (textarea) {
+                    textarea.focus();
+                    const newCursorPos = cursorPos + data.length;
+                    textarea.setSelectionRange(newCursorPos, newCursorPos);
+                  }
+                });
+              }
+              if (onDrop) onDrop(e);
+            }}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            className={`${baseClasses} ${inputClasses}`}
+            style={{
+              color: 'transparent',
+              caretColor: 'white',
+              position: 'relative',
+              zIndex: 10,
+              background: 'transparent'
+            }}
+            placeholder={placeholder}
+            spellCheck={false}
+          />
+          {/* Overlay avec syntax highlighting - pointer-events none pour permettre la saisie */}
+          <div
+            ref={highlightRef}
+            className="absolute inset-0 font-mono text-xs whitespace-pre-wrap break-words overflow-hidden text-white pointer-events-none"
+            style={{
+              padding: '12px',
+              borderRadius: '8px',
+              minHeight: '60px',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              zIndex: 1
+            }}
+            onMouseEnter={(e) => {
+              const target = e.target as HTMLElement;
+              if (target.classList.contains('expression-tooltip')) {
+                const expr = target.getAttribute('data-expression');
+                if (expr) {
+                  setHoveredExpression(expr);
+                  setHoverPosition({ x: e.clientX, y: e.clientY });
+                }
+              }
+            }}
+            onMouseLeave={(e) => {
+              const target = e.target as HTMLElement;
+              if (target.classList.contains('expression-tooltip')) {
+                setHoveredExpression(null);
+                setHoverPosition(null);
+              }
+            }}
+            onMouseMove={(e) => {
+              if (hoveredExpression) {
+                setHoverPosition({ x: e.clientX, y: e.clientY });
+              }
+            }}
+            dangerouslySetInnerHTML={{ __html: getHighlightedHTML(displayValue) || `<span class="text-white/30">${placeholder || ''}</span>` }}
+          />
+
+          {/* Preview résolu en bas - texte simple */}
+          {displayValue && displayValue.includes('{{') && (
+            <div className="mt-2">
+              <div className="text-[9px] text-muted-foreground/60 mb-0.5">Résultat résolu:</div>
+              <div className="text-[10px] font-mono text-white/80 break-words">
+                {getResolvedPreview(displayValue) || '—'}
+              </div>
+            </div>
+          )}
+
+          {/* Tooltip au survol */}
+          {hoveredExpression && hoverPosition && (
+            <div
+              className="fixed z-50 px-2 py-1 rounded bg-black/95 border border-white/20 shadow-lg pointer-events-none"
+              style={{
+                left: `${hoverPosition.x + 10}px`,
+                top: `${hoverPosition.y + 10}px`,
+                maxWidth: '300px'
+              }}
+            >
+              <div className="text-[9px] text-white/60 mb-0.5">{hoveredExpression}</div>
+              <div className="text-[10px] font-mono text-[#10a37f] font-semibold">
+                {currentNodeId ? resolveExpression(hoveredExpression, currentNodeId) : '—'}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="relative">
+        {/* Input transparent pour la saisie - doit être au-dessus */}
+        <input
+          ref={inputRef as React.RefObject<HTMLInputElement>}
+          defaultValue={initialValueRef.current}
+          key={`input-${currentNodeId || 'default'}`} // Key stable basée sur currentNodeId
+          onChange={(e) => {
+            syncScroll();
+            handleChange(e);
+          }}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          onScroll={syncScroll}
+          onDrop={(e) => {
+            e.preventDefault();
+            const data = e.dataTransfer.getData('text/plain');
+            if (data.startsWith('{{')) {
+              const input = e.currentTarget;
+              const currentValue = input.value;
+              const cursorPos = input.selectionStart || currentValue.length;
+              const newValue = currentValue.slice(0, cursorPos) + data + currentValue.slice(cursorPos);
+              input.value = newValue;
+              setDisplayValue(newValue);
+              // Déclencher onChange manuellement
+              const syntheticEvent = {
+                currentTarget: input,
+              } as React.ChangeEvent<HTMLInputElement>;
+              handleChange(syntheticEvent);
+              // Préserver le focus après le drop
+              requestAnimationFrame(() => {
+                if (input) {
+                  input.focus();
+                  const newCursorPos = cursorPos + data.length;
+                  input.setSelectionRange(newCursorPos, newCursorPos);
+                }
+              });
+            }
+            if (onDrop) onDrop(e);
+          }}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          className={`${baseClasses} ${inputClasses}`}
+          style={{
+            color: 'transparent',
+            caretColor: 'white',
+            position: 'relative',
+            zIndex: 10,
+            background: 'transparent'
+          }}
+          placeholder={placeholder}
+          spellCheck={false}
+        />
+        {/* Overlay avec syntax highlighting - pointer-events none sauf pour les tooltips */}
+        <div
+          ref={highlightRef}
+          className="absolute inset-0 font-mono text-xs flex items-center overflow-hidden text-white pointer-events-none"
+          style={{
+            padding: '0 12px',
+            borderRadius: '8px',
+            height: '36px',
+            zIndex: 1
+          }}
+          onMouseEnter={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.classList.contains('expression-tooltip')) {
+              const expr = target.getAttribute('data-expression');
+              if (expr) {
+                setHoveredExpression(expr);
+                setHoverPosition({ x: e.clientX, y: e.clientY });
+              }
+            }
+          }}
+          onMouseLeave={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.classList.contains('expression-tooltip')) {
+              setHoveredExpression(null);
+              setHoverPosition(null);
+            }
+          }}
+          onMouseMove={(e) => {
+            if (hoveredExpression) {
+              setHoverPosition({ x: e.clientX, y: e.clientY });
+            }
+          }}
+          dangerouslySetInnerHTML={{ __html: getHighlightedHTML(displayValue) || `<span class="text-white/30">${placeholder || ''}</span>` }}
+        />
+
+        {/* Preview résolu en bas - texte simple */}
+        {displayValue && displayValue.includes('{{') && (
+          <div className="mt-1.5">
+            <div className="text-[9px] text-muted-foreground/60 mb-0.5">Résultat:</div>
+            <div className="text-[10px] font-mono text-white/80 truncate" title={getResolvedPreview(displayValue)}>
+              {getResolvedPreview(displayValue) || '—'}
+            </div>
+          </div>
+        )}
+
+        {/* Tooltip au survol */}
+        {hoveredExpression && hoverPosition && (
+          <div
+            className="fixed z-50 px-2 py-1 rounded bg-black/95 border border-white/20 shadow-lg pointer-events-none"
+            style={{
+              left: `${hoverPosition.x + 10}px`,
+              top: `${hoverPosition.y + 10}px`,
+              maxWidth: '300px'
+            }}
+          >
+            <div className="text-[9px] text-white/60 mb-0.5">{hoveredExpression}</div>
+            <div className="text-[10px] font-mono text-[#10a37f] font-semibold">
+              {currentNodeId ? resolveExpression(hoveredExpression, currentNodeId) : '—'}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  });
+
   // Fonction pour obtenir les outputs disponibles d'un nœud basé sur son type
   const getNodeOutputs = (nodeType: string, nodeConfig?: string): Record<string, any> => {
     try {
       const config = nodeConfig ? JSON.parse(nodeConfig) : {};
-      
+
       switch (nodeType) {
         case 'gpt_analyze':
           return {
@@ -3027,20 +3599,20 @@ export default function NewWorkflowPage() {
               keywords: 'array - Mots-clés extraits'
             })
           };
-        
+
         case 'gpt_respond':
           return {
             response: 'string - Réponse générée par l\'IA',
             tokens: 'number - Nombre de tokens utilisés'
           };
-        
+
         case 'ai_agent':
           return {
             response: 'string - Réponse de l\'agent IA',
             toolCalls: 'array - Outils utilisés',
             tokens: 'number - Nombre de tokens utilisés'
           };
-        
+
         case 'sentiment':
           return {
             score: 'number - Score de sentiment (0-100)',
@@ -3049,62 +3621,62 @@ export default function NewWorkflowPage() {
             tone: 'string - Ton du message',
             urgency: 'string - Niveau d\'urgence'
           };
-        
+
         case 'condition':
           return {
             conditionPassed: 'boolean - Résultat de la condition (true/false)',
             testValue: 'any - Valeur testée',
             operator: 'string - Opérateur utilisé'
           };
-        
+
         case 'show_catalog':
           return {
             products: 'array - Liste des produits affichés',
             totalProducts: 'number - Nombre total de produits'
           };
-        
+
         case 'add_to_cart':
           return {
             cart: 'array - Panier mis à jour',
             item: 'object - Article ajouté',
             totalPrice: 'number - Prix total du panier'
           };
-        
+
         case 'show_cart':
           return {
             cart: 'array - Contenu du panier',
             totalPrice: 'number - Prix total',
             itemCount: 'number - Nombre d\'articles'
           };
-        
+
         case 'checkout':
           return {
             paymentUrl: 'string - URL de paiement',
             orderId: 'string - ID de la commande',
             totalAmount: 'number - Montant total'
           };
-        
+
         case 'apply_promo':
           return {
             discount: 'number - Montant de la réduction',
             newTotal: 'number - Nouveau total après réduction',
             promoCode: 'string - Code promo appliqué'
           };
-        
+
         case 'save_contact':
           return {
             contactId: 'string - ID du contact créé',
             phone: 'string - Numéro de téléphone',
             tags: 'array - Tags appliqués'
           };
-        
+
         case 'check_availability':
           return {
             available: 'boolean - Créneau disponible',
             slots: 'array - Créneaux disponibles',
             nextAvailable: 'string - Prochain créneau disponible'
           };
-        
+
         case 'book_appointment':
           return {
             appointmentId: 'string - ID du rendez-vous',
@@ -3112,172 +3684,172 @@ export default function NewWorkflowPage() {
             time: 'string - Heure réservée',
             confirmationCode: 'string - Code de confirmation'
           };
-        
+
         case 'http_request':
           return {
             status: 'number - Code de statut HTTP',
             data: 'any - Données de la réponse',
             headers: 'object - En-têtes de la réponse'
           };
-        
+
         case 'database_query':
           return {
             results: 'array - Résultats de la requête',
             rowCount: 'number - Nombre de lignes retournées'
           };
-        
+
         case 'ai_generate_image':
           return {
             imageUrl: 'string - URL de l\'image générée',
             prompt: 'string - Prompt utilisé'
           };
-        
+
         case 'ai_analyze_image':
           return {
             description: 'string - Description de l\'image',
             objects: 'array - Objets détectés',
             text: 'string - Texte extrait (OCR)'
           };
-        
+
         case 'ai_generate_audio':
           return {
             audioUrl: 'string - URL de l\'audio généré',
             duration: 'number - Durée en secondes'
           };
-        
+
         case 'ai_transcribe':
           return {
             text: 'string - Texte transcrit',
             language: 'string - Langue détectée'
           };
-        
+
         case 'ai_translate':
           return {
             translatedText: 'string - Texte traduit',
             sourceLanguage: 'string - Langue source',
             targetLanguage: 'string - Langue cible'
           };
-        
+
         case 'ai_summarize':
           return {
             summary: 'string - Résumé de la conversation',
             keyPoints: 'array - Points clés extraits',
             wordCount: 'number - Nombre de mots'
           };
-        
+
         case 'ai_moderation':
           return {
             isViolation: 'boolean - Violation détectée',
             category: 'string - Catégorie de violation',
             confidence: 'number - Niveau de confiance'
           };
-        
+
         case 'delay':
           return {
             delayed: 'boolean - Délai terminé',
             duration: 'number - Durée du délai en secondes'
           };
-        
+
         case 'set_variable':
           return {
             variableName: 'string - Nom de la variable',
             variableValue: 'any - Valeur de la variable'
           };
-        
+
         case 'loop':
           return {
             iterations: 'number - Nombre d\'itérations',
             currentIndex: 'number - Index actuel',
             items: 'array - Éléments traités'
           };
-        
+
         case 'random_choice':
           return {
             selectedPath: 'string - Chemin sélectionné',
             randomValue: 'number - Valeur aléatoire générée'
           };
-        
+
         case 'add_tag':
         case 'remove_tag':
           return {
             tags: 'array - Tags mis à jour',
             contactId: 'string - ID du contact'
           };
-        
+
         case 'update_contact':
           return {
             contactId: 'string - ID du contact mis à jour',
             updatedFields: 'object - Champs mis à jour'
           };
-        
+
         case 'assign_agent':
           return {
             agentId: 'string - ID de l\'agent assigné',
             contactId: 'string - ID du contact'
           };
-        
+
         case 'add_note':
           return {
             noteId: 'string - ID de la note',
             contactId: 'string - ID du contact'
           };
-        
+
         case 'cancel_appointment':
           return {
             appointmentId: 'string - ID du rendez-vous annulé',
             cancelled: 'boolean - Annulation réussie'
           };
-        
+
         case 'send_reminder':
           return {
             reminderSent: 'boolean - Rappel envoyé',
             appointmentId: 'string - ID du rendez-vous'
           };
-        
+
         case 'order_status':
           return {
             status: 'string - Statut de la commande',
             trackingNumber: 'string - Numéro de suivi',
             estimatedDelivery: 'string - Date de livraison estimée'
           };
-        
+
         case 'create_group':
           return {
             groupId: 'string - ID du groupe créé',
             groupName: 'string - Nom du groupe'
           };
-        
+
         case 'add_participant':
         case 'remove_participant':
           return {
             success: 'boolean - Opération réussie',
             participants: 'array - Liste des participants'
           };
-        
+
         case 'group_announcement':
           return {
             messageId: 'string - ID du message',
             sent: 'boolean - Message envoyé'
           };
-        
+
         case 'bulk_add_members':
           return {
             added: 'number - Nombre de membres ajoutés',
             failed: 'number - Nombre d\'échecs'
           };
-        
+
         case 'google_sheets':
           return {
             rows: 'array - Lignes retournées',
             rowCount: 'number - Nombre de lignes'
           };
-        
+
         case 'run_javascript':
           return {
             result: 'any - Résultat du code JavaScript',
             executionTime: 'number - Temps d\'exécution en ms'
           };
-        
+
         case 'whatsapp_message':
         case 'telegram_message':
         case 'keyword':
@@ -3290,7 +3862,7 @@ export default function NewWorkflowPage() {
             timestamp: 'string - Horodatage du message',
             contact: 'object - Informations du contact'
           };
-        
+
         default:
           return {
             output: 'any - Sortie du nœud',
@@ -3308,6 +3880,54 @@ export default function NewWorkflowPage() {
   const getAvailableOutputs = (currentNodeId: number) => {
     const outputs: Array<{ nodeId: number; nodeName: string; nodeType: string; outputs: Array<{ key: string; label: string; description: string }> }> = [];
 
+    // D'abord, ajouter les outputs des triggers (toujours disponibles)
+    const triggerNodes = nodes.filter(n =>
+      n.type === 'whatsapp_message' ||
+      n.type === 'telegram_message' ||
+      n.type === 'keyword' ||
+      n.type === 'new_contact' ||
+      n.type === 'scheduled' ||
+      n.type === 'webhook_trigger'
+    );
+
+    triggerNodes.forEach(triggerNode => {
+      const nodeInfo = nodeCategories
+        .flatMap(cat => cat.nodes)
+        .find(n => n.id === triggerNode.type);
+
+      const nodeOutputs: Array<{ key: string; label: string; description: string }> = [];
+
+      // Outputs spécifiques pour les triggers WhatsApp/Telegram
+      if (triggerNode.type === 'whatsapp_message' || triggerNode.type === 'telegram_message') {
+        nodeOutputs.push(
+          { key: 'message', label: 'Message', description: 'Le contenu du message reçu' },
+          { key: 'from', label: 'Expéditeur', description: 'Le numéro/ID de l\'expéditeur' },
+          { key: 'timestamp', label: 'Horodatage', description: 'La date et heure du message' },
+          { key: 'contact.phone', label: 'Téléphone contact', description: 'Le numéro de téléphone du contact' },
+          { key: 'contact.name', label: 'Nom contact', description: 'Le nom du contact' },
+          { key: 'contact.id', label: 'ID contact', description: 'L\'identifiant unique du contact' },
+          { key: 'messageId', label: 'ID message', description: 'L\'identifiant unique du message' },
+          { key: 'messageType', label: 'Type message', description: 'Le type de message (text, image, audio, etc.)' }
+        );
+      } else {
+        // Pour les autres triggers, utiliser les outputs génériques
+        const triggerOutputs = getNodeOutputs(triggerNode.type, triggerNode.config);
+        Object.entries(triggerOutputs).forEach(([key, desc]) => {
+          const description = typeof desc === 'string' ? desc : 'Output du trigger';
+          nodeOutputs.push({ key, label: key, description });
+        });
+      }
+
+      if (nodeOutputs.length > 0) {
+        outputs.push({
+          nodeId: triggerNode.id,
+          nodeName: nodeInfo?.name || triggerNode.type,
+          nodeType: triggerNode.type,
+          outputs: nodeOutputs
+        });
+      }
+    });
+
     // Trouver tous les nœuds qui précèdent le nœud actuel dans le workflow
     const visited = new Set<number>();
     const findPrecedingNodes = (nodeId: number) => {
@@ -3316,6 +3936,16 @@ export default function NewWorkflowPage() {
 
       const node = nodes.find(n => n.id === nodeId);
       if (!node) return;
+
+      // Ignorer les triggers (déjà ajoutés)
+      if (node.type === 'whatsapp_message' ||
+        node.type === 'telegram_message' ||
+        node.type === 'keyword' ||
+        node.type === 'new_contact' ||
+        node.type === 'scheduled' ||
+        node.type === 'webhook_trigger') {
+        return;
+      }
 
       // Si ce nœud est connecté au nœud actuel, ajouter ses outputs
       if (node.connectedTo === currentNodeId) {
@@ -3522,6 +4152,86 @@ export default function NewWorkflowPage() {
                       <div className="flex items-center justify-between mb-1">
                         <code className="text-[10px] font-mono text-primary group-hover:text-primary font-bold">
                           {output.key}
+                        </code>
+                        <Sparkles className="h-3 w-3 text-primary/40 group-hover:text-primary transition-colors" />
+                      </div>
+                      <div className="text-[9px] text-white/80 font-medium">{output.label}</div>
+                      <div className="text-[8px] text-white/40 mt-0.5">{output.description}</div>
+                    </button>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Composant VariableInsertButton - version compacte pour les champs d'expression
+  const VariableInsertButton = ({
+    onInsert,
+    currentNodeId,
+    className = ""
+  }: {
+    onInsert: (value: string) => void;
+    currentNodeId: number;
+    className?: string;
+  }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const buttonRef = useRef<HTMLDivElement>(null);
+    const availableOutputs = getAvailableOutputs(currentNodeId);
+
+    // Fermer le menu si on clique en dehors
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
+          setIsOpen(false);
+        }
+      };
+
+      if (isOpen) {
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+      }
+    }, [isOpen]);
+
+    return (
+      <div className={`relative inline-flex items-center ${className}`} ref={buttonRef}>
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="h-6 w-6 rounded hover:bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-colors shrink-0"
+          title="Insérer une variable"
+        >
+          <Zap className="h-3.5 w-3.5" />
+        </button>
+
+        {isOpen && (
+          <div className="absolute top-full right-0 mt-1 w-80 max-h-96 overflow-y-auto bg-black/95 border border-white/10 rounded-lg shadow-xl z-[100] p-3 space-y-2 custom-scrollbar">
+            {availableOutputs.length === 0 ? (
+              <div className="p-4 text-center text-white/40 text-xs">
+                Aucune variable disponible
+              </div>
+            ) : (
+              availableOutputs.map((nodeOutput) => (
+                <div key={nodeOutput.nodeId} className="space-y-1">
+                  <div className="px-2 py-1 text-[9px] font-bold uppercase text-primary/60 tracking-wider">
+                    {nodeOutput.nodeName}
+                  </div>
+                  {nodeOutput.outputs.map((output) => (
+                    <button
+                      key={output.key}
+                      type="button"
+                      onClick={() => {
+                        onInsert(`{{${output.key}}}`);
+                        setIsOpen(false);
+                      }}
+                      className="w-full text-left p-2 rounded-lg bg-white/5 hover:bg-primary/10 border border-white/5 hover:border-primary/30 transition-all group"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <code className="text-[10px] font-mono text-[#10a37f] group-hover:text-[#10a37f] font-semibold">
+                          {`{{${output.key}}}`}
                         </code>
                         <Sparkles className="h-3 w-3 text-primary/40 group-hover:text-primary transition-colors" />
                       </div>
@@ -7380,133 +8090,166 @@ Ton but est de transformer chaque message en vente.
                 </div>
               </div>
 
-              <div className="flex-1 flex overflow-hidden">
+              <div className="flex-1 flex overflow-hidden relative">
+                {/* Toggle Button for Left Sidebar */}
+                {!isLeftSidebarOpen && (
+                  <button
+                    onClick={() => setIsLeftSidebarOpen(true)}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 z-50 h-12 w-6 bg-card/80 border-r border-white/10 rounded-r-lg flex items-center justify-center hover:bg-card transition-colors group"
+                    title="Afficher les blocs"
+                  >
+                    <ChevronRight className="h-4 w-4 text-white/60 group-hover:text-white transition-colors" />
+                  </button>
+                )}
+
                 {/* Nodes Palette - Left Panel */}
-                <aside className="w-72 border-r border-white/10 bg-card/60 flex flex-col overflow-hidden">
-                  <div className="p-4 border-b border-white/10">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                      Blocs Disponibles
-                    </h3>
-                    <p className="text-[10px] text-muted-foreground/60">
-                      Glissez les blocs sur le canvas pour construire votre
-                      workflow
-                    </p>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                    {nodeCategories.map((category) => (
-                      <div
-                        key={category.id}
-                        className="rounded-xl overflow-hidden border border-white/5"
-                      >
+                <AnimatePresence>
+                  {isLeftSidebarOpen && (
+                    <motion.aside
+                      initial={{ width: 0, opacity: 0 }}
+                      animate={{ width: 288, opacity: 1 }}
+                      exit={{ width: 0, opacity: 0 }}
+                      transition={{ duration: 0.2, ease: "easeInOut" }}
+                      className="border-r border-white/10 bg-card/60 flex flex-col overflow-hidden shrink-0"
+                    >
+                      <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                        <div>
+                          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                            Blocs Disponibles
+                          </h3>
+                          <p className="text-[10px] text-muted-foreground/60">
+                            Glissez les blocs sur le canvas pour construire votre
+                            workflow
+                          </p>
+                        </div>
                         <button
-                          onClick={() =>
-                            setExpandedCategory(
-                              expandedCategory === category.id
-                                ? null
-                                : category.id,
-                            )
-                          }
-                          className="w-full p-3 flex items-center justify-between bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+                          onClick={() => setIsLeftSidebarOpen(false)}
+                          className="h-8 w-8 rounded-lg hover:bg-white/5 flex items-center justify-center text-white/60 hover:text-white transition-colors shrink-0"
+                          title="Masquer les blocs"
                         >
-                          <div className="flex items-center gap-2">
-                            <category.icon className="h-4 w-4 text-primary" />
-                            <span className="text-xs font-bold text-white">
-                              {category.name}
-                            </span>
-                          </div>
-                          <ChevronRight
-                            className={`h-4 w-4 text-muted-foreground transition-transform ${expandedCategory === category.id ? "rotate-90" : ""}`}
-                          />
+                          <ChevronLeft className="h-4 w-4" />
                         </button>
+                      </div>
 
-                        <AnimatePresence>
-                          {expandedCategory === category.id && (
-                            <motion.div
-                              initial={{ height: 0 }}
-                              animate={{ height: "auto" }}
-                              exit={{ height: 0 }}
-                              className="overflow-hidden"
+                      <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
+                        {nodeCategories.map((category) => {
+                          const isExpanded = expandedCategory === category.id;
+
+                          return (
+                            <div
+                              key={category.id}
+                              className="rounded-xl overflow-hidden border border-white/5"
                             >
-                              <div className="p-2 space-y-1 bg-black/20">
-                                {category.nodes.map((node) => {
-                                  const isTriggerType =
-                                    category.id === "triggers";
-                                  const isDisabled =
-                                    isTriggerType && hasTrigger;
+                              <button
+                                onClick={() =>
+                                  setExpandedCategory(
+                                    isExpanded ? null : category.id,
+                                  )
+                                }
+                                className="w-full p-3 flex items-center justify-between bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <category.icon className="h-4 w-4 text-primary" />
+                                  <span className="text-xs font-bold text-white">
+                                    {category.name}
+                                  </span>
+                                </div>
+                                <ChevronDown
+                                  className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isExpanded ? "" : "-rotate-90"}`}
+                                />
+                              </button>
 
-                                  return (
-                                    <motion.div
-                                      key={node.id}
-                                      whileHover={isDisabled ? {} : { x: 4 }}
-                                      className={`p-2.5 rounded-lg transition-all border border-transparent
+                              <AnimatePresence>
+                                {isExpanded && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.2, ease: "easeInOut" }}
+                                    className="overflow-hidden"
+                                  >
+                                    <div className="p-2 space-y-1 bg-black/20">
+                                      {category.nodes.map((node) => {
+                                        const isTriggerType =
+                                          category.id === "triggers";
+                                        const isDisabled =
+                                          isTriggerType && hasTrigger;
+
+                                        return (
+                                          <motion.div
+                                            key={node.id}
+                                            whileHover={isDisabled ? {} : { x: 4 }}
+                                            className={`p-2.5 rounded-lg transition-all border border-transparent
                                                                                 ${isDisabled ? "opacity-40 cursor-not-allowed grayscale bg-white/[0.01]" : "bg-white/[0.03] hover:bg-white/[0.06] cursor-pointer group hover:border-white/10"}
                                                                             `}
-                                      onClick={() =>
-                                        !isDisabled &&
-                                        addNodeAtPosition(node.id, node.name)
-                                      }
-                                    >
-                                      <div
-                                        draggable={!isDisabled}
-                                        onDragStart={(e) => {
-                                          if (isDisabled) {
-                                            e.preventDefault();
-                                            return;
-                                          }
-                                          e.dataTransfer.setData(
-                                            "nodeType",
-                                            node.id,
-                                          );
-                                          e.dataTransfer.setData(
-                                            "nodeName",
-                                            node.name,
-                                          );
-                                        }}
-                                        className="w-full h-full"
-                                      >
-                                        <div className="flex items-center gap-2">
-                                          <node.icon
-                                            className={`h-3.5 w-3.5 transition-colors ${isDisabled ? "text-muted-foreground" : "text-muted-foreground group-hover:text-primary"}`}
-                                          />
-                                          <span
-                                            className={`text-[11px] font-medium transition-colors ${isDisabled ? "text-muted-foreground" : "text-white/80 group-hover:text-white"}`}
+                                            onClick={() =>
+                                              !isDisabled &&
+                                              addNodeAtPosition(node.id, node.name)
+                                            }
                                           >
-                                            {node.name}
-                                          </span>
-                                        </div>
-                                        <p className="text-[9px] text-muted-foreground/60 mt-1 pl-5">
-                                          {node.description}
-                                        </p>
-                                      </div>
-                                    </motion.div>
-                                  );
-                                })}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                                            <div
+                                              draggable={!isDisabled}
+                                              onDragStart={(e) => {
+                                                if (isDisabled) {
+                                                  e.preventDefault();
+                                                  return;
+                                                }
+                                                e.dataTransfer.setData(
+                                                  "nodeType",
+                                                  node.id,
+                                                );
+                                                e.dataTransfer.setData(
+                                                  "nodeName",
+                                                  node.name,
+                                                );
+                                              }}
+                                              className="w-full h-full"
+                                            >
+                                              <div className="flex items-center gap-2">
+                                                <node.icon
+                                                  className={`h-3.5 w-3.5 transition-colors ${isDisabled ? "text-muted-foreground" : "text-muted-foreground group-hover:text-primary"}`}
+                                                />
+                                                <span
+                                                  className={`text-[11px] font-medium transition-colors ${isDisabled ? "text-muted-foreground" : "text-white/80 group-hover:text-white"}`}
+                                                >
+                                                  {node.name}
+                                                </span>
+                                              </div>
+                                              <p className="text-[9px] text-muted-foreground/60 mt-1 pl-5">
+                                                {node.description}
+                                              </p>
+                                            </div>
+                                          </motion.div>
+                                        );
+                                      })}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          );
+                        })}
                       </div>
-                    ))}
-                  </div>
 
-                  {/* Help Box */}
-                  <div className="p-4 border-t border-white/10">
-                    <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
-                      <div className="flex items-center gap-2 mb-2">
-                        <HelpCircle className="h-4 w-4 text-primary" />
-                        <span className="text-[10px] font-bold text-primary uppercase">
-                          Besoin d'aide ?
-                        </span>
+                      {/* Help Box */}
+                      <div className="p-4 border-t border-white/10">
+                        <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
+                          <div className="flex items-center gap-2 mb-2">
+                            <HelpCircle className="h-4 w-4 text-primary" />
+                            <span className="text-[10px] font-bold text-primary uppercase">
+                              Besoin d'aide ?
+                            </span>
+                          </div>
+                          <p className="text-[9px] text-muted-foreground leading-relaxed">
+                            Glissez un bloc du panneau de gauche sur le canvas pour
+                            construire votre workflow. Testez avec le simulateur à
+                            droite.
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-[9px] text-muted-foreground leading-relaxed">
-                        Glissez un bloc du panneau de gauche sur le canvas pour
-                        construire votre workflow. Testez avec le simulateur à
-                        droite.
-                      </p>
-                    </div>
-                  </div>
-                </aside>
+                    </motion.aside>
+                  )}
+                </AnimatePresence>
 
                 {/* Canvas Wrapper - for positioning zoom controls */}
                 <div className="flex-1 relative">
@@ -7642,7 +8385,7 @@ Ton but est de transformer chaque message en vente.
                                 // For condition nodes, handle conditional connections
                                 if (node.type === "condition" && node.conditionalConnections) {
                                   const connections: Array<{ target: WorkflowNode; branch: "true" | "false"; color: string; startY: number }> = [];
-                                  
+
                                   if (node.conditionalConnections.true) {
                                     const trueTarget = nodes.find(n => n.id === node.conditionalConnections!.true);
                                     if (trueTarget) {
@@ -7654,7 +8397,7 @@ Ton but est de transformer chaque message en vente.
                                       });
                                     }
                                   }
-                                  
+
                                   if (node.conditionalConnections.false) {
                                     const falseTarget = nodes.find(n => n.id === node.conditionalConnections!.false);
                                     if (falseTarget) {
@@ -7666,7 +8409,7 @@ Ton but est de transformer chaque message en vente.
                                       });
                                     }
                                   }
-                                  
+
                                   return connections.map(({ target: targetNode, color, startY, branch }) => {
                                     const sourceNodeWidth = 96;
                                     const targetNodeWidth = targetNode.type === "ai_agent" ? 224 : 96;
@@ -8196,13 +8939,13 @@ Ton but est de transformer chaque message en vente.
                     const selectedId = Array.from(selectedNodeIds)[0];
                     const node = nodes.find((n) => n.id === selectedId);
                     const nodeInfo = node ? getNodeInfo(node.type) : null;
-                    
+
                     if (!node) return <></>;
 
                     // Get available inputs from previous nodes
                     const availableInputs = getAvailableOutputs(node.id);
                     const availableOutputs = getNodeOutputs(node.type, node.config);
-                    
+
                     return (
                       <motion.aside
                         initial={{ x: "100%" }}
@@ -8219,11 +8962,10 @@ Ton but est de transformer chaque message en vente.
                         <header className="flex items-center justify-between px-4 h-12 border-b border-white/10 bg-black/40 shrink-0">
                           <div className="flex items-center gap-3">
                             {nodeInfo && (
-                              <div className={`h-6 w-6 rounded flex items-center justify-center ${
-                                nodeInfo.category?.id === "triggers" ? "bg-emerald-500/20 text-emerald-400" :
-                                nodeInfo.category?.id === "ai" ? "bg-purple-500/20 text-purple-400" :
-                                "bg-primary/20 text-primary"
-                              }`}>
+                              <div className={`h-6 w-6 rounded flex items-center justify-center ${nodeInfo.category?.id === "triggers" ? "bg-emerald-500/20 text-emerald-400" :
+                                  nodeInfo.category?.id === "ai" ? "bg-purple-500/20 text-purple-400" :
+                                    "bg-primary/20 text-primary"
+                                }`}>
                                 <nodeInfo.icon className="h-4 w-4" />
                               </div>
                             )}
@@ -8266,7 +9008,7 @@ Ton but est de transformer chaque message en vente.
                                 <button className="px-2 py-1 text-[10px] rounded text-white/40 hover:text-white/60">JSON</button>
                               </div>
                             </div>
-                            
+
                             {/* Search bar */}
                             <div className="px-4 py-2 border-b border-white/10 shrink-0">
                               <div className="relative">
@@ -8283,7 +9025,7 @@ Ton but est de transformer chaque message en vente.
                               {(() => {
                                 // Si on a des données d'exécution, les afficher
                                 const executionInput = nodeExecutionData[node.id]?.input;
-                                
+
                                 if (executionInput) {
                                   return (
                                     <div className="p-2 space-y-1">
@@ -8298,7 +9040,7 @@ Ton but est de transformer chaque message en vente.
                                     </div>
                                   );
                                 }
-                                
+
                                 // Sinon, afficher les outputs disponibles des nœuds précédents
                                 if (availableInputs.length === 0) {
                                   return (
@@ -8313,7 +9055,7 @@ Ton but est de transformer chaque message en vente.
                                     </div>
                                   );
                                 }
-                                
+
                                 return (
                                   <div className="p-2 space-y-1">
                                     {/* Variables globales */}
@@ -8374,7 +9116,7 @@ Ton but est de transformer chaque message en vente.
                                     {availableInputs.map((outputGroup, idx) => {
                                       const prevNode = nodes.find(n => n.id === outputGroup.nodeId);
                                       const prevNodeInfo = prevNode ? getNodeInfo(prevNode.type) : null;
-                                      
+
                                       return (
                                         <SchemaHeader
                                           key={idx}
@@ -8387,7 +9129,7 @@ Ton but est de transformer chaque message en vente.
                                             // Convertir la clé en format utilisable
                                             const cleanKey = output.key.replace(/[{}]/g, '');
                                             const path = `.${cleanKey}`;
-                                            
+
                                             return (
                                               <SchemaItem
                                                 key={oIdx}
@@ -8410,726 +9152,959 @@ Ton but est de transformer chaque message en vente.
 
                           {/* Middle Column - Configuration */}
                           <div className="w-[40%] border-r border-white/10 flex flex-col">
-                            <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-                              <h3 className="text-xs font-semibold text-white/80">Parameters</h3>
-                              <div className="flex gap-1">
-                                <button className="px-2 py-1 text-[10px] rounded bg-white/5 text-white/60 hover:text-white">Parameters</button>
-                                <button className="px-2 py-1 text-[10px] rounded text-white/40 hover:text-white/60">Settings</button>
+                            {/* Header with Tabs and Execute Button */}
+                            <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between bg-black/20">
+                              <div className="flex items-center gap-2 flex-1">
+                                <div className="flex gap-1 bg-white/5 rounded-lg p-1">
+                                  <button
+                                    onClick={() => setParameterTab("parameters")}
+                                    className={`px-3 py-1.5 text-[10px] font-medium rounded transition-colors ${parameterTab === "parameters"
+                                        ? "bg-white/10 text-white"
+                                        : "text-white/50 hover:text-white/70"
+                                      }`}
+                                  >
+                                    Parameters
+                                  </button>
+                                  <button
+                                    onClick={() => setParameterTab("settings")}
+                                    className={`px-3 py-1.5 text-[10px] font-medium rounded transition-colors ${parameterTab === "settings"
+                                        ? "bg-white/10 text-white"
+                                        : "text-white/50 hover:text-white/70"
+                                      }`}
+                                  >
+                                    Settings
+                                  </button>
+                                </div>
                               </div>
+                              <button
+                                onClick={async () => {
+                                  if (!node) return;
+                                  // Execute the node
+                                  try {
+                                    const context: ExecutionContext = {
+                                      lastUserMessage: "Test message",
+                                      products: [],
+                                      currency: "EUR",
+                                      contact: {
+                                        phone: "+33612345678",
+                                        name: "Test User",
+                                        id: "test-123",
+                                      },
+                                      message: {
+                                        from: "+33612345678",
+                                        text: "Test message",
+                                        type: "text",
+                                      },
+                                      variables: {},
+                                      previous: {},
+                                      messages: [],
+                                      cart: [],
+                                      addMessage: () => { },
+                                    };
+                                    const result = await executeNode(node, context);
+                                    console.log("Node execution result:", result);
+                                    // Update execution data
+                                    setNodeExecutionData((prev) => ({
+                                      ...prev,
+                                      [node.id]: {
+                                        input: context,
+                                        output: result.data || result,
+                                        context: context,
+                                      },
+                                    }));
+                                  } catch (error) {
+                                    console.error("Execution error:", error);
+                                  }
+                                }}
+                                className="ml-2 px-3 py-1.5 bg-primary/20 hover:bg-primary/30 border border-primary/30 rounded-lg flex items-center gap-1.5 text-[10px] font-medium text-primary transition-colors"
+                                title="Exécuter ce nœud"
+                              >
+                                <FlaskConical className="h-3 w-3" />
+                                <span>Execute step</span>
+                              </button>
                             </div>
-                            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                              {/* Configuration content - moved from old panel */}
-                              {(() => {
-                                if (!node) return null;
-                                
-                                return (
-                                  <div className="space-y-4">
-                                    <div>
-                                      <div className="flex items-center justify-between mb-4">
-                                        <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-                                          Configuration
-                                        </h3>
-                                        <Badge
-                                          variant="outline"
-                                          className="text-[8px] opacity-50 uppercase tracking-tighter"
-                                        >
-                                          ID: {node.id}
-                                        </Badge>
-                                      </div>
+                            <div className="flex-1 overflow-y-auto custom-scrollbar">
+                              {parameterTab === "parameters" ? (
+                                <div className="p-4">
+                                  {/* Configuration content - moved from old panel */}
+                                  {(() => {
+                                    if (!node) return null;
+
+                                    return (
                                       <div className="space-y-4">
-                                        <div className="space-y-1.5">
-                                          <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">
-                                            Nom du bloc
-                                          </label>
-                                          <Input
-                                            value={node.name}
-                                            onChange={(e) => {
-                                              setNodes(
-                                                nodes.map((n) =>
-                                                  n.id === node.id
-                                                    ? {
-                                                      ...n,
-                                                      name: e.target.value,
-                                                    }
-                                                    : n,
-                                                ),
-                                              );
-                                            }}
-                                            className="bg-white/5 border-white/10 h-10 focus:border-primary/50 transition-colors text-xs"
-                                          />
-                                        </div>
-
-                                        <div className="p-4 rounded-2xl bg-gradient-to-br from-white/5 to-transparent border border-white/10 shadow-inner">
-                                          <div className="flex items-center gap-4 mb-4">
-                                            <div
-                                              className={`h-12 w-12 rounded-xl flex items-center justify-center shadow-lg ${nodeInfo?.category?.id ===
-                                                "triggers"
-                                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                                                : nodeInfo?.category?.id ===
-                                                  "ai"
-                                                  ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
-                                                  : "bg-primary/20 text-primary border border-primary/30"
-                                                }`}
+                                        <div>
+                                          <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
+                                              Configuration
+                                            </h3>
+                                            <Badge
+                                              variant="outline"
+                                              className="text-[8px] opacity-50 uppercase tracking-tighter"
                                             >
-                                              {nodeInfo ? (
-                                                <nodeInfo.icon className="h-6 w-6" />
-                                              ) : (
-                                                <Zap className="h-6 w-6" />
-                                              )}
-                                            </div>
-                                            <div>
-                                              <p className="text-sm font-black text-white uppercase tracking-tight">
-                                                {nodeInfo?.name || node.type}
-                                              </p>
-                                              <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest opacity-60">
-                                                {nodeInfo?.category?.name ||
-                                                  "Action"}
-                                              </p>
-                                            </div>
+                                              ID: {node.id}
+                                            </Badge>
                                           </div>
-                                          <div className="h-px bg-white/5 w-full mb-3" />
-                                          <p className="text-[11px] text-muted-foreground/80 leading-relaxed italic">
-                                            {nodeInfo?.description ||
-                                              "Configurez ce bloc pour définir son comportement dans le workflow."}
-                                          </p>
-                                        </div>
+                                          <div className="space-y-4">
+                                            <div className="space-y-1.5">
+                                              <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">
+                                                Nom du bloc
+                                              </label>
+                                              <Input
+                                                value={node.name}
+                                                onChange={(e) => {
+                                                  setNodes(
+                                                    nodes.map((n) =>
+                                                      n.id === node.id
+                                                        ? {
+                                                          ...n,
+                                                          name: e.target.value,
+                                                        }
+                                                        : n,
+                                                    ),
+                                                  );
+                                                }}
+                                                className="bg-white/5 border-white/10 h-10 focus:border-primary/50 transition-colors text-xs"
+                                              />
+                                            </div>
 
-                                        {/* Outputs disponibles et Output (exécution) sont maintenant affichés dans la colonne Output à droite */}
-
-                                        <div className="space-y-3 pt-2">
-                                          <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">
-                                            Configuration Spécifique
-                                          </label>
-
-                                          {(() => {
-                                            // Helper to get/set JSON config
-                                            const cfg = (defaultValue = {}) => {
-                                              try {
-                                                return {
-                                                  ...defaultValue,
-                                                  ...JSON.parse(node.config),
-                                                };
-                                              } catch (e) {
-                                                return defaultValue;
-                                              }
-                                            };
-                                            const updateCfg = (newCfg: any) => {
-                                              setNodes(
-                                                nodes.map((n) =>
-                                                  n.id === node.id
-                                                    ? {
-                                                      ...n,
-                                                      config:
-                                                        JSON.stringify(
-                                                          newCfg,
-                                                        ),
-                                                    }
-                                                    : n,
-                                                ),
-                                              );
-                                            };
-
-                                            const currentCfg = cfg();
-
-                                            const instructionsUI = (
-                                              <div className="mt-6 pt-2 border-t border-white/5">
-                                                <button
-                                                  onClick={() =>
-                                                    setIsAiInstructionsOpen(
-                                                      !isAiInstructionsOpen,
-                                                    )
-                                                  }
-                                                  className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors group"
+                                            <div className="p-4 rounded-2xl bg-gradient-to-br from-white/5 to-transparent border border-white/10 shadow-inner">
+                                              <div className="flex items-center gap-4 mb-4">
+                                                <div
+                                                  className={`h-12 w-12 rounded-xl flex items-center justify-center shadow-lg ${nodeInfo?.category?.id ===
+                                                    "triggers"
+                                                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                                    : nodeInfo?.category?.id ===
+                                                      "ai"
+                                                      ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
+                                                      : "bg-primary/20 text-primary border border-primary/30"
+                                                    }`}
                                                 >
-                                                  <div className="flex items-center gap-2">
-                                                    <div className="h-5 w-5 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                                                      <Bot className="h-3 w-3 text-primary" />
-                                                    </div>
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-white/90 cursor-pointer">
-                                                      Instructions IA
-                                                    </label>
-                                                  </div>
-                                                  <ChevronRight
-                                                    className={`h-3 w-3 text-white/40 transition-transform duration-200 ${isAiInstructionsOpen ? "rotate-90" : ""}`}
-                                                  />
-                                                </button>
-
-                                                <AnimatePresence>
-                                                  {isAiInstructionsOpen && (
-                                                    <motion.div
-                                                      initial={{
-                                                        height: 0,
-                                                        opacity: 0,
-                                                      }}
-                                                      animate={{
-                                                        height: "auto",
-                                                        opacity: 1,
-                                                      }}
-                                                      exit={{
-                                                        height: 0,
-                                                        opacity: 0,
-                                                      }}
-                                                      className="overflow-hidden"
-                                                    >
-                                                      <div className="pt-2 pb-1 space-y-3 px-1">
-                                                        <textarea
-                                                          value={
-                                                            currentCfg.aiInstructions ||
-                                                            ""
-                                                          }
-                                                          onChange={(e) =>
-                                                            updateCfg({
-                                                              ...currentCfg,
-                                                              aiInstructions:
-                                                                e.target.value,
-                                                            })
-                                                          }
-                                                          className="w-full h-24 bg-black/40 border border-white/10 rounded-xl p-3 text-[11px] text-white/80 focus:border-primary/50 transition-all font-medium leading-relaxed resize-none"
-                                                          placeholder="Ex: Sois très amical, ou ignore si le client semble agressif..."
-                                                        />
-                                                        <div className="flex items-center gap-2">
-                                                          <Sparkles className="h-2.5 w-2.5 text-primary opacity-50" />
-                                                          <p className="text-[8px] text-muted-foreground italic font-medium">
-                                                            Guide le
-                                                            comportement de l'IA
-                                                            spécifiquement pour
-                                                            ce bloc.
-                                                          </p>
-                                                        </div>
-                                                      </div>
-                                                    </motion.div>
+                                                  {nodeInfo ? (
+                                                    <nodeInfo.icon className="h-6 w-6" />
+                                                  ) : (
+                                                    <Zap className="h-6 w-6" />
                                                   )}
-                                                </AnimatePresence>
+                                                </div>
+                                                <div>
+                                                  <p className="text-sm font-black text-white uppercase tracking-tight">
+                                                    {nodeInfo?.name || node.type}
+                                                  </p>
+                                                  <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest opacity-60">
+                                                    {nodeInfo?.category?.name ||
+                                                      "Action"}
+                                                  </p>
+                                                </div>
                                               </div>
-                                            );
-                                            return (
-                                              <>
-                                                {(() => {
-                                                  switch (node.type) {
-                                                    case "whatsapp_message":
-                                                    case "telegram_message":
+                                              <div className="h-px bg-white/5 w-full mb-3" />
+                                              <p className="text-[11px] text-muted-foreground/80 leading-relaxed italic">
+                                                {nodeInfo?.description ||
+                                                  "Configurez ce bloc pour définir son comportement dans le workflow."}
+                                              </p>
+                                            </div>
+
+                                            {/* Outputs disponibles et Output (exécution) sont maintenant affichés dans la colonne Output à droite */}
+
+                                            {/* Output Fields Configuration - Basé sur les outputs attendus (n8n style) */}
+                                            {(() => {
+                                              const expectedOutputs = getNodeOutputs(node.type, node.config);
+                                              const outputFields = Object.keys(expectedOutputs);
+
+                                              if (outputFields.length === 0) return null;
+
+                                              const cfg = (defaultValue = {}) => {
+                                                try {
+                                                  return {
+                                                    ...defaultValue,
+                                                    ...JSON.parse(node.config),
+                                                  };
+                                                } catch (e) {
+                                                  return defaultValue;
+                                                }
+                                              };
+                                              const updateCfg = (newCfg: any) => {
+                                                setNodes(
+                                                  nodes.map((n) =>
+                                                    n.id === node.id
+                                                      ? {
+                                                        ...n,
+                                                        config: JSON.stringify(newCfg),
+                                                      }
+                                                      : n,
+                                                  ),
+                                                );
+                                              };
+                                              const currentCfg = cfg();
+
+                                              return (
+                                                <div className="space-y-3 pt-2 border-t border-white/5">
+                                                  <div className="flex items-center justify-between">
+                                                    <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">
+                                                      Outputs Attendus
+                                                    </label>
+                                                    <span className="text-[9px] text-muted-foreground/60">
+                                                      {outputFields.length} output{outputFields.length > 1 ? 's' : ''}
+                                                    </span>
+                                                  </div>
+                                                  <div className="space-y-3">
+                                                    {outputFields.map((outputKey) => {
+                                                      const outputDesc = expectedOutputs[outputKey];
+                                                      const outputType = outputDesc.split(' - ')[0];
+                                                      const outputDescription = outputDesc.split(' - ')[1] || '';
+                                                      const fieldPath = `outputFields.${outputKey}`;
+                                                      const fieldMode = currentCfg[`${fieldPath}.mode`] || 'fixed';
+                                                      const fieldValue = currentCfg[`${fieldPath}.value`] || '';
+
                                                       return (
-                                                        <div className="space-y-4">
-                                                          {/* Statut de connexion client */}
-                                                          <div
-                                                            className={`p-8 rounded-3xl bg-gradient-to-br ${isClientWhatsAppConnected ? "from-emerald-500/10" : "from-amber-500/10"} to-transparent border ${isClientWhatsAppConnected ? "border-emerald-500/20 hover:border-emerald-500/30" : "border-amber-500/20 hover:border-amber-500/30"} flex flex-col items-center justify-center text-center space-y-4 shadow-inner relative overflow-hidden transition-all group`}
-                                                          >
-                                                            <div
-                                                              className={`absolute inset-0 bg-[radial-gradient(circle_at_center,_${isClientWhatsAppConnected ? "rgba(16,185,129,0.05)" : "rgba(245,158,11,0.05)"}_0%,_transparent_70%)] pointer-events-none`}
-                                                            />
-                                                            <div
-                                                              className={`h-20 w-20 rounded-[2.5rem] ${isClientWhatsAppConnected ? "bg-emerald-500/10 border-emerald-500/30" : "bg-amber-500/10 border-amber-500/30"} flex items-center justify-center border-2 shadow-[0_20px_40px_-10px_${isClientWhatsAppConnected ? "rgba(16,185,129,0.3)" : "rgba(245,158,11,0.3)"}] group-hover:scale-105 transition-transform duration-500`}
-                                                            >
-                                                              {node.type ===
-                                                                "whatsapp_message" ? (
-                                                                <WhatsAppIcon className="h-10 w-10" />
-                                                              ) : (
-                                                                <TelegramIcon className="h-10 w-10" />
-                                                              )}
-                                                            </div>
-                                                            <div className="space-y-1 relative">
-                                                              <h4 className="text-[13px] font-black uppercase text-white tracking-[0.3em] italic">
-                                                                {isClientWhatsAppConnected
-                                                                  ? "Écoute Active"
-                                                                  : "Configuration Requise"}
-                                                              </h4>
-                                                              <p
-                                                                className={`text-[9px] ${isClientWhatsAppConnected ? "text-emerald-400/60" : "text-amber-400/60"} font-black uppercase tracking-widest`}
-                                                              >
-                                                                {isClientWhatsAppConnected
-                                                                  ? "Votre WhatsApp Business"
-                                                                  : "Connectez votre WhatsApp"}
-                                                              </p>
-                                                            </div>
-
-                                                            {isClientWhatsAppConnected ? (
-                                                              <>
-                                                                <div className="flex items-center gap-2 bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20 relative">
-                                                                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-[ping_1.5s_infinite]" />
-                                                                  <span className="text-[9px] font-black uppercase tracking-tighter text-emerald-400">
-                                                                    Connecté{" "}
-                                                                    {clientWhatsAppNumber &&
-                                                                      `• ${clientWhatsAppNumber}`}
-                                                                  </span>
-                                                                </div>
-                                                              </>
-                                                            ) : (
-                                                              <>
-                                                                <div className="flex items-center gap-2 bg-amber-500/10 px-4 py-1.5 rounded-full border border-amber-500/20 relative">
-                                                                  <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                                                  <span className="text-[9px] font-black uppercase tracking-tighter text-amber-400">
-                                                                    WhatsApp Non
-                                                                    Connecté
-                                                                  </span>
-                                                                </div>
-                                                                <Button
-                                                                  onClick={() =>
-                                                                    setShowConnectionModal(
-                                                                      true,
-                                                                    )
-                                                                  }
-                                                                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold h-10 rounded-xl gap-2 mt-2"
-                                                                >
-                                                                  <Smartphone className="h-4 w-4" />{" "}
-                                                                  Connecter mon
-                                                                  WhatsApp
-                                                                </Button>
-                                                              </>
-                                                            )}
-                                                          </div>
-
-                                                          {/* Info box */}
-                                                          <div
-                                                            className={`p-4 rounded-2xl ${isClientWhatsAppConnected ? "bg-white/5 border-white/5" : "bg-amber-500/5 border-amber-500/10"} border`}
-                                                          >
-                                                            <p className="text-[10px] text-muted-foreground text-center leading-relaxed font-medium italic">
-                                                              {isClientWhatsAppConnected
-                                                                ? `Dès qu'un client envoie un message sur votre ${node.type === "whatsapp_message" ? "WhatsApp" : "Telegram"}, ce bloc lancera instantanément la suite du workflow.`
-                                                                : `⚠️ Chaque automatisation nécessite son propre numéro WhatsApp. Connectez un numéro dédié à ce workflow pour recevoir les messages de vos clients. Une fois publié, ce workflow sera actif 24/7.`}
-                                                            </p>
-                                                          </div>
-
-                                                          {/* ID de l'automatisation pour référence */}
-                                                          <div className="p-2 rounded-lg bg-white/5 border border-white/5">
-                                                            <p className="text-[8px] text-muted-foreground/60 text-center font-mono">
-                                                              ID: {automationId}
-                                                            </p>
-                                                          </div>
-
-                                                          {/* Indicateur Simulateur (séparé) */}
-                                                          {isWhatsAppConnected && (
-                                                            <div className="p-3 rounded-xl bg-zinc-800/50 border border-zinc-700/50 flex items-center gap-3">
-                                                              <div className="h-8 w-8 rounded-lg bg-zinc-700/50 flex items-center justify-center">
-                                                                <Zap className="h-4 w-4 text-zinc-400" />
-                                                              </div>
-                                                              <div className="flex-1">
-                                                                <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
-                                                                  Simulateur
-                                                                </p>
-                                                                <p className="text-[8px] text-zinc-500">
-                                                                  Instance de
-                                                                  test
-                                                                  disponible
-                                                                </p>
-                                                              </div>
-                                                              <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                                                            </div>
-                                                          )}
-                                                        </div>
-                                                      );
-
-                                                    case "new_contact":
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-8 rounded-3xl bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20 flex flex-col items-center justify-center text-center space-y-4 shadow-inner group transition-all hover:border-blue-500/30">
-                                                            <div className="h-20 w-20 rounded-[2.5rem] bg-blue-500/10 flex items-center justify-center border-2 border-blue-500/30 shadow-[0_20px_40px_-10px_rgba(59,130,246,0.3)] group-hover:scale-105 transition-transform duration-500">
-                                                              <Users className="h-10 w-10 text-blue-400" />
-                                                            </div>
-                                                            <div className="space-y-1">
-                                                              <h4 className="text-[13px] font-black uppercase text-white tracking-[0.3em] italic">
-                                                                Nouveau Contact
-                                                              </h4>
-                                                              <p className="text-[9px] text-blue-400/60 font-black uppercase tracking-widest">
-                                                                Acquisition
-                                                                client
-                                                              </p>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 bg-blue-500/10 px-4 py-1.5 rounded-full border border-blue-500/20">
-                                                              <div className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
-                                                              <span className="text-[9px] font-black text-blue-400 uppercase tracking-tighter">
-                                                                Premier Message
+                                                        <div key={outputKey} className="space-y-2">
+                                                          <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                              <label className="text-[10px] font-semibold text-white/90">
+                                                                {outputKey}
+                                                              </label>
+                                                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-white/50 font-medium">
+                                                                {outputType}
                                                               </span>
                                                             </div>
+                                                            <div className="flex items-center gap-1">
+                                                              <button
+                                                                onClick={() => {
+                                                                  // Toggle Input panel visibility - would need state management
+                                                                }}
+                                                                className="h-6 w-6 rounded hover:bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-colors"
+                                                                title="Ouvrir la vue Input"
+                                                              >
+                                                                <PanelRight className="h-3.5 w-3.5" />
+                                                              </button>
+                                                              <button
+                                                                className="h-6 w-6 rounded hover:bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-colors"
+                                                                title="Plus d'options"
+                                                              >
+                                                                <MoreVertical className="h-3.5 w-3.5" />
+                                                              </button>
+                                                              <div className="flex items-center gap-1 bg-white/5 rounded p-0.5">
+                                                                <button
+                                                                  onClick={() => updateCfg({ ...currentCfg, [`${fieldPath}.mode`]: 'fixed' })}
+                                                                  className={`px-2 py-0.5 text-[10px] rounded transition-colors ${fieldMode === 'fixed'
+                                                                      ? 'bg-white/10 text-white'
+                                                                      : 'text-white/50 hover:text-white/70'
+                                                                    }`}
+                                                                >
+                                                                  Fixed
+                                                                </button>
+                                                                <button
+                                                                  onClick={() => updateCfg({ ...currentCfg, [`${fieldPath}.mode`]: 'expression' })}
+                                                                  className={`px-2 py-0.5 text-[10px] rounded transition-colors ${fieldMode === 'expression'
+                                                                      ? 'bg-white/10 text-white'
+                                                                      : 'text-white/50 hover:text-white/70'
+                                                                    }`}
+                                                                >
+                                                                  Expression
+                                                                </button>
+                                                              </div>
+                                                            </div>
                                                           </div>
-                                                          <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
-                                                            <p className="text-[10px] text-muted-foreground text-center leading-relaxed font-medium italic">
-                                                              Ce bloc est idéal
-                                                              pour envoyer un
-                                                              message de
-                                                              bienvenue
-                                                              personnalisé ou un
-                                                              cadeau aux
-                                                              nouveaux
-                                                              prospects.
+                                                          {outputDescription && (
+                                                            <p className="text-[9px] text-muted-foreground/60">
+                                                              {outputDescription}
                                                             </p>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "gpt_analyze":
-                                                      const analyzeCfg = cfg({
-                                                        model: "gpt-4o",
-                                                        system: "Tu es un expert en analyse d'intention client. Ton rôle est de comprendre précisément ce que veut le client : identifier ses besoins, ses intentions, ses émotions et les actions qu'il souhaite entreprendre. Analyse le message et fournis une réponse structurée avec : l'intention principale, les besoins identifiés, le niveau d'urgence, et les prochaines actions recommandées.",
-                                                        temperature: 0.7,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Analyser intention</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">L'IA comprend ce que veut le client</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="Modèle">
-                                                              <StyledSelect
-                                                                value={analyzeCfg.model}
-                                                                onChange={(e) => updateCfg({ ...analyzeCfg, model: e.target.value })}
-                                                                options={[
-                                                                  { value: "gpt-4o", label: "gpt-4o" },
-                                                                  { value: "gpt-4o-mini", label: "gpt-4o-mini" },
-                                                                  { value: "gpt-4-turbo", label: "gpt-4-turbo" },
-                                                                  { value: "o1-preview", label: "o1-preview" }
-                                                                ]}
-                                                              />
-                                                            </FormField>
-
-                                                            <div className="space-y-2">
-                                                              <div className="flex items-center justify-between">
-                                                                <label className="text-sm text-white/80 font-medium">Instructions d'analyse</label>
-                                                                <div className="flex items-center gap-1">
-                                                                  <button
-                                                                    onClick={async () => {
-                                                                      try {
-                                                                        const response = await fetch('/api/chat', {
-                                                                          method: 'POST',
-                                                                          headers: { 'Content-Type': 'application/json' },
-                                                                          body: JSON.stringify({
-                                                                            message: "Génère des instructions système pour analyser l'intention des clients. Focus sur la détection des besoins, émotions et actions souhaitées.",
-                                                                            systemPrompt: "Tu es un expert en analyse d'intention client.",
-                                                                            model: "gpt-4o-mini",
-                                                                            maxTokens: 150
-                                                                          })
-                                                                        });
-                                                                        if (response.ok) {
-                                                                          const data = await response.json();
-                                                                          if (data.success && data.response) {
-                                                                            updateCfg({ ...analyzeCfg, system: data.response.trim() });
-                                                                          }
-                                                                        }
-                                                                      } catch (error) {
-                                                                        console.error('Erreur:', error);
+                                                          )}
+                                                          <div className="relative">
+                                                            {fieldMode === 'fixed' ? (
+                                                              <div className="relative flex items-center gap-2">
+                                                                <div className="flex-1 relative">
+                                                                  <ExpressionInput
+                                                                    value={fieldValue}
+                                                                    onChange={(newValue) => updateCfg({ ...currentCfg, [`${fieldPath}.value`]: newValue })}
+                                                                    onDrop={(e) => {
+                                                                      e.preventDefault();
+                                                                      const data = e.dataTransfer.getData('text/plain');
+                                                                      if (data.startsWith('{{')) {
+                                                                        const currentValue = fieldValue || '';
+                                                                        const input = e.currentTarget as HTMLInputElement;
+                                                                        const cursorPos = input.selectionStart || currentValue.length;
+                                                                        const newValue = currentValue.slice(0, cursorPos) + data + currentValue.slice(cursorPos);
+                                                                        updateCfg({ ...currentCfg, [`${fieldPath}.value`]: newValue, [`${fieldPath}.mode`]: 'expression' });
                                                                       }
                                                                     }}
-                                                                    className="h-6 px-2 rounded-md hover:bg-white/5 flex items-center gap-1 text-[#10a37f] text-xs font-medium transition-colors"
-                                                                  >
-                                                                    <Sparkles className="h-3 w-3" />
-                                                                    Générer
-                                                                  </button>
+                                                                    onDragOver={(e) => {
+                                                                      e.preventDefault();
+                                                                      if (e.currentTarget.parentElement) {
+                                                                        e.currentTarget.parentElement.style.borderColor = 'rgba(16, 163, 127, 0.5)';
+                                                                      }
+                                                                    }}
+                                                                    onDragLeave={(e) => {
+                                                                      if (e.currentTarget.parentElement) {
+                                                                        e.currentTarget.parentElement.style.borderColor = '';
+                                                                      }
+                                                                    }}
+                                                                    currentNodeId={node.id}
+                                                                    className="w-full bg-white/5 border-white/10 h-9 focus:border-primary/50 transition-colors"
+                                                                    placeholder={`Valeur pour ${outputKey}...`}
+                                                                  />
                                                                 </div>
-                                                              </div>
-                                                              <MarkdownEditor
-                                                                value={analyzeCfg.system || ""}
-                                                                onChange={(value) => updateCfg({ ...analyzeCfg, system: value })}
-                                                                placeholder="Décrivez comment analyser l'intention du client..."
-                                                              />
-                                                            </div>
-
-                                                            <FormField label="Température (créativité)">
-                                                              <div className="flex items-center gap-3 flex-1">
-                                                                <input
-                                                                  type="range"
-                                                                  min="0"
-                                                                  max="1"
-                                                                  step="0.1"
-                                                                  value={analyzeCfg.temperature}
-                                                                  onChange={(e) => updateCfg({ ...analyzeCfg, temperature: parseFloat(e.target.value) })}
-                                                                  className="flex-1 h-2 bg-black/40 rounded-full appearance-none cursor-pointer accent-[#10a37f]"
+                                                                <VariableInsertButton
+                                                                  onInsert={(variable: string) => {
+                                                                    const currentValue = fieldValue || '';
+                                                                    const newValue = currentValue + variable;
+                                                                    updateCfg({ ...currentCfg, [`${fieldPath}.value`]: newValue, [`${fieldPath}.mode`]: 'expression' });
+                                                                  }}
+                                                                  currentNodeId={node.id}
+                                                                  className=""
                                                                 />
-                                                                <span className="text-sm font-bold text-[#10a37f] w-8 text-right">
-                                                                  {analyzeCfg.temperature}
-                                                                </span>
                                                               </div>
-                                                            </FormField>
-
-                                                            <div className="pt-2">
-                                                              <button
-                                                                onClick={() => setShowAdvancedAnalyze(!showAdvancedAnalyze)}
-                                                                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
-                                                              >
-                                                                <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedAnalyze ? "rotate-180" : ""}`} />
-                                                                <span>{showAdvancedAnalyze ? "Moins" : "Plus"}</span>
-                                                              </button>
-                                                            </div>
-
-                                                            {showAdvancedAnalyze && (
-                                                              <div className="space-y-4 pt-2">
-                                                                <div className="text-xs font-medium text-muted-foreground">Paramètres avancés</div>
-                                                                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                                                                  <p className="text-[9px] text-muted-foreground/70 italic">
-                                                                    Les paramètres avancés seront disponibles ici.
-                                                                  </p>
+                                                            ) : (
+                                                              <div className="relative">
+                                                                <div className="relative">
+                                                                  <ExpressionInput
+                                                                    value={fieldValue}
+                                                                    onChange={(newValue) => updateCfg({ ...currentCfg, [`${fieldPath}.value`]: newValue })}
+                                                                    onDrop={(e) => {
+                                                                      e.preventDefault();
+                                                                      const data = e.dataTransfer.getData('text/plain');
+                                                                      if (data.startsWith('{{')) {
+                                                                        const currentValue = fieldValue || '';
+                                                                        const textarea = e.currentTarget as HTMLTextAreaElement;
+                                                                        const cursorPos = textarea.selectionStart || currentValue.length;
+                                                                        const newValue = currentValue.slice(0, cursorPos) + data + currentValue.slice(cursorPos);
+                                                                        updateCfg({ ...currentCfg, [`${fieldPath}.value`]: newValue });
+                                                                      }
+                                                                    }}
+                                                                    onDragOver={(e) => {
+                                                                      e.preventDefault();
+                                                                      if (e.currentTarget.parentElement) {
+                                                                        e.currentTarget.parentElement.style.borderColor = 'rgba(16, 163, 127, 0.5)';
+                                                                      }
+                                                                    }}
+                                                                    onDragLeave={(e) => {
+                                                                      if (e.currentTarget.parentElement) {
+                                                                        e.currentTarget.parentElement.style.borderColor = '';
+                                                                      }
+                                                                    }}
+                                                                    isTextarea={true}
+                                                                    currentNodeId={node.id}
+                                                                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 pr-10 focus:border-primary/50 transition-colors"
+                                                                    placeholder={`{{previous.output.${outputKey}}} ou expression...`}
+                                                                  />
+                                                                  <VariableInsertButton
+                                                                    onInsert={(variable: string) => {
+                                                                      const currentValue = fieldValue || '';
+                                                                      const newValue = currentValue + variable;
+                                                                      updateCfg({ ...currentCfg, [`${fieldPath}.value`]: newValue });
+                                                                    }}
+                                                                    currentNodeId={node.id}
+                                                                    className="absolute right-2 top-2 z-20"
+                                                                  />
                                                                 </div>
                                                               </div>
                                                             )}
                                                           </div>
                                                         </div>
                                                       );
+                                                    })}
+                                                  </div>
+                                                </div>
+                                              );
+                                            })()}
 
-                                                    case "gpt_respond":
-                                                      const gpt = cfg({
-                                                        model: "gpt-4o",
-                                                        system: "",
-                                                        temperature: 0.7,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Réponse IA</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Génère une réponse personnalisée avec GPT</p>
+                                            <div className="space-y-3 pt-2">
+                                              <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">
+                                                Configuration Spécifique
+                                              </label>
+
+                                              {(() => {
+                                                // Helper to get/set JSON config
+                                                const cfg = (defaultValue = {}) => {
+                                                  try {
+                                                    return {
+                                                      ...defaultValue,
+                                                      ...JSON.parse(node.config),
+                                                    };
+                                                  } catch (e) {
+                                                    return defaultValue;
+                                                  }
+                                                };
+                                                const updateCfg = (newCfg: any) => {
+                                                  setNodes(
+                                                    nodes.map((n) =>
+                                                      n.id === node.id
+                                                        ? {
+                                                          ...n,
+                                                          config:
+                                                            JSON.stringify(
+                                                              newCfg,
+                                                            ),
+                                                        }
+                                                        : n,
+                                                    ),
+                                                  );
+                                                };
+
+                                                const currentCfg = cfg();
+
+                                                const instructionsUI = (
+                                                  <div className="mt-6 pt-2 border-t border-white/5">
+                                                    <button
+                                                      onClick={() =>
+                                                        setIsAiInstructionsOpen(
+                                                          !isAiInstructionsOpen,
+                                                        )
+                                                      }
+                                                      className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors group"
+                                                    >
+                                                      <div className="flex items-center gap-2">
+                                                        <div className="h-5 w-5 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                                                          <Bot className="h-3 w-3 text-primary" />
+                                                        </div>
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-white/90 cursor-pointer">
+                                                          Instructions IA
+                                                        </label>
+                                                      </div>
+                                                      <ChevronRight
+                                                        className={`h-3 w-3 text-white/40 transition-transform duration-200 ${isAiInstructionsOpen ? "rotate-90" : ""}`}
+                                                      />
+                                                    </button>
+
+                                                    <AnimatePresence>
+                                                      {isAiInstructionsOpen && (
+                                                        <motion.div
+                                                          initial={{
+                                                            height: 0,
+                                                            opacity: 0,
+                                                          }}
+                                                          animate={{
+                                                            height: "auto",
+                                                            opacity: 1,
+                                                          }}
+                                                          exit={{
+                                                            height: 0,
+                                                            opacity: 0,
+                                                          }}
+                                                          className="overflow-hidden"
+                                                        >
+                                                          <div className="pt-2 pb-1 space-y-3 px-1">
+                                                            <textarea
+                                                              value={
+                                                                currentCfg.aiInstructions ||
+                                                                ""
+                                                              }
+                                                              onChange={(e) =>
+                                                                updateCfg({
+                                                                  ...currentCfg,
+                                                                  aiInstructions:
+                                                                    e.target.value,
+                                                                })
+                                                              }
+                                                              className="w-full h-24 bg-black/40 border border-white/10 rounded-xl p-3 text-[11px] text-white/80 focus:border-primary/50 transition-all font-medium leading-relaxed resize-none"
+                                                              placeholder="Ex: Sois très amical, ou ignore si le client semble agressif..."
+                                                            />
+                                                            <div className="flex items-center gap-2">
+                                                              <Sparkles className="h-2.5 w-2.5 text-primary opacity-50" />
+                                                              <p className="text-[8px] text-muted-foreground italic font-medium">
+                                                                Guide le
+                                                                comportement de l'IA
+                                                                spécifiquement pour
+                                                                ce bloc.
+                                                              </p>
+                                                            </div>
                                                           </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="Modèle">
-                                                              <StyledSelect
-                                                                value={gpt.model}
-                                                                onChange={(e) => updateCfg({ ...gpt, model: e.target.value })}
-                                                                options={[
-                                                                  { value: "gpt-4o", label: "gpt-4o" },
-                                                                  { value: "gpt-4o-mini", label: "gpt-4o-mini" },
-                                                                  { value: "gpt-4-turbo", label: "gpt-4-turbo" },
-                                                                  { value: "o1-preview", label: "o1-preview" }
-                                                                ]}
-                                                              />
-                                                            </FormField>
-
-                                                            <div className="space-y-2">
-                                                              <div className="flex items-center justify-between">
-                                                                <label className="text-sm text-white/80 font-medium">Instructions système</label>
-                                                                <div className="flex items-center gap-1">
-                                                                  <button
-                                                                    onClick={async () => {
-                                                                      try {
-                                                                        const response = await fetch('/api/chat', {
-                                                                          method: 'POST',
-                                                                          headers: { 'Content-Type': 'application/json' },
-                                                                          body: JSON.stringify({
-                                                                            message: "Génère des instructions système professionnelles pour un assistant de vente. Inclus le rôle, le ton, et le style de réponse.",
-                                                                            systemPrompt: "Tu es un expert en création de prompts pour assistants IA.",
-                                                                            model: "gpt-4o-mini",
-                                                                            maxTokens: 200
-                                                                          })
-                                                                        });
-                                                                        if (response.ok) {
-                                                                          const data = await response.json();
-                                                                          if (data.success && data.response) {
-                                                                            updateCfg({ ...gpt, system: data.response.trim() });
-                                                                          }
-                                                                        }
-                                                                      } catch (error) {
-                                                                        console.error('Erreur:', error);
-                                                                      }
-                                                                    }}
-                                                                    className="h-6 px-2 rounded-md hover:bg-white/5 flex items-center gap-1 text-[#10a37f] text-xs font-medium transition-colors"
-                                                                  >
-                                                                    <Sparkles className="h-3 w-3" />
-                                                                    Générer
-                                                                  </button>
-                                                                </div>
-                                                              </div>
-                                                              <MarkdownEditor
-                                                                value={gpt.system || ""}
-                                                                onChange={(value) => updateCfg({ ...gpt, system: value })}
-                                                                placeholder="Décrivez le rôle et le comportement de l'assistant (ton, style, limites)..."
-                                                              />
-                                                            </div>
-
-                                                            <FormField label="Température (créativité)">
-                                                              <div className="flex items-center gap-3 flex-1">
-                                                                <input
-                                                                  type="range"
-                                                                  min="0"
-                                                                  max="1"
-                                                                  step="0.1"
-                                                                  value={gpt.temperature}
-                                                                  onChange={(e) => updateCfg({ ...gpt, temperature: parseFloat(e.target.value) })}
-                                                                  className="flex-1 h-2 bg-black/40 rounded-full appearance-none cursor-pointer accent-[#10a37f]"
-                                                                />
-                                                                <span className="text-sm font-bold text-[#10a37f] w-8 text-right">
-                                                                  {gpt.temperature}
-                                                                </span>
-                                                              </div>
-                                                            </FormField>
-
-                                                            <div className="pt-2">
-                                                              <button
-                                                                onClick={() => setShowAdvancedGpt(!showAdvancedGpt)}
-                                                                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
+                                                        </motion.div>
+                                                      )}
+                                                    </AnimatePresence>
+                                                  </div>
+                                                );
+                                                return (
+                                                  <>
+                                                    {(() => {
+                                                      switch (node.type) {
+                                                        case "whatsapp_message":
+                                                        case "telegram_message":
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              {/* Statut de connexion client */}
+                                                              <div
+                                                                className={`p-8 rounded-3xl bg-gradient-to-br ${isClientWhatsAppConnected ? "from-emerald-500/10" : "from-amber-500/10"} to-transparent border ${isClientWhatsAppConnected ? "border-emerald-500/20 hover:border-emerald-500/30" : "border-amber-500/20 hover:border-amber-500/30"} flex flex-col items-center justify-center text-center space-y-4 shadow-inner relative overflow-hidden transition-all group`}
                                                               >
-                                                                <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedGpt ? "rotate-180" : ""}`} />
-                                                                <span>{showAdvancedGpt ? "Moins" : "Plus"}</span>
-                                                              </button>
-                                                            </div>
-
-                                                            {showAdvancedGpt && (
-                                                              <div className="space-y-4 pt-2">
-                                                                <div className="text-xs font-medium text-muted-foreground">Paramètres avancés</div>
-                                                                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                                                                  <p className="text-[9px] text-muted-foreground/70 italic">
-                                                                    Les paramètres avancés seront disponibles ici.
+                                                                <div
+                                                                  className={`absolute inset-0 bg-[radial-gradient(circle_at_center,_${isClientWhatsAppConnected ? "rgba(16,185,129,0.05)" : "rgba(245,158,11,0.05)"}_0%,_transparent_70%)] pointer-events-none`}
+                                                                />
+                                                                <div
+                                                                  className={`h-20 w-20 rounded-[2.5rem] ${isClientWhatsAppConnected ? "bg-emerald-500/10 border-emerald-500/30" : "bg-amber-500/10 border-amber-500/30"} flex items-center justify-center border-2 shadow-[0_20px_40px_-10px_${isClientWhatsAppConnected ? "rgba(16,185,129,0.3)" : "rgba(245,158,11,0.3)"}] group-hover:scale-105 transition-transform duration-500`}
+                                                                >
+                                                                  {node.type ===
+                                                                    "whatsapp_message" ? (
+                                                                    <WhatsAppIcon className="h-10 w-10" />
+                                                                  ) : (
+                                                                    <TelegramIcon className="h-10 w-10" />
+                                                                  )}
+                                                                </div>
+                                                                <div className="space-y-1 relative">
+                                                                  <h4 className="text-[13px] font-black uppercase text-white tracking-[0.3em] italic">
+                                                                    {isClientWhatsAppConnected
+                                                                      ? "Écoute Active"
+                                                                      : "Configuration Requise"}
+                                                                  </h4>
+                                                                  <p
+                                                                    className={`text-[9px] ${isClientWhatsAppConnected ? "text-emerald-400/60" : "text-amber-400/60"} font-black uppercase tracking-widest`}
+                                                                  >
+                                                                    {isClientWhatsAppConnected
+                                                                      ? "Votre WhatsApp Business"
+                                                                      : "Connectez votre WhatsApp"}
                                                                   </p>
                                                                 </div>
-                                                              </div>
-                                                            )}
-                                                          </div>
-                                                        </div>
-                                                      );
 
-                                                    case "ai_agent":
-                                                      const agentCfg = cfg({
-                                                        name: "Mon Agent",
-                                                        model: "gpt-4o",
-                                                        systemPrompt: "Vous êtes un assistant utile.",
-                                                        includeHistory: true,
-                                                        reasoningEffort: "moyen",
-                                                        outputFormat: "text",
-                                                        verbosity: "moyen",
-                                                        continueOnError: false,
-                                                        writeToHistory: true,
-                                                        showAdvanced: false,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          {/* Header */}
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">{agentCfg.name || "Mon Agent"}</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Appelez le modèle avec vos instructions et vos outils</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            {/* Name */}
-                                                            <div className="flex items-center justify-between gap-4">
-                                                              <label className="text-sm text-white/80 font-medium shrink-0">Nom</label>
-                                                              <input
-                                                                type="text"
-                                                                value={agentCfg.name}
-                                                                onChange={(e) => updateCfg({ ...agentCfg, name: e.target.value })}
-                                                                placeholder="Mon Agent"
-                                                                className="flex-1 bg-white/5 border border-white/10 rounded-lg h-9 px-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors"
-                                                              />
-                                                            </div>
-
-                                                            {/* Instructions */}
-                                                            <div className="space-y-2">
-                                                              <div className="flex items-center justify-between">
-                                                                <label className="text-sm text-white/80 font-medium">Instructions</label>
-                                                                <div className="flex items-center gap-1">
-                                                                  <button
-                                                                    onClick={async () => {
-                                                                      try {
-                                                                        // Générer des instructions automatiquement avec l'IA
-                                                                        const response = await fetch('/api/chat', {
-                                                                          method: 'POST',
-                                                                          headers: { 'Content-Type': 'application/json' },
-                                                                          body: JSON.stringify({
-                                                                            message: `Génère des instructions système professionnelles pour un agent IA nommé "${agentCfg.name || 'Mon Agent'}". Les instructions doivent être en français, claires et concises. Inclus le rôle, le ton, et le style de réponse attendu.`,
-                                                                            systemPrompt: "Tu es un expert en création de prompts pour agents IA. Génère des instructions système professionnelles, claires et concises en français.",
-                                                                            model: "gpt-4o-mini",
-                                                                            maxTokens: 200
-                                                                          })
-                                                                        });
-
-                                                                        if (response.ok) {
-                                                                          const data = await response.json();
-                                                                          if (data.success && data.response) {
-                                                                            updateCfg({ ...agentCfg, systemPrompt: data.response.trim() });
-                                                                          }
-                                                                        }
-                                                                      } catch (error) {
-                                                                        console.error('Erreur lors de la génération:', error);
+                                                                {isClientWhatsAppConnected ? (
+                                                                  <>
+                                                                    <div className="flex items-center gap-2 bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20 relative">
+                                                                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-[ping_1.5s_infinite]" />
+                                                                      <span className="text-[9px] font-black uppercase tracking-tighter text-emerald-400">
+                                                                        Connecté{" "}
+                                                                        {clientWhatsAppNumber &&
+                                                                          `• ${clientWhatsAppNumber}`}
+                                                                      </span>
+                                                                    </div>
+                                                                  </>
+                                                                ) : (
+                                                                  <>
+                                                                    <div className="flex items-center gap-2 bg-amber-500/10 px-4 py-1.5 rounded-full border border-amber-500/20 relative">
+                                                                      <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                                                      <span className="text-[9px] font-black uppercase tracking-tighter text-amber-400">
+                                                                        WhatsApp Non
+                                                                        Connecté
+                                                                      </span>
+                                                                    </div>
+                                                                    <Button
+                                                                      onClick={() =>
+                                                                        setShowConnectionModal(
+                                                                          true,
+                                                                        )
                                                                       }
-                                                                    }}
-                                                                    className="h-6 px-2 rounded-md hover:bg-white/5 flex items-center gap-1 text-[#10a37f] text-xs font-medium transition-colors"
-                                                                  >
-                                                                    <Sparkles className="h-3 w-3" />
-                                                                    Générer
-                                                                  </button>
+                                                                      className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold h-10 rounded-xl gap-2 mt-2"
+                                                                    >
+                                                                      <Smartphone className="h-4 w-4" />{" "}
+                                                                      Connecter mon
+                                                                      WhatsApp
+                                                                    </Button>
+                                                                  </>
+                                                                )}
+                                                              </div>
+
+                                                              {/* Info box */}
+                                                              <div
+                                                                className={`p-4 rounded-2xl ${isClientWhatsAppConnected ? "bg-white/5 border-white/5" : "bg-amber-500/5 border-amber-500/10"} border`}
+                                                              >
+                                                                <p className="text-[10px] text-muted-foreground text-center leading-relaxed font-medium italic">
+                                                                  {isClientWhatsAppConnected
+                                                                    ? `Dès qu'un client envoie un message sur votre ${node.type === "whatsapp_message" ? "WhatsApp" : "Telegram"}, ce bloc lancera instantanément la suite du workflow.`
+                                                                    : `⚠️ Chaque automatisation nécessite son propre numéro WhatsApp. Connectez un numéro dédié à ce workflow pour recevoir les messages de vos clients. Une fois publié, ce workflow sera actif 24/7.`}
+                                                                </p>
+                                                              </div>
+
+                                                              {/* ID de l'automatisation pour référence */}
+                                                              <div className="p-2 rounded-lg bg-white/5 border border-white/5">
+                                                                <p className="text-[8px] text-muted-foreground/60 text-center font-mono">
+                                                                  ID: {automationId}
+                                                                </p>
+                                                              </div>
+
+                                                              {/* Indicateur Simulateur (séparé) */}
+                                                              {isWhatsAppConnected && (
+                                                                <div className="p-3 rounded-xl bg-zinc-800/50 border border-zinc-700/50 flex items-center gap-3">
+                                                                  <div className="h-8 w-8 rounded-lg bg-zinc-700/50 flex items-center justify-center">
+                                                                    <Zap className="h-4 w-4 text-zinc-400" />
+                                                                  </div>
+                                                                  <div className="flex-1">
+                                                                    <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                                                                      Simulateur
+                                                                    </p>
+                                                                    <p className="text-[8px] text-zinc-500">
+                                                                      Instance de
+                                                                      test
+                                                                      disponible
+                                                                    </p>
+                                                                  </div>
+                                                                  <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                                                                </div>
+                                                              )}
+                                                            </div>
+                                                          );
+
+                                                        case "new_contact":
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-8 rounded-3xl bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20 flex flex-col items-center justify-center text-center space-y-4 shadow-inner group transition-all hover:border-blue-500/30">
+                                                                <div className="h-20 w-20 rounded-[2.5rem] bg-blue-500/10 flex items-center justify-center border-2 border-blue-500/30 shadow-[0_20px_40px_-10px_rgba(59,130,246,0.3)] group-hover:scale-105 transition-transform duration-500">
+                                                                  <Users className="h-10 w-10 text-blue-400" />
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                  <h4 className="text-[13px] font-black uppercase text-white tracking-[0.3em] italic">
+                                                                    Nouveau Contact
+                                                                  </h4>
+                                                                  <p className="text-[9px] text-blue-400/60 font-black uppercase tracking-widest">
+                                                                    Acquisition
+                                                                    client
+                                                                  </p>
+                                                                </div>
+                                                                <div className="flex items-center gap-2 bg-blue-500/10 px-4 py-1.5 rounded-full border border-blue-500/20">
+                                                                  <div className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                                                  <span className="text-[9px] font-black text-blue-400 uppercase tracking-tighter">
+                                                                    Premier Message
+                                                                  </span>
                                                                 </div>
                                                               </div>
-                                                              <MarkdownEditor
-                                                                value={agentCfg.systemPrompt || ""}
-                                                                onChange={(value) => updateCfg({ ...agentCfg, systemPrompt: value })}
-                                                                placeholder="Décrivez le comportement souhaité du modèle (ton, utilisation des outils, style de réponse)"
-                                                              />
+                                                              <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                                                                <p className="text-[10px] text-muted-foreground text-center leading-relaxed font-medium italic">
+                                                                  Ce bloc est idéal
+                                                                  pour envoyer un
+                                                                  message de
+                                                                  bienvenue
+                                                                  personnalisé ou un
+                                                                  cadeau aux
+                                                                  nouveaux
+                                                                  prospects.
+                                                                </p>
+                                                              </div>
                                                             </div>
+                                                          );
 
-                                                            {/* Include chat history */}
-                                                            <div className="flex items-center justify-between">
-                                                              <label className="text-sm text-white/80 font-medium">Inclure l&apos;historique du chat</label>
-                                                              <button
-                                                                onClick={() => updateCfg({ ...agentCfg, includeHistory: !agentCfg.includeHistory })}
-                                                                className={`relative w-10 h-6 rounded-full transition-colors ${agentCfg.includeHistory ? "bg-[#10a37f]" : "bg-white/20"}`}
-                                                              >
-                                                                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${agentCfg.includeHistory ? "left-5" : "left-1"}`} />
-                                                              </button>
+                                                        case "gpt_analyze":
+                                                          const analyzeCfg = cfg({
+                                                            model: "gpt-4o",
+                                                            system: "Tu es un expert en analyse d'intention client. Ton rôle est de comprendre précisément ce que veut le client : identifier ses besoins, ses intentions, ses émotions et les actions qu'il souhaite entreprendre. Analyse le message et fournis une réponse structurée avec : l'intention principale, les besoins identifiés, le niveau d'urgence, et les prochaines actions recommandées.",
+                                                            temperature: 0.7,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Analyser intention</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">L'IA comprend ce que veut le client</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="Modèle">
+                                                                  <StyledSelect
+                                                                    value={analyzeCfg.model}
+                                                                    onChange={(e) => updateCfg({ ...analyzeCfg, model: e.target.value })}
+                                                                    options={[
+                                                                      { value: "gpt-4o", label: "gpt-4o" },
+                                                                      { value: "gpt-4o-mini", label: "gpt-4o-mini" },
+                                                                      { value: "gpt-4-turbo", label: "gpt-4-turbo" },
+                                                                      { value: "o1-preview", label: "o1-preview" }
+                                                                    ]}
+                                                                  />
+                                                                </FormField>
+
+
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-sm text-white/80 font-medium">Instructions d'analyse</label>
+                                                                    <div className="flex items-center gap-1">
+                                                                      <button
+                                                                        onClick={async () => {
+                                                                          try {
+                                                                            const enabledFields = analyzeCfg.outputFields || ['type', 'urgency', 'autoResolvable', 'keywords'];
+                                                                            const fieldsDesc = enabledFields.map((f: string) => {
+                                                                              if (f === 'type') return `- type: Type de problème (${analyzeCfg.typeValues || 'technique,facturation,compte,produit,autre'})`;
+                                                                              if (f === 'urgency') return `- urgency: Niveau d'urgence (${analyzeCfg.urgencyMin || 1}-${analyzeCfg.urgencyMax || 5})`;
+                                                                              if (f === 'autoResolvable') return `- autoResolvable: Peut être résolu automatiquement (oui/non)`;
+                                                                              if (f === 'keywords') return `- keywords: Mots-clés extraits (array)`;
+                                                                              return `- ${f}`;
+                                                                            }).join('\n');
+
+                                                                            const response = await fetch('/api/chat', {
+                                                                              method: 'POST',
+                                                                              headers: { 'Content-Type': 'application/json' },
+                                                                              body: JSON.stringify({
+                                                                                message: `Génère des instructions système pour analyser l'intention des clients. L'analyse doit retourner un JSON avec les champs suivants:\n${fieldsDesc}\n\nRéponds UNIQUEMENT en JSON avec ces champs.`,
+                                                                                systemPrompt: "Tu es un expert en analyse d'intention client.",
+                                                                                model: "gpt-4o-mini",
+                                                                                maxTokens: 200
+                                                                              })
+                                                                            });
+                                                                            if (response.ok) {
+                                                                              const data = await response.json();
+                                                                              if (data.success && data.response) {
+                                                                                updateCfg({ ...analyzeCfg, system: data.response.trim() });
+                                                                              }
+                                                                            }
+                                                                          } catch (error) {
+                                                                            console.error('Erreur:', error);
+                                                                          }
+                                                                        }}
+                                                                        className="h-6 px-2 rounded-md hover:bg-white/5 flex items-center gap-1 text-[#10a37f] text-xs font-medium transition-colors"
+                                                                      >
+                                                                        <Sparkles className="h-3 w-3" />
+                                                                        Générer
+                                                                      </button>
+                                                                    </div>
+                                                                  </div>
+                                                                  <MarkdownEditor
+                                                                    value={analyzeCfg.system || ""}
+                                                                    onChange={(value) => updateCfg({ ...analyzeCfg, system: value })}
+                                                                    placeholder="Décrivez comment analyser l'intention du client..."
+                                                                  />
+                                                                </div>
+
+                                                                <FormField label="Température (créativité)">
+                                                                  <div className="flex items-center gap-3 flex-1">
+                                                                    <input
+                                                                      type="range"
+                                                                      min="0"
+                                                                      max="1"
+                                                                      step="0.1"
+                                                                      value={analyzeCfg.temperature}
+                                                                      onChange={(e) => updateCfg({ ...analyzeCfg, temperature: parseFloat(e.target.value) })}
+                                                                      className="flex-1 h-2 bg-black/40 rounded-full appearance-none cursor-pointer accent-[#10a37f]"
+                                                                    />
+                                                                    <span className="text-sm font-bold text-[#10a37f] w-8 text-right">
+                                                                      {analyzeCfg.temperature}
+                                                                    </span>
+                                                                  </div>
+                                                                </FormField>
+
+                                                                <div className="pt-2">
+                                                                  <button
+                                                                    onClick={() => setShowAdvancedAnalyze(!showAdvancedAnalyze)}
+                                                                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
+                                                                  >
+                                                                    <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedAnalyze ? "rotate-180" : ""}`} />
+                                                                    <span>{showAdvancedAnalyze ? "Moins" : "Plus"}</span>
+                                                                  </button>
+                                                                </div>
+
+                                                                {showAdvancedAnalyze && (
+                                                                  <div className="space-y-4 pt-2">
+                                                                    <div className="text-xs font-medium text-muted-foreground">Paramètres avancés</div>
+                                                                    <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                                                                      <p className="text-[9px] text-muted-foreground/70 italic">
+                                                                        Les paramètres avancés seront disponibles ici.
+                                                                      </p>
+                                                                    </div>
+                                                                  </div>
+                                                                )}
+                                                              </div>
                                                             </div>
+                                                          );
 
-                                                            {/* Model */}
-                                                            <div className="flex items-center justify-between gap-4">
-                                                              <label className="text-sm text-white/80 font-medium shrink-0">Modèle</label>
-                                                              <select
-                                                                value={agentCfg.model}
-                                                                onChange={(e) => updateCfg({ ...agentCfg, model: e.target.value })}
-                                                                className="flex-1 max-w-[180px] bg-transparent border-none text-sm text-white font-medium cursor-pointer focus:outline-none text-right appearance-none"
-                                                                style={{ direction: "rtl" }}
-                                                              >
-                                                                <option value="gpt-4o">gpt-4o</option>
-                                                                <option value="gpt-4o-mini">gpt-4o-mini</option>
-                                                                <option value="gpt-4-turbo">gpt-4-turbo</option>
-                                                                <option value="o1-preview">o1-preview</option>
-                                                              </select>
+                                                        case "gpt_respond":
+                                                          const gpt = cfg({
+                                                            model: "gpt-4o",
+                                                            system: "",
+                                                            temperature: 0.7,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Réponse IA</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Génère une réponse personnalisée avec GPT</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="Modèle">
+                                                                  <StyledSelect
+                                                                    value={gpt.model}
+                                                                    onChange={(e) => updateCfg({ ...gpt, model: e.target.value })}
+                                                                    options={[
+                                                                      { value: "gpt-4o", label: "gpt-4o" },
+                                                                      { value: "gpt-4o-mini", label: "gpt-4o-mini" },
+                                                                      { value: "gpt-4-turbo", label: "gpt-4-turbo" },
+                                                                      { value: "o1-preview", label: "o1-preview" }
+                                                                    ]}
+                                                                  />
+                                                                </FormField>
+
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-sm text-white/80 font-medium">Instructions système</label>
+                                                                    <div className="flex items-center gap-1">
+                                                                      <button
+                                                                        onClick={async () => {
+                                                                          try {
+                                                                            const response = await fetch('/api/chat', {
+                                                                              method: 'POST',
+                                                                              headers: { 'Content-Type': 'application/json' },
+                                                                              body: JSON.stringify({
+                                                                                message: "Génère des instructions système professionnelles pour un assistant de vente. Inclus le rôle, le ton, et le style de réponse.",
+                                                                                systemPrompt: "Tu es un expert en création de prompts pour assistants IA.",
+                                                                                model: "gpt-4o-mini",
+                                                                                maxTokens: 200
+                                                                              })
+                                                                            });
+                                                                            if (response.ok) {
+                                                                              const data = await response.json();
+                                                                              if (data.success && data.response) {
+                                                                                updateCfg({ ...gpt, system: data.response.trim() });
+                                                                              }
+                                                                            }
+                                                                          } catch (error) {
+                                                                            console.error('Erreur:', error);
+                                                                          }
+                                                                        }}
+                                                                        className="h-6 px-2 rounded-md hover:bg-white/5 flex items-center gap-1 text-[#10a37f] text-xs font-medium transition-colors"
+                                                                      >
+                                                                        <Sparkles className="h-3 w-3" />
+                                                                        Générer
+                                                                      </button>
+                                                                    </div>
+                                                                  </div>
+                                                                  <MarkdownEditor
+                                                                    value={gpt.system || ""}
+                                                                    onChange={(value) => updateCfg({ ...gpt, system: value })}
+                                                                    placeholder="Décrivez le rôle et le comportement de l'assistant (ton, style, limites)..."
+                                                                  />
+                                                                </div>
+
+                                                                <FormField label="Température (créativité)">
+                                                                  <div className="flex items-center gap-3 flex-1">
+                                                                    <input
+                                                                      type="range"
+                                                                      min="0"
+                                                                      max="1"
+                                                                      step="0.1"
+                                                                      value={gpt.temperature}
+                                                                      onChange={(e) => updateCfg({ ...gpt, temperature: parseFloat(e.target.value) })}
+                                                                      className="flex-1 h-2 bg-black/40 rounded-full appearance-none cursor-pointer accent-[#10a37f]"
+                                                                    />
+                                                                    <span className="text-sm font-bold text-[#10a37f] w-8 text-right">
+                                                                      {gpt.temperature}
+                                                                    </span>
+                                                                  </div>
+                                                                </FormField>
+
+                                                                <div className="pt-2">
+                                                                  <button
+                                                                    onClick={() => setShowAdvancedGpt(!showAdvancedGpt)}
+                                                                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
+                                                                  >
+                                                                    <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedGpt ? "rotate-180" : ""}`} />
+                                                                    <span>{showAdvancedGpt ? "Moins" : "Plus"}</span>
+                                                                  </button>
+                                                                </div>
+
+                                                                {showAdvancedGpt && (
+                                                                  <div className="space-y-4 pt-2">
+                                                                    <div className="text-xs font-medium text-muted-foreground">Paramètres avancés</div>
+                                                                    <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                                                                      <p className="text-[9px] text-muted-foreground/70 italic">
+                                                                        Les paramètres avancés seront disponibles ici.
+                                                                      </p>
+                                                                    </div>
+                                                                  </div>
+                                                                )}
+                                                              </div>
                                                             </div>
+                                                          );
 
-                                                            {/* Reasoning effort */}
-                                                            <div className="flex items-center justify-between gap-4">
-                                                              <label className="text-sm text-white/80 font-medium shrink-0">Effort de raisonnement</label>
-                                                              <select
-                                                                value={agentCfg.reasoningEffort}
-                                                                onChange={(e) => updateCfg({ ...agentCfg, reasoningEffort: e.target.value })}
-                                                                className="bg-transparent border-none text-sm text-white font-medium cursor-pointer focus:outline-none text-right appearance-none"
-                                                              >
-                                                                <option value="low">faible</option>
-                                                                <option value="medium">moyen</option>
-                                                                <option value="high">élevé</option>
-                                                              </select>
-                                                            </div>
+                                                        case "ai_agent":
+                                                          const agentCfg = cfg({
+                                                            name: "Mon Agent",
+                                                            model: "gpt-4o",
+                                                            systemPrompt: "Vous êtes un assistant utile.",
+                                                            includeHistory: true,
+                                                            reasoningEffort: "moyen",
+                                                            outputFormat: "text",
+                                                            verbosity: "moyen",
+                                                            continueOnError: false,
+                                                            writeToHistory: true,
+                                                            showAdvanced: false,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              {/* Header */}
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">{agentCfg.name || "Mon Agent"}</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Appelez le modèle avec vos instructions et vos outils</p>
+                                                              </div>
 
-                                                            <div className="h-px bg-white/5" />
-
-                                                            {/* Output format */}
-                                                            <div className="flex items-center justify-between gap-4">
-                                                              <label className="text-sm text-white/80 font-medium shrink-0">Format de sortie</label>
-                                                              <select
-                                                                value={agentCfg.outputFormat}
-                                                                onChange={(e) => updateCfg({ ...agentCfg, outputFormat: e.target.value })}
-                                                                className="bg-transparent border-none text-sm text-white font-medium cursor-pointer focus:outline-none text-right appearance-none"
-                                                              >
-                                                                <option value="text">Texte</option>
-                                                                <option value="json">JSON</option>
-                                                                <option value="markdown">Markdown</option>
-                                                              </select>
-                                                            </div>
-
-                                                            {/* Advanced Section */}
-                                                            <div className="pt-2">
-                                                              <button
-                                                                onClick={() => updateCfg({ ...agentCfg, showAdvanced: !agentCfg.showAdvanced })}
-                                                                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
-                                                              >
-                                                                <ChevronDown className={`h-4 w-4 transition-transform ${agentCfg.showAdvanced ? "rotate-180" : ""}`} />
-                                                                <span>{agentCfg.showAdvanced ? "Moins" : "Plus"}</span>
-                                                              </button>
-                                                            </div>
-
-                                                            {agentCfg.showAdvanced && (
-                                                              <div className="space-y-4 pt-2">
-                                                                {/* Model parameters */}
-                                                                <div className="text-xs font-medium text-muted-foreground">Paramètres du modèle</div>
-
+                                                              <div className="py-4 space-y-4">
+                                                                {/* Name */}
                                                                 <div className="flex items-center justify-between gap-4">
-                                                                  <label className="text-sm text-white/80 font-medium shrink-0">Verbosité</label>
+                                                                  <label className="text-sm text-white/80 font-medium shrink-0">Nom</label>
+                                                                  <input
+                                                                    type="text"
+                                                                    value={agentCfg.name}
+                                                                    onChange={(e) => updateCfg({ ...agentCfg, name: e.target.value })}
+                                                                    placeholder="Mon Agent"
+                                                                    className="flex-1 bg-white/5 border border-white/10 rounded-lg h-9 px-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors"
+                                                                  />
+                                                                </div>
+
+                                                                {/* Instructions */}
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-sm text-white/80 font-medium">Instructions</label>
+                                                                    <div className="flex items-center gap-1">
+                                                                      <button
+                                                                        onClick={async () => {
+                                                                          try {
+                                                                            // Générer des instructions automatiquement avec l'IA
+                                                                            const response = await fetch('/api/chat', {
+                                                                              method: 'POST',
+                                                                              headers: { 'Content-Type': 'application/json' },
+                                                                              body: JSON.stringify({
+                                                                                message: `Génère des instructions système professionnelles pour un agent IA nommé "${agentCfg.name || 'Mon Agent'}". Les instructions doivent être en français, claires et concises. Inclus le rôle, le ton, et le style de réponse attendu.`,
+                                                                                systemPrompt: "Tu es un expert en création de prompts pour agents IA. Génère des instructions système professionnelles, claires et concises en français.",
+                                                                                model: "gpt-4o-mini",
+                                                                                maxTokens: 200
+                                                                              })
+                                                                            });
+
+                                                                            if (response.ok) {
+                                                                              const data = await response.json();
+                                                                              if (data.success && data.response) {
+                                                                                updateCfg({ ...agentCfg, systemPrompt: data.response.trim() });
+                                                                              }
+                                                                            }
+                                                                          } catch (error) {
+                                                                            console.error('Erreur lors de la génération:', error);
+                                                                          }
+                                                                        }}
+                                                                        className="h-6 px-2 rounded-md hover:bg-white/5 flex items-center gap-1 text-[#10a37f] text-xs font-medium transition-colors"
+                                                                      >
+                                                                        <Sparkles className="h-3 w-3" />
+                                                                        Générer
+                                                                      </button>
+                                                                    </div>
+                                                                  </div>
+                                                                  <MarkdownEditor
+                                                                    value={agentCfg.systemPrompt || ""}
+                                                                    onChange={(value) => updateCfg({ ...agentCfg, systemPrompt: value })}
+                                                                    placeholder="Décrivez le comportement souhaité du modèle (ton, utilisation des outils, style de réponse)"
+                                                                  />
+                                                                </div>
+
+                                                                {/* Include chat history */}
+                                                                <div className="flex items-center justify-between">
+                                                                  <label className="text-sm text-white/80 font-medium">Inclure l&apos;historique du chat</label>
+                                                                  <button
+                                                                    onClick={() => updateCfg({ ...agentCfg, includeHistory: !agentCfg.includeHistory })}
+                                                                    className={`relative w-10 h-6 rounded-full transition-colors ${agentCfg.includeHistory ? "bg-[#10a37f]" : "bg-white/20"}`}
+                                                                  >
+                                                                    <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${agentCfg.includeHistory ? "left-5" : "left-1"}`} />
+                                                                  </button>
+                                                                </div>
+
+                                                                {/* Model */}
+                                                                <div className="flex items-center justify-between gap-4">
+                                                                  <label className="text-sm text-white/80 font-medium shrink-0">Modèle</label>
                                                                   <select
-                                                                    value={agentCfg.verbosity}
-                                                                    onChange={(e) => updateCfg({ ...agentCfg, verbosity: e.target.value })}
+                                                                    value={agentCfg.model}
+                                                                    onChange={(e) => updateCfg({ ...agentCfg, model: e.target.value })}
+                                                                    className="flex-1 max-w-[180px] bg-transparent border-none text-sm text-white font-medium cursor-pointer focus:outline-none text-right appearance-none"
+                                                                    style={{ direction: "rtl" }}
+                                                                  >
+                                                                    <option value="gpt-4o">gpt-4o</option>
+                                                                    <option value="gpt-4o-mini">gpt-4o-mini</option>
+                                                                    <option value="gpt-4-turbo">gpt-4-turbo</option>
+                                                                    <option value="o1-preview">o1-preview</option>
+                                                                  </select>
+                                                                </div>
+
+                                                                {/* Reasoning effort */}
+                                                                <div className="flex items-center justify-between gap-4">
+                                                                  <label className="text-sm text-white/80 font-medium shrink-0">Effort de raisonnement</label>
+                                                                  <select
+                                                                    value={agentCfg.reasoningEffort}
+                                                                    onChange={(e) => updateCfg({ ...agentCfg, reasoningEffort: e.target.value })}
                                                                     className="bg-transparent border-none text-sm text-white font-medium cursor-pointer focus:outline-none text-right appearance-none"
                                                                   >
                                                                     <option value="low">faible</option>
@@ -9138,1382 +10113,1427 @@ Ton but est de transformer chaque message en vente.
                                                                   </select>
                                                                 </div>
 
-                                                                {/* Advanced */}
-                                                                <div className="text-xs font-medium text-muted-foreground pt-2">Avancé</div>
+                                                                <div className="h-px bg-white/5" />
 
-                                                                <div className="flex items-center justify-between">
-                                                                  <label className="text-sm text-white/80 font-medium">Continuer en cas d&apos;erreur</label>
-                                                                  <button
-                                                                    onClick={() => updateCfg({ ...agentCfg, continueOnError: !agentCfg.continueOnError })}
-                                                                    className={`relative w-10 h-6 rounded-full transition-colors ${agentCfg.continueOnError ? "bg-[#10a37f]" : "bg-white/20"}`}
+                                                                {/* Output format */}
+                                                                <div className="flex items-center justify-between gap-4">
+                                                                  <label className="text-sm text-white/80 font-medium shrink-0">Format de sortie</label>
+                                                                  <select
+                                                                    value={agentCfg.outputFormat}
+                                                                    onChange={(e) => updateCfg({ ...agentCfg, outputFormat: e.target.value })}
+                                                                    className="bg-transparent border-none text-sm text-white font-medium cursor-pointer focus:outline-none text-right appearance-none"
                                                                   >
-                                                                    <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${agentCfg.continueOnError ? "left-5" : "left-1"}`} />
+                                                                    <option value="text">Texte</option>
+                                                                    <option value="json">JSON</option>
+                                                                    <option value="markdown">Markdown</option>
+                                                                  </select>
+                                                                </div>
+
+                                                                {/* Advanced Section */}
+                                                                <div className="pt-2">
+                                                                  <button
+                                                                    onClick={() => updateCfg({ ...agentCfg, showAdvanced: !agentCfg.showAdvanced })}
+                                                                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
+                                                                  >
+                                                                    <ChevronDown className={`h-4 w-4 transition-transform ${agentCfg.showAdvanced ? "rotate-180" : ""}`} />
+                                                                    <span>{agentCfg.showAdvanced ? "Moins" : "Plus"}</span>
                                                                   </button>
                                                                 </div>
 
-                                                                <div className="flex items-center justify-between">
-                                                                  <label className="text-sm text-white/80 font-medium">Écrire dans l&apos;historique de la conversation</label>
-                                                                  <button
-                                                                    onClick={() => updateCfg({ ...agentCfg, writeToHistory: !agentCfg.writeToHistory })}
-                                                                    className={`relative w-10 h-6 rounded-full transition-colors ${agentCfg.writeToHistory ? "bg-[#10a37f]" : "bg-white/20"}`}
-                                                                  >
-                                                                    <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${agentCfg.writeToHistory ? "left-5" : "left-1"}`} />
-                                                                  </button>
-                                                                </div>
-                                                              </div>
-                                                            )}
-                                                          </div>
-                                                        </div>
-                                                      );
+                                                                {agentCfg.showAdvanced && (
+                                                                  <div className="space-y-4 pt-2">
+                                                                    {/* Model parameters */}
+                                                                    <div className="text-xs font-medium text-muted-foreground">Paramètres du modèle</div>
 
-                                                    case "sentiment":
-                                                      const sentimentCfg = cfg({
-                                                        model: "gpt-4o-mini",
-                                                        target: "last_message",
-                                                        outputFormat: "score",
-                                                        threshold: -0.5,
-                                                        detectEmotions: true,
-                                                        detectTone: true,
-                                                        detectUrgency: true,
-                                                        actions: {
-                                                          positive: "continue",
-                                                          negative: "escalate",
-                                                          neutral: "continue",
-                                                        },
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Analyse sentiment</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Détecte si le client est satisfait ou frustré</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="Modèle">
-                                                              <StyledSelect
-                                                                value={sentimentCfg.model}
-                                                                onChange={(e) => updateCfg({ ...sentimentCfg, model: e.target.value })}
-                                                                options={[
-                                                                  { value: "gpt-4o-mini", label: "gpt-4o-mini" },
-                                                                  { value: "gpt-4o", label: "gpt-4o" },
-                                                                  { value: "gpt-4-turbo", label: "gpt-4-turbo" }
-                                                                ]}
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Cible de l'analyse">
-                                                              <StyledSelect
-                                                                value={sentimentCfg.target}
-                                                                onChange={(e) => updateCfg({ ...sentimentCfg, target: e.target.value })}
-                                                                options={[
-                                                                  { value: "last_message", label: "Dernier message uniquement" },
-                                                                  { value: "conversation", label: "Toute la conversation" },
-                                                                  { value: "last_5_messages", label: "5 derniers messages" }
-                                                                ]}
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Format de sortie">
-                                                              <StyledSelect
-                                                                value={sentimentCfg.outputFormat}
-                                                                onChange={(e) => updateCfg({ ...sentimentCfg, outputFormat: e.target.value })}
-                                                                options={[
-                                                                  { value: "score", label: "Score numérique (-1 à 1)" },
-                                                                  { value: "category", label: "Catégorie (positif/négatif/neutre)" },
-                                                                  { value: "detailed", label: "Analyse détaillée (émotions)" },
-                                                                  { value: "json", label: "JSON structuré" }
-                                                                ]}
-                                                              />
-                                                            </FormField>
-
-                                                            <div className="space-y-3">
-                                                              <div className="text-xs font-medium text-muted-foreground">Éléments à détecter</div>
-                                                              <div className="grid grid-cols-3 gap-2">
-                                                                {[
-                                                                  { key: "detectEmotions", label: "Émotions", icon: "😊" },
-                                                                  { key: "detectTone", label: "Ton", icon: "🎭" },
-                                                                  { key: "detectUrgency", label: "Urgence", icon: "⚡" },
-                                                                ].map((option) => (
-                                                                  <label
-                                                                    key={option.key}
-                                                                    className={`flex flex-col items-center gap-1.5 p-2.5 rounded-lg cursor-pointer transition-all border ${(sentimentCfg as any)[option.key]
-                                                                      ? "bg-pink-500/10 border-pink-500/30"
-                                                                      : "bg-white/5 border-white/10 hover:border-pink-500/20"
-                                                                      }`}
-                                                                  >
-                                                                    <input
-                                                                      type="checkbox"
-                                                                      checked={(sentimentCfg as any)[option.key] || false}
-                                                                      onChange={(e) =>
-                                                                        updateCfg({
-                                                                          ...sentimentCfg,
-                                                                          [option.key]: e.target.checked,
-                                                                        })
-                                                                      }
-                                                                      className="sr-only"
-                                                                    />
-                                                                    <span className="text-lg">{option.icon}</span>
-                                                                    <span className="text-[9px] font-medium text-white/80 text-center">
-                                                                      {option.label}
-                                                                    </span>
-                                                                  </label>
-                                                                ))}
-                                                              </div>
-                                                            </div>
-
-                                                            <FormField label="Seuil d'alerte (négatif)">
-                                                              <div className="flex items-center gap-3 flex-1">
-                                                                <input
-                                                                  type="range"
-                                                                  min="-1"
-                                                                  max="0"
-                                                                  step="0.1"
-                                                                  value={sentimentCfg.threshold}
-                                                                  onChange={(e) => updateCfg({ ...sentimentCfg, threshold: parseFloat(e.target.value) })}
-                                                                  className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-pink-500"
-                                                                />
-                                                                <span className="text-sm font-bold text-pink-400 w-12 text-right">
-                                                                  {sentimentCfg.threshold}
-                                                                </span>
-                                                              </div>
-                                                            </FormField>
-
-                                                            <div className="pt-2">
-                                                              <button
-                                                                onClick={() => setShowAdvancedSentiment(!showAdvancedSentiment)}
-                                                                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
-                                                              >
-                                                                <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedSentiment ? "rotate-180" : ""}`} />
-                                                                <span>{showAdvancedSentiment ? "Moins" : "Plus"}</span>
-                                                              </button>
-                                                            </div>
-
-                                                            {showAdvancedSentiment && (
-                                                              <div className="space-y-4 pt-2">
-                                                                <div className="text-xs font-medium text-muted-foreground">Actions selon le sentiment</div>
-                                                                {Object.entries({
-                                                                  positive: { label: "Positif", desc: "Client satisfait" },
-                                                                  neutral: { label: "Neutre", desc: "Sentiment neutre" },
-                                                                  negative: { label: "Négatif", desc: "Client frustré" },
-                                                                }).map(([key, { label, desc }]) => (
-                                                                  <FormField key={key} label={label}>
-                                                                    <StyledSelect
-                                                                      value={(sentimentCfg.actions as any)[key] || "continue"}
-                                                                      onChange={(e) => updateCfg({
-                                                                        ...sentimentCfg,
-                                                                        actions: { ...sentimentCfg.actions, [key]: e.target.value },
-                                                                      })}
-                                                                      options={[
-                                                                        { value: "continue", label: "Continuer le flux" },
-                                                                        { value: "escalate", label: "Escalader à un humain" },
-                                                                        { value: "special_response", label: "Réponse spéciale" },
-                                                                        { value: "stop", label: "Arrêter le workflow" }
-                                                                      ]}
-                                                                    />
-                                                                  </FormField>
-                                                                ))}
-                                                              </div>
-                                                            )}
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "ai_translate":
-                                                      const translateCfg = cfg({
-                                                        sourceLanguage: "auto",
-                                                        targetLanguage: "fr",
-                                                        preserveTone: true,
-                                                        formalityLevel: "neutral",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20 space-y-5 relative overflow-hidden">
-                                                            <div className="flex items-center justify-between">
-                                                              <div className="flex items-center gap-2">
-                                                                <div className="h-6 w-6 rounded-lg bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
-                                                                  <Globe className="h-3.5 w-3.5 text-blue-400" />
-                                                                </div>
-                                                                <label className="text-[10px] font-black uppercase text-white/80 tracking-widest">
-                                                                  Traduction IA
-                                                                </label>
-                                                              </div>
-                                                              <Badge className="bg-blue-500/20 text-blue-400 border-none text-[8px] uppercase font-black px-2">
-                                                                Multi-langues
-                                                              </Badge>
-                                                            </div>
-
-                                                            {/* Source Language */}
-                                                            <div className="space-y-2">
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
-                                                                Langue Source
-                                                              </label>
-                                                              <select
-                                                                value={translateCfg.sourceLanguage}
-                                                                onChange={(e) =>
-                                                                  updateCfg({
-                                                                    ...translateCfg,
-                                                                    sourceLanguage: e.target.value,
-                                                                  })
-                                                                }
-                                                                className="w-full bg-black/60 border border-white/10 rounded-xl h-10 text-xs px-3 text-white appearance-none cursor-pointer hover:border-blue-500/30 transition-all font-bold"
-                                                              >
-                                                                <option value="auto">🔍 Détection automatique</option>
-                                                                <option value="en">🇬🇧 Anglais</option>
-                                                                <option value="fr">🇫🇷 Français</option>
-                                                                <option value="es">🇪🇸 Espagnol</option>
-                                                                <option value="de">🇩🇪 Allemand</option>
-                                                                <option value="ar">🇸🇦 Arabe</option>
-                                                                <option value="zh">🇨🇳 Chinois</option>
-                                                                <option value="pt">🇧🇷 Portugais</option>
-                                                              </select>
-                                                            </div>
-
-                                                            {/* Target Language */}
-                                                            <div className="space-y-2">
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
-                                                                Langue Cible *
-                                                              </label>
-                                                              <select
-                                                                value={translateCfg.targetLanguage}
-                                                                onChange={(e) =>
-                                                                  updateCfg({
-                                                                    ...translateCfg,
-                                                                    targetLanguage: e.target.value,
-                                                                  })
-                                                                }
-                                                                className="w-full bg-black/60 border border-white/10 rounded-xl h-10 text-xs px-3 text-white appearance-none cursor-pointer hover:border-blue-500/30 transition-all font-bold"
-                                                              >
-                                                                <option value="fr">🇫🇷 Français</option>
-                                                                <option value="en">🇬🇧 Anglais</option>
-                                                                <option value="es">🇪🇸 Espagnol</option>
-                                                                <option value="de">🇩🇪 Allemand</option>
-                                                                <option value="ar">🇸🇦 Arabe</option>
-                                                                <option value="zh">🇨🇳 Chinois</option>
-                                                                <option value="pt">🇧🇷 Portugais</option>
-                                                                <option value="it">🇮🇹 Italien</option>
-                                                                <option value="ja">🇯🇵 Japonais</option>
-                                                                <option value="ko">🇰🇷 Coréen</option>
-                                                              </select>
-                                                            </div>
-
-                                                            {/* Formality */}
-                                                            <div className="space-y-2">
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
-                                                                Niveau de Formalité
-                                                              </label>
-                                                              <div className="grid grid-cols-3 gap-2">
-                                                                {["informal", "neutral", "formal"].map((level) => (
-                                                                  <button
-                                                                    key={level}
-                                                                    onClick={() =>
-                                                                      updateCfg({
-                                                                        ...translateCfg,
-                                                                        formalityLevel: level,
-                                                                      })
-                                                                    }
-                                                                    className={`p-2 rounded-lg text-[9px] font-bold uppercase transition-all ${translateCfg.formalityLevel === level
-                                                                      ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                                                                      : "bg-white/5 text-muted-foreground hover:bg-white/10 border border-transparent"
-                                                                      }`}
-                                                                  >
-                                                                    {level === "informal" ? "😎 Informel" : level === "neutral" ? "😊 Neutre" : "🎩 Formel"}
-                                                                  </button>
-                                                                ))}
-                                                              </div>
-                                                            </div>
-
-                                                            {/* Options */}
-                                                            <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
-                                                              <input
-                                                                type="checkbox"
-                                                                checked={translateCfg.preserveTone}
-                                                                onChange={(e) =>
-                                                                  updateCfg({
-                                                                    ...translateCfg,
-                                                                    preserveTone: e.target.checked,
-                                                                  })
-                                                                }
-                                                                className="h-4 w-4 rounded bg-white/10 border-white/20 text-blue-500 focus:ring-blue-500/20"
-                                                              />
-                                                              <span className="text-[10px] font-medium text-white/80">Préserver le ton et les émojis</span>
-                                                            </label>
-                                                          </div>
-
-                                                          <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
-                                                            <Globe className="h-4 w-4 text-blue-400 shrink-0 opacity-40" />
-                                                            <p className="text-[9px] text-muted-foreground leading-relaxed font-medium italic">
-                                                              Traduction automatique de haute qualité pour communiquer avec vos clients internationaux.
-                                                            </p>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "ai_summarize":
-                                                      const summarizeCfg = cfg({
-                                                        mode: "conversation",
-                                                        length: "medium",
-                                                        format: "bullet",
-                                                        includeActionItems: true,
-                                                        includeSentiment: false,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-violet-500/10 to-transparent border border-violet-500/20 space-y-5 relative overflow-hidden">
-                                                            <div className="flex items-center justify-between">
-                                                              <div className="flex items-center gap-2">
-                                                                <div className="h-6 w-6 rounded-lg bg-violet-500/20 flex items-center justify-center border border-violet-500/30">
-                                                                  <FileText className="h-3.5 w-3.5 text-violet-400" />
-                                                                </div>
-                                                                <label className="text-[10px] font-black uppercase text-white/80 tracking-widest">
-                                                                  Résumé IA
-                                                                </label>
-                                                              </div>
-                                                              <Badge className="bg-violet-500/20 text-violet-400 border-none text-[8px] uppercase font-black px-2">
-                                                                Synthèse
-                                                              </Badge>
-                                                            </div>
-
-                                                            {/* Mode */}
-                                                            <div className="space-y-2">
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
-                                                                Type de Contenu
-                                                              </label>
-                                                              <select
-                                                                value={summarizeCfg.mode}
-                                                                onChange={(e) =>
-                                                                  updateCfg({
-                                                                    ...summarizeCfg,
-                                                                    mode: e.target.value,
-                                                                  })
-                                                                }
-                                                                className="w-full bg-black/60 border border-white/10 rounded-xl h-10 text-xs px-3 text-white appearance-none cursor-pointer hover:border-violet-500/30 transition-all font-bold"
-                                                              >
-                                                                <option value="conversation">💬 Conversation complète</option>
-                                                                <option value="last_message">📩 Dernier message</option>
-                                                                <option value="document">📄 Document/Texte</option>
-                                                              </select>
-                                                            </div>
-
-                                                            {/* Longueur */}
-                                                            <div className="space-y-2">
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
-                                                                Longueur du Résumé
-                                                              </label>
-                                                              <div className="grid grid-cols-3 gap-2">
-                                                                {["short", "medium", "detailed"].map((len) => (
-                                                                  <button
-                                                                    key={len}
-                                                                    onClick={() =>
-                                                                      updateCfg({
-                                                                        ...summarizeCfg,
-                                                                        length: len,
-                                                                      })
-                                                                    }
-                                                                    className={`p-2 rounded-lg text-[9px] font-bold uppercase transition-all ${summarizeCfg.length === len
-                                                                      ? "bg-violet-500/20 text-violet-400 border border-violet-500/30"
-                                                                      : "bg-white/5 text-muted-foreground hover:bg-white/10 border border-transparent"
-                                                                      }`}
-                                                                  >
-                                                                    {len === "short" ? "📝 Court" : len === "medium" ? "📋 Moyen" : "📖 Détaillé"}
-                                                                  </button>
-                                                                ))}
-                                                              </div>
-                                                            </div>
-
-                                                            {/* Format */}
-                                                            <div className="space-y-2">
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
-                                                                Format de Sortie
-                                                              </label>
-                                                              <select
-                                                                value={summarizeCfg.format}
-                                                                onChange={(e) =>
-                                                                  updateCfg({
-                                                                    ...summarizeCfg,
-                                                                    format: e.target.value,
-                                                                  })
-                                                                }
-                                                                className="w-full bg-black/60 border border-white/10 rounded-xl h-10 text-xs px-3 text-white appearance-none cursor-pointer hover:border-violet-500/30 transition-all font-bold"
-                                                              >
-                                                                <option value="bullet">• Points clés</option>
-                                                                <option value="paragraph">📃 Paragraphe</option>
-                                                                <option value="structured">📊 JSON structuré</option>
-                                                              </select>
-                                                            </div>
-
-                                                            {/* Options */}
-                                                            <div className="space-y-2 pt-2 border-t border-white/5">
-                                                              <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
-                                                                <input
-                                                                  type="checkbox"
-                                                                  checked={summarizeCfg.includeActionItems}
-                                                                  onChange={(e) =>
-                                                                    updateCfg({
-                                                                      ...summarizeCfg,
-                                                                      includeActionItems: e.target.checked,
-                                                                    })
-                                                                  }
-                                                                  className="h-4 w-4 rounded bg-white/10 border-white/20 text-violet-500 focus:ring-violet-500/20"
-                                                                />
-                                                                <span className="text-[10px] font-medium text-white/80">Extraire les actions à faire</span>
-                                                              </label>
-                                                              <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
-                                                                <input
-                                                                  type="checkbox"
-                                                                  checked={summarizeCfg.includeSentiment}
-                                                                  onChange={(e) =>
-                                                                    updateCfg({
-                                                                      ...summarizeCfg,
-                                                                      includeSentiment: e.target.checked,
-                                                                    })
-                                                                  }
-                                                                  className="h-4 w-4 rounded bg-white/10 border-white/20 text-violet-500 focus:ring-violet-500/20"
-                                                                />
-                                                                <span className="text-[10px] font-medium text-white/80">Inclure l'analyse de sentiment</span>
-                                                              </label>
-                                                            </div>
-                                                          </div>
-
-                                                          <div className="p-4 rounded-xl bg-violet-500/5 border border-violet-500/10 flex gap-3">
-                                                            <FileText className="h-4 w-4 text-violet-400 shrink-0 opacity-40" />
-                                                            <p className="text-[9px] text-muted-foreground leading-relaxed font-medium italic">
-                                                              Créez des résumés intelligents pour garder une trace des demandes clients.
-                                                            </p>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "ai_moderation":
-                                                      const moderationCfg = cfg({
-                                                        blockIfFlagged: true,
-                                                        threshold: 70,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-red-500/10 to-transparent border border-red-500/20 space-y-4">
-                                                            <div className="flex items-center gap-3">
-                                                              <div className="h-10 w-10 rounded-xl bg-red-500/20 flex items-center justify-center">
-                                                                <ShieldCheck className="h-5 w-5 text-red-400" />
-                                                              </div>
-                                                              <div>
-                                                                <h4 className="text-sm font-bold text-white">Modération IA</h4>
-                                                                <p className="text-[10px] text-red-400/60">Détecte contenu inapproprié</p>
-                                                              </div>
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Seuil (0-100)</label>
-                                                              <Input
-                                                                type="number"
-                                                                min={0}
-                                                                max={100}
-                                                                value={moderationCfg.threshold}
-                                                                onChange={(e) => updateCfg({ ...moderationCfg, threshold: parseInt(e.target.value) || 70 })}
-                                                                className="mt-1 bg-black/40 border-white/10 h-10"
-                                                              />
-                                                            </div>
-                                                            <div className="flex items-center justify-between p-3 rounded-xl bg-black/20">
-                                                              <span className="text-[10px] text-white/70">Bloquer si flaggé</span>
-                                                              <button
-                                                                onClick={() => updateCfg({ ...moderationCfg, blockIfFlagged: !moderationCfg.blockIfFlagged })}
-                                                                className={`relative w-10 h-6 rounded-full transition-colors ${moderationCfg.blockIfFlagged ? "bg-red-500" : "bg-white/20"}`}
-                                                              >
-                                                                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${moderationCfg.blockIfFlagged ? "left-5" : "left-1"}`} />
-                                                              </button>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "ai_analyze_image":
-                                                      const analyzeImageCfg = cfg({
-                                                        detailed: true,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-transparent border border-cyan-500/20 space-y-4">
-                                                            <div className="flex items-center gap-3">
-                                                              <div className="h-10 w-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                                                                <ImageIcon className="h-5 w-5 text-cyan-400" />
-                                                              </div>
-                                                              <div>
-                                                                <h4 className="text-sm font-bold text-white">Analyser Image</h4>
-                                                                <p className="text-[10px] text-cyan-400/60">GPT-4 Vision décrit l'image</p>
-                                                              </div>
-                                                            </div>
-                                                            <div className="flex items-center justify-between p-3 rounded-xl bg-black/20">
-                                                              <span className="text-[10px] text-white/70">Description détaillée</span>
-                                                              <button
-                                                                onClick={() => updateCfg({ ...analyzeImageCfg, detailed: !analyzeImageCfg.detailed })}
-                                                                className={`relative w-10 h-6 rounded-full transition-colors ${analyzeImageCfg.detailed ? "bg-cyan-500" : "bg-white/20"}`}
-                                                              >
-                                                                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${analyzeImageCfg.detailed ? "left-5" : "left-1"}`} />
-                                                              </button>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "ai_generate_image":
-                                                      const generateImageCfg = cfg({
-                                                        size: "1024x1024",
-                                                        quality: "standard",
-                                                        prompt: "",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20 space-y-4">
-                                                            <div className="flex items-center gap-3">
-                                                              <div className="h-10 w-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                                                                <ImageIcon className="h-5 w-5 text-purple-400" />
-                                                              </div>
-                                                              <div>
-                                                                <h4 className="text-sm font-bold text-white">Générer Image (DALL-E)</h4>
-                                                                <p className="text-[10px] text-purple-400/60">Crée une image depuis un prompt</p>
-                                                              </div>
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Prompt</label>
-                                                              <textarea
-                                                                value={generateImageCfg.prompt}
-                                                                onChange={(e) => updateCfg({ ...generateImageCfg, prompt: e.target.value })}
-                                                                className="w-full mt-1 h-20 bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white"
-                                                                placeholder="Décrivez l'image à générer..."
-                                                              />
-                                                            </div>
-                                                            <div className="grid grid-cols-2 gap-3">
-                                                              <div>
-                                                                <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Taille</label>
-                                                                <select
-                                                                  value={generateImageCfg.size}
-                                                                  onChange={(e) => updateCfg({ ...generateImageCfg, size: e.target.value })}
-                                                                  className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
-                                                                >
-                                                                  <option value="1024x1024">1024x1024</option>
-                                                                  <option value="1792x1024">1792x1024</option>
-                                                                  <option value="1024x1792">1024x1792</option>
-                                                                </select>
-                                                              </div>
-                                                              <div>
-                                                                <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Qualité</label>
-                                                                <select
-                                                                  value={generateImageCfg.quality}
-                                                                  onChange={(e) => updateCfg({ ...generateImageCfg, quality: e.target.value })}
-                                                                  className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
-                                                                >
-                                                                  <option value="standard">Standard</option>
-                                                                  <option value="hd">HD</option>
-                                                                </select>
-                                                              </div>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "ai_generate_audio":
-                                                      const generateAudioCfg = cfg({
-                                                        voice: "alloy",
-                                                        speed: 1.0,
-                                                        text: "",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-orange-500/10 to-transparent border border-orange-500/20 space-y-4">
-                                                            <div className="flex items-center gap-3">
-                                                              <div className="h-10 w-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
-                                                                <Mic className="h-5 w-5 text-orange-400" />
-                                                              </div>
-                                                              <div>
-                                                                <h4 className="text-sm font-bold text-white">Générer Audio (TTS)</h4>
-                                                                <p className="text-[10px] text-orange-400/60">Convertit texte en voix</p>
-                                                              </div>
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Texte</label>
-                                                              <textarea
-                                                                value={generateAudioCfg.text}
-                                                                onChange={(e) => updateCfg({ ...generateAudioCfg, text: e.target.value })}
-                                                                className="w-full mt-1 h-20 bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white"
-                                                                placeholder="Texte à convertir en audio..."
-                                                              />
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Voix</label>
-                                                              <select
-                                                                value={generateAudioCfg.voice}
-                                                                onChange={(e) => updateCfg({ ...generateAudioCfg, voice: e.target.value })}
-                                                                className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
-                                                              >
-                                                                <option value="alloy">Alloy</option>
-                                                                <option value="echo">Echo</option>
-                                                                <option value="fable">Fable</option>
-                                                                <option value="onyx">Onyx</option>
-                                                                <option value="nova">Nova</option>
-                                                                <option value="shimmer">Shimmer</option>
-                                                              </select>
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Vitesse: {generateAudioCfg.speed}x</label>
-                                                              <input
-                                                                type="range"
-                                                                min="0.25"
-                                                                max="4"
-                                                                step="0.25"
-                                                                value={generateAudioCfg.speed}
-                                                                onChange={(e) => updateCfg({ ...generateAudioCfg, speed: parseFloat(e.target.value) })}
-                                                                className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-orange-500"
-                                                              />
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "ai_transcribe":
-                                                      const transcribeCfg = cfg({
-                                                        language: "auto",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/20 space-y-4">
-                                                            <div className="flex items-center gap-3">
-                                                              <div className="h-10 w-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                                                                <Mic className="h-5 w-5 text-emerald-400" />
-                                                              </div>
-                                                              <div>
-                                                                <h4 className="text-sm font-bold text-white">Transcrire Audio (Whisper)</h4>
-                                                                <p className="text-[10px] text-emerald-400/60">Audio → Texte</p>
-                                                              </div>
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Langue</label>
-                                                              <select
-                                                                value={transcribeCfg.language}
-                                                                onChange={(e) => updateCfg({ ...transcribeCfg, language: e.target.value })}
-                                                                className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
-                                                              >
-                                                                <option value="auto">Détection auto</option>
-                                                                <option value="fr">Français</option>
-                                                                <option value="en">Anglais</option>
-                                                                <option value="es">Espagnol</option>
-                                                                <option value="ar">Arabe</option>
-                                                              </select>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "ai_generate_video":
-                                                      const generateVideoCfg = cfg({
-                                                        duration: 5,
-                                                        prompt: "",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-transparent border border-indigo-500/20 space-y-4">
-                                                            <div className="flex items-center gap-3">
-                                                              <div className="h-10 w-10 rounded-xl bg-indigo-500/20 flex items-center justify-center">
-                                                                <ImageIcon className="h-5 w-5 text-indigo-400" />
-                                                              </div>
-                                                              <div>
-                                                                <h4 className="text-sm font-bold text-white">Générer Vidéo (Sora)</h4>
-                                                                <p className="text-[10px] text-indigo-400/60">Crée une vidéo depuis un prompt</p>
-                                                              </div>
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Prompt</label>
-                                                              <textarea
-                                                                value={generateVideoCfg.prompt}
-                                                                onChange={(e) => updateCfg({ ...generateVideoCfg, prompt: e.target.value })}
-                                                                className="w-full mt-1 h-20 bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white"
-                                                                placeholder="Décrivez la vidéo à générer..."
-                                                              />
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Durée (secondes)</label>
-                                                              <Input
-                                                                type="number"
-                                                                min={1}
-                                                                max={60}
-                                                                value={generateVideoCfg.duration}
-                                                                onChange={(e) => updateCfg({ ...generateVideoCfg, duration: parseInt(e.target.value) || 5 })}
-                                                                className="mt-1 bg-black/40 border-white/10 h-10"
-                                                              />
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "ai_edit_image":
-                                                      const editImageCfg = cfg({
-                                                        prompt: "",
-                                                        size: "1024x1024",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-pink-500/10 to-transparent border border-pink-500/20 space-y-4">
-                                                            <div className="flex items-center gap-3">
-                                                              <div className="h-10 w-10 rounded-xl bg-pink-500/20 flex items-center justify-center">
-                                                                <ImageIcon className="h-5 w-5 text-pink-400" />
-                                                              </div>
-                                                              <div>
-                                                                <h4 className="text-sm font-bold text-white">Éditer Image</h4>
-                                                                <p className="text-[10px] text-pink-400/60">Modifie une image avec DALL-E</p>
-                                                              </div>
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Prompt de modification</label>
-                                                              <textarea
-                                                                value={editImageCfg.prompt}
-                                                                onChange={(e) => updateCfg({ ...editImageCfg, prompt: e.target.value })}
-                                                                className="w-full mt-1 h-20 bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white"
-                                                                placeholder="Décrivez les modifications à apporter..."
-                                                              />
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Taille</label>
-                                                              <select
-                                                                value={editImageCfg.size}
-                                                                onChange={(e) => updateCfg({ ...editImageCfg, size: e.target.value })}
-                                                                className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
-                                                              >
-                                                                <option value="1024x1024">1024x1024</option>
-                                                                <option value="1792x1024">1792x1024</option>
-                                                                <option value="1024x1792">1024x1792</option>
-                                                              </select>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "ai_translate_audio":
-                                                      const translateAudioCfg = cfg({
-                                                        targetLanguage: "fr",
-                                                        format: "text",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 to-transparent border border-amber-500/20 space-y-4">
-                                                            <div className="flex items-center gap-3">
-                                                              <div className="h-10 w-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                                                                <Mic className="h-5 w-5 text-amber-400" />
-                                                              </div>
-                                                              <div>
-                                                                <h4 className="text-sm font-bold text-white">Traduire Audio</h4>
-                                                                <p className="text-[10px] text-amber-400/60">Traduit un enregistrement audio</p>
-                                                              </div>
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Langue cible</label>
-                                                              <select
-                                                                value={translateAudioCfg.targetLanguage}
-                                                                onChange={(e) => updateCfg({ ...translateAudioCfg, targetLanguage: e.target.value })}
-                                                                className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
-                                                              >
-                                                                <option value="fr">Français</option>
-                                                                <option value="en">Anglais</option>
-                                                                <option value="es">Espagnol</option>
-                                                                <option value="de">Allemand</option>
-                                                                <option value="ar">Arabe</option>
-                                                              </select>
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Format de sortie</label>
-                                                              <select
-                                                                value={translateAudioCfg.format}
-                                                                onChange={(e) => updateCfg({ ...translateAudioCfg, format: e.target.value })}
-                                                                className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
-                                                              >
-                                                                <option value="text">Texte</option>
-                                                                <option value="json">JSON</option>
-                                                                <option value="srt">SRT (sous-titres)</option>
-                                                              </select>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "ai_delete_file":
-                                                      const deleteFileCfg = cfg({
-                                                        fileId: "",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-red-500/10 to-transparent border border-red-500/20 space-y-4">
-                                                            <div className="flex items-center gap-3">
-                                                              <div className="h-10 w-10 rounded-xl bg-red-500/20 flex items-center justify-center">
-                                                                <FileText className="h-5 w-5 text-red-400" />
-                                                              </div>
-                                                              <div>
-                                                                <h4 className="text-sm font-bold text-white">Supprimer Fichier</h4>
-                                                                <p className="text-[10px] text-red-400/60">Supprime un fichier via OpenAI</p>
-                                                              </div>
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">ID du fichier</label>
-                                                              <Input
-                                                                value={deleteFileCfg.fileId}
-                                                                onChange={(e) => updateCfg({ ...deleteFileCfg, fileId: e.target.value })}
-                                                                className="mt-1 bg-black/40 border-white/10 h-10"
-                                                                placeholder="file-xxx"
-                                                              />
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "ai_list_files":
-                                                      const listFilesCfg = cfg({
-                                                        purpose: "all",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20 space-y-4">
-                                                            <div className="flex items-center gap-3">
-                                                              <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                                                                <FileText className="h-5 w-5 text-blue-400" />
-                                                              </div>
-                                                              <div>
-                                                                <h4 className="text-sm font-bold text-white">Lister Fichiers</h4>
-                                                                <p className="text-[10px] text-blue-400/60">Liste les fichiers disponibles</p>
-                                                              </div>
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Filtre par usage</label>
-                                                              <select
-                                                                value={listFilesCfg.purpose}
-                                                                onChange={(e) => updateCfg({ ...listFilesCfg, purpose: e.target.value })}
-                                                                className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
-                                                              >
-                                                                <option value="all">Tous</option>
-                                                                <option value="assistants">Assistants</option>
-                                                                <option value="fine-tune">Fine-tuning</option>
-                                                              </select>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "ai_upload_file":
-                                                      const uploadFileCfg = cfg({
-                                                        purpose: "assistants",
-                                                        fileUrl: "",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-green-500/10 to-transparent border border-green-500/20 space-y-4">
-                                                            <div className="flex items-center gap-3">
-                                                              <div className="h-10 w-10 rounded-xl bg-green-500/20 flex items-center justify-center">
-                                                                <Upload className="h-5 w-5 text-green-400" />
-                                                              </div>
-                                                              <div>
-                                                                <h4 className="text-sm font-bold text-white">Téléverser Fichier</h4>
-                                                                <p className="text-[10px] text-green-400/60">Téléverse un fichier vers OpenAI</p>
-                                                              </div>
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">URL du fichier</label>
-                                                              <Input
-                                                                value={uploadFileCfg.fileUrl}
-                                                                onChange={(e) => updateCfg({ ...uploadFileCfg, fileUrl: e.target.value })}
-                                                                className="mt-1 bg-black/40 border-white/10 h-10"
-                                                                placeholder="https://..."
-                                                              />
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Usage</label>
-                                                              <select
-                                                                value={uploadFileCfg.purpose}
-                                                                onChange={(e) => updateCfg({ ...uploadFileCfg, purpose: e.target.value })}
-                                                                className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
-                                                              >
-                                                                <option value="assistants">Assistants</option>
-                                                                <option value="fine-tune">Fine-tuning</option>
-                                                              </select>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "ai_create_conversation":
-                                                      const createConvCfg = cfg({
-                                                        name: "",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20 space-y-4">
-                                                            <div className="flex items-center gap-3">
-                                                              <div className="h-10 w-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                                                                <BotMessageSquare className="h-5 w-5 text-purple-400" />
-                                                              </div>
-                                                              <div>
-                                                                <h4 className="text-sm font-bold text-white">Créer Conversation</h4>
-                                                                <p className="text-[10px] text-purple-400/60">Crée une nouvelle conversation</p>
-                                                              </div>
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Nom de la conversation</label>
-                                                              <Input
-                                                                value={createConvCfg.name}
-                                                                onChange={(e) => updateCfg({ ...createConvCfg, name: e.target.value })}
-                                                                className="mt-1 bg-black/40 border-white/10 h-10"
-                                                                placeholder="Conversation..."
-                                                              />
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "ai_get_conversation":
-                                                      const getConvCfg = cfg({
-                                                        conversationId: "",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-transparent border border-cyan-500/20 space-y-4">
-                                                            <div className="flex items-center gap-3">
-                                                              <div className="h-10 w-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                                                                <BotMessageSquare className="h-5 w-5 text-cyan-400" />
-                                                              </div>
-                                                              <div>
-                                                                <h4 className="text-sm font-bold text-white">Obtenir Conversation</h4>
-                                                                <p className="text-[10px] text-cyan-400/60">Récupère une conversation existante</p>
-                                                              </div>
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">ID de la conversation</label>
-                                                              <Input
-                                                                value={getConvCfg.conversationId}
-                                                                onChange={(e) => updateCfg({ ...getConvCfg, conversationId: e.target.value })}
-                                                                className="mt-1 bg-black/40 border-white/10 h-10"
-                                                                placeholder="conv_xxx"
-                                                              />
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "ai_remove_conversation":
-                                                      const removeConvCfg = cfg({
-                                                        conversationId: "",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-red-500/10 to-transparent border border-red-500/20 space-y-4">
-                                                            <div className="flex items-center gap-3">
-                                                              <div className="h-10 w-10 rounded-xl bg-red-500/20 flex items-center justify-center">
-                                                                <BotMessageSquare className="h-5 w-5 text-red-400" />
-                                                              </div>
-                                                              <div>
-                                                                <h4 className="text-sm font-bold text-white">Supprimer Conversation</h4>
-                                                                <p className="text-[10px] text-red-400/60">Supprime une conversation</p>
-                                                              </div>
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">ID de la conversation</label>
-                                                              <Input
-                                                                value={removeConvCfg.conversationId}
-                                                                onChange={(e) => updateCfg({ ...removeConvCfg, conversationId: e.target.value })}
-                                                                className="mt-1 bg-black/40 border-white/10 h-10"
-                                                                placeholder="conv_xxx"
-                                                              />
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "ai_update_conversation":
-                                                      const updateConvCfg = cfg({
-                                                        conversationId: "",
-                                                        name: "",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-orange-500/10 to-transparent border border-orange-500/20 space-y-4">
-                                                            <div className="flex items-center gap-3">
-                                                              <div className="h-10 w-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
-                                                                <BotMessageSquare className="h-5 w-5 text-orange-400" />
-                                                              </div>
-                                                              <div>
-                                                                <h4 className="text-sm font-bold text-white">Mettre à jour Conversation</h4>
-                                                                <p className="text-[10px] text-orange-400/60">Met à jour une conversation</p>
-                                                              </div>
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">ID de la conversation</label>
-                                                              <Input
-                                                                value={updateConvCfg.conversationId}
-                                                                onChange={(e) => updateCfg({ ...updateConvCfg, conversationId: e.target.value })}
-                                                                className="mt-1 bg-black/40 border-white/10 h-10"
-                                                                placeholder="conv_xxx"
-                                                              />
-                                                            </div>
-                                                            <div>
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Nouveau nom</label>
-                                                              <Input
-                                                                value={updateConvCfg.name}
-                                                                onChange={(e) => updateCfg({ ...updateConvCfg, name: e.target.value })}
-                                                                className="mt-1 bg-black/40 border-white/10 h-10"
-                                                                placeholder="Nouveau nom..."
-                                                              />
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "keyword":
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="flex items-center justify-between px-1">
-                                                            <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider">
-                                                              Déclencheurs (un
-                                                              par ligne)
-                                                            </label>
-                                                            <Badge
-                                                              variant="outline"
-                                                              className="text-[7px] border-primary/30 text-primary uppercase font-black"
-                                                            >
-                                                              Insensible à la
-                                                              casse
-                                                            </Badge>
-                                                          </div>
-                                                          <textarea
-                                                            value={
-                                                              currentCfg.keywords ||
-                                                              ""
-                                                            }
-                                                            onChange={(e) =>
-                                                              updateCfg({
-                                                                ...currentCfg,
-                                                                keywords:
-                                                                  e.target
-                                                                    .value,
-                                                              })
-                                                            }
-                                                            className="w-full h-32 bg-black/40 border border-white/10 rounded-2xl p-4 text-xs text-white/90 font-mono focus:border-primary/50 transition-all shadow-inner scrollbar-hide"
-                                                            placeholder="devis&#10;prix&#10;commander&#10;acheter"
-                                                          />
-                                                          <div className="p-3 rounded-xl bg-primary/5 border border-white/5">
-                                                            <p className="text-[8px] text-muted-foreground italic px-1 font-medium">
-                                                              L'automatisation
-                                                              se lancera si le
-                                                              message contient
-                                                              l'un de ces mots.
-                                                            </p>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "delay":
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Attendre</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Pause avant l'action suivante</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="Durée (secondes)">
-                                                              <StyledInput
-                                                                type="number"
-                                                                value={String(currentCfg.delaySeconds || 1)}
-                                                                onChange={(e) => updateCfg({ ...currentCfg, delaySeconds: parseInt(e.target.value) || 0 })}
-                                                                placeholder="1"
-                                                              />
-                                                            </FormField>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "send_text":
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Envoyer texte</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Envoie un message texte personnalisé</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <div className="space-y-2">
-                                                              <div className="flex items-center justify-between">
-                                                                <label className="text-sm text-white/80 font-medium">Contenu du message</label>
-                                                                <div className="flex items-center gap-1">
-                                                                  <OutputSelector
-                                                                    currentNodeId={node.id}
-                                                                    onInsert={(value) => {
-                                                                      const currentText = currentCfg.text || "";
-                                                                      const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentText.length;
-                                                                      const newText = currentText.slice(0, cursorPos) + value + currentText.slice(cursorPos);
-                                                                      updateCfg({
-                                                                        ...currentCfg,
-                                                                        text: newText,
-                                                                      });
-                                                                    }}
-                                                                  />
-                                                                </div>
-                                                              </div>
-                                                              <textarea
-                                                                value={currentCfg.text || ""}
-                                                                onChange={(e) => updateCfg({ ...currentCfg, text: e.target.value })}
-                                                                className="w-full min-h-[120px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none"
-                                                                placeholder="Écrivez votre message ici... Utilisez Variables pour insérer des données."
-                                                              />
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "send_image":
-                                                      const img = cfg({
-                                                        url: "",
-                                                        caption: "",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Envoyer image</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Envoie une image ou photo</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="URL de l'image">
-                                                              <div className="flex gap-2 flex-1">
-                                                                <StyledInput
-                                                                  value={img.url}
-                                                                  onChange={(e) => updateCfg({ ...img, url: e.target.value })}
-                                                                  placeholder="https://..."
-                                                                />
-                                                                <Button
-                                                                  size="icon"
-                                                                  variant="outline"
-                                                                  className="h-9 w-9 border-white/10 bg-white/5 shrink-0"
-                                                                >
-                                                                  <Upload className="h-3.5 w-3.5" />
-                                                                </Button>
-                                                              </div>
-                                                            </FormField>
-
-                                                            <div className="space-y-2">
-                                                              <div className="flex items-center justify-between">
-                                                                <label className="text-sm text-white/80 font-medium">Légende</label>
-                                                                <OutputSelector
-                                                                  currentNodeId={node.id}
-                                                                  onInsert={(value) => {
-                                                                    const currentCaption = img.caption || "";
-                                                                    const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentCaption.length;
-                                                                    const newCaption = currentCaption.slice(0, cursorPos) + value + currentCaption.slice(cursorPos);
-                                                                    updateCfg({ ...img, caption: newCaption });
-                                                                  }}
-                                                                />
-                                                              </div>
-                                                              <textarea
-                                                                value={img.caption}
-                                                                onChange={(e) => updateCfg({ ...img, caption: e.target.value })}
-                                                                className="w-full min-h-[80px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none"
-                                                                placeholder="Description de la photo..."
-                                                              />
-                                                            </div>
-
-                                                            {img.url && (
-                                                              <div className="rounded-xl overflow-hidden border border-white/10 aspect-video bg-black/40 flex items-center justify-center">
-                                                                <img src={img.url} alt="Preview" className="max-h-full object-contain" />
-                                                              </div>
-                                                            )}
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "condition":
-                                                      const cond = cfg({
-                                                        field: "message",
-                                                        operator: "contains",
-                                                        value: "",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Condition Si/Sinon</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Crée deux chemins selon une condition</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="Si la donnée...">
-                                                              <StyledSelect
-                                                                value={cond.field}
-                                                                onChange={(e) => updateCfg({ ...cond, field: e.target.value })}
-                                                                options={[
-                                                                  { value: "message", label: "Message reçu" },
-                                                                  { value: "name", label: "Nom du contact" },
-                                                                  { value: "phone", label: "Numéro de téléphone" }
-                                                                ]}
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Opérateur">
-                                                              <StyledSelect
-                                                                value={cond.operator}
-                                                                onChange={(e) => updateCfg({ ...cond, operator: e.target.value })}
-                                                                options={[
-                                                                  { value: "contains", label: "Contient" },
-                                                                  { value: "equals", label: "Est égal à" },
-                                                                  { value: "starts", label: "Commence par" },
-                                                                  { value: "exists", label: "Existe / Rempli" }
-                                                                ]}
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Valeur attendue">
-                                                              <StyledInput
-                                                                value={cond.value}
-                                                                onChange={(e) => updateCfg({ ...cond, value: e.target.value })}
-                                                                placeholder="Ex: Bonjour..."
-                                                              />
-                                                            </FormField>
-
-                                                            <div className="flex items-center gap-2 p-3 rounded-lg bg-orange-500/5 border border-orange-500/10">
-                                                              <GitBranch className="h-4 w-4 text-orange-400" />
-                                                              <p className="text-[9px] text-orange-400/80 font-medium">
-                                                                Ce bloc crée deux chemins : <b>VRAI</b> et <b>FAUX</b>. Connectez les nœuds suivants selon le résultat.
-                                                              </p>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "show_catalog":
-                                                      const cat = cfg({
-                                                        category: "all",
-                                                        layout: "grid",
-                                                        selectedProducts: [],
-                                                      });
-
-                                                      const toggleProduct = (
-                                                        pid: number,
-                                                      ) => {
-                                                        const current =
-                                                          cat.selectedProducts ||
-                                                          [];
-                                                        const next =
-                                                          current.includes(pid)
-                                                            ? current.filter(
-                                                              (id: number) =>
-                                                                id !== pid,
-                                                            )
-                                                            : [...current, pid];
-                                                        updateCfg({
-                                                          ...cat,
-                                                          selectedProducts:
-                                                            next,
-                                                        });
-                                                      };
-
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Envoyer Catalogue</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Affiche la liste de vos produits</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <div className="space-y-2">
-                                                              <div className="flex items-center justify-between">
-                                                                <label className="text-sm text-white/80 font-medium">Sélection des produits</label>
-                                                                <span className="text-xs text-primary font-mono">
-                                                                  {(cat.selectedProducts || []).length} sélectionnés
-                                                                </span>
-                                                              </div>
-
-                                                              <div className="max-h-60 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
-                                                                {products.map(
-                                                                  (p) => (
-                                                                    <div
-                                                                      key={p.id}
-                                                                      onClick={() =>
-                                                                        toggleProduct(
-                                                                          p.id,
-                                                                        )
-                                                                      }
-                                                                      className={`flex items-center justify-between p-2 rounded-lg border transition-all cursor-pointer ${(
-                                                                        cat.selectedProducts ||
-                                                                        []
-                                                                      ).includes(
-                                                                        p.id,
-                                                                      )
-                                                                        ? "bg-primary/10 border-primary/30"
-                                                                        : "bg-white/5 border-white/5 hover:border-white/10"
-                                                                        }`}
-                                                                    >
-                                                                      <div className="flex items-center gap-3">
-                                                                        {p.image?.startsWith(
-                                                                          "data:",
-                                                                        ) ? (
-                                                                          <img
-                                                                            src={
-                                                                              p.image
-                                                                            }
-                                                                            className="w-8 h-8 rounded-md object-cover"
-                                                                            alt={
-                                                                              p.name
-                                                                            }
-                                                                          />
-                                                                        ) : (
-                                                                          <span className="text-sm">
-                                                                            {
-                                                                              p.image
-                                                                            }
-                                                                          </span>
-                                                                        )}
-                                                                        <div className="flex flex-col">
-                                                                          <span className="text-[11px] font-bold text-white/90">
-                                                                            {
-                                                                              p.name
-                                                                            }
-                                                                          </span>
-                                                                          <span className="text-[9px] text-muted-foreground">
-                                                                            {p.price.toLocaleString()}{" "}
-                                                                            {
-                                                                              currency
-                                                                            }
-                                                                          </span>
-                                                                        </div>
-                                                                      </div>
-                                                                      <div
-                                                                        className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${(
-                                                                          cat.selectedProducts ||
-                                                                          []
-                                                                        ).includes(
-                                                                          p.id,
-                                                                        )
-                                                                          ? "bg-primary border-primary"
-                                                                          : "border-white/20"
-                                                                          }`}
+                                                                    <div className="flex items-center justify-between gap-4">
+                                                                      <label className="text-sm text-white/80 font-medium shrink-0">Verbosité</label>
+                                                                      <select
+                                                                        value={agentCfg.verbosity}
+                                                                        onChange={(e) => updateCfg({ ...agentCfg, verbosity: e.target.value })}
+                                                                        className="bg-transparent border-none text-sm text-white font-medium cursor-pointer focus:outline-none text-right appearance-none"
                                                                       >
-                                                                        {(
-                                                                          cat.selectedProducts ||
-                                                                          []
-                                                                        ).includes(
-                                                                          p.id,
-                                                                        ) && (
-                                                                            <Check className="h-2.5 w-2.5 text-black font-bold" />
-                                                                          )}
-                                                                      </div>
+                                                                        <option value="low">faible</option>
+                                                                        <option value="medium">moyen</option>
+                                                                        <option value="high">élevé</option>
+                                                                      </select>
                                                                     </div>
-                                                                  ),
+
+                                                                    {/* Advanced */}
+                                                                    <div className="text-xs font-medium text-muted-foreground pt-2">Avancé</div>
+
+                                                                    <div className="flex items-center justify-between">
+                                                                      <label className="text-sm text-white/80 font-medium">Continuer en cas d&apos;erreur</label>
+                                                                      <button
+                                                                        onClick={() => updateCfg({ ...agentCfg, continueOnError: !agentCfg.continueOnError })}
+                                                                        className={`relative w-10 h-6 rounded-full transition-colors ${agentCfg.continueOnError ? "bg-[#10a37f]" : "bg-white/20"}`}
+                                                                      >
+                                                                        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${agentCfg.continueOnError ? "left-5" : "left-1"}`} />
+                                                                      </button>
+                                                                    </div>
+
+                                                                    <div className="flex items-center justify-between">
+                                                                      <label className="text-sm text-white/80 font-medium">Écrire dans l&apos;historique de la conversation</label>
+                                                                      <button
+                                                                        onClick={() => updateCfg({ ...agentCfg, writeToHistory: !agentCfg.writeToHistory })}
+                                                                        className={`relative w-10 h-6 rounded-full transition-colors ${agentCfg.writeToHistory ? "bg-[#10a37f]" : "bg-white/20"}`}
+                                                                      >
+                                                                        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${agentCfg.writeToHistory ? "left-5" : "left-1"}`} />
+                                                                      </button>
+                                                                    </div>
+                                                                  </div>
                                                                 )}
                                                               </div>
                                                             </div>
-                                                          </div>
-                                                        </div>
-                                                      );
+                                                          );
 
-                                                    case "chariow":
-                                                      const chariow = cfg({
-                                                        action: "view",
-                                                        currency: "XOF",
-                                                        aiInstructions: "",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div
-                                                            className="
+                                                        case "sentiment":
+                                                          const sentimentCfg = cfg({
+                                                            model: "gpt-4o-mini",
+                                                            target: "last_message",
+                                                            outputFormat: "score",
+                                                            threshold: -0.5,
+                                                            detectEmotions: true,
+                                                            detectTone: true,
+                                                            detectUrgency: true,
+                                                            actions: {
+                                                              positive: "continue",
+                                                              negative: "escalate",
+                                                              neutral: "continue",
+                                                            },
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Analyse sentiment</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Détecte si le client est satisfait ou frustré</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="Modèle">
+                                                                  <StyledSelect
+                                                                    value={sentimentCfg.model}
+                                                                    onChange={(e) => updateCfg({ ...sentimentCfg, model: e.target.value })}
+                                                                    options={[
+                                                                      { value: "gpt-4o-mini", label: "gpt-4o-mini" },
+                                                                      { value: "gpt-4o", label: "gpt-4o" },
+                                                                      { value: "gpt-4-turbo", label: "gpt-4-turbo" }
+                                                                    ]}
+                                                                  />
+                                                                </FormField>
+
+                                                                <FormField label="Cible de l'analyse">
+                                                                  <StyledSelect
+                                                                    value={sentimentCfg.target}
+                                                                    onChange={(e) => updateCfg({ ...sentimentCfg, target: e.target.value })}
+                                                                    options={[
+                                                                      { value: "last_message", label: "Dernier message uniquement" },
+                                                                      { value: "conversation", label: "Toute la conversation" },
+                                                                      { value: "last_5_messages", label: "5 derniers messages" }
+                                                                    ]}
+                                                                  />
+                                                                </FormField>
+
+                                                                <FormField label="Format de sortie">
+                                                                  <StyledSelect
+                                                                    value={sentimentCfg.outputFormat}
+                                                                    onChange={(e) => updateCfg({ ...sentimentCfg, outputFormat: e.target.value })}
+                                                                    options={[
+                                                                      { value: "score", label: "Score numérique (-1 à 1)" },
+                                                                      { value: "category", label: "Catégorie (positif/négatif/neutre)" },
+                                                                      { value: "detailed", label: "Analyse détaillée (émotions)" },
+                                                                      { value: "json", label: "JSON structuré" }
+                                                                    ]}
+                                                                  />
+                                                                </FormField>
+
+                                                                <div className="space-y-3">
+                                                                  <div className="text-xs font-medium text-muted-foreground">Éléments à détecter</div>
+                                                                  <div className="grid grid-cols-3 gap-2">
+                                                                    {[
+                                                                      { key: "detectEmotions", label: "Émotions", icon: "😊" },
+                                                                      { key: "detectTone", label: "Ton", icon: "🎭" },
+                                                                      { key: "detectUrgency", label: "Urgence", icon: "⚡" },
+                                                                    ].map((option) => (
+                                                                      <label
+                                                                        key={option.key}
+                                                                        className={`flex flex-col items-center gap-1.5 p-2.5 rounded-lg cursor-pointer transition-all border ${(sentimentCfg as any)[option.key]
+                                                                          ? "bg-pink-500/10 border-pink-500/30"
+                                                                          : "bg-white/5 border-white/10 hover:border-pink-500/20"
+                                                                          }`}
+                                                                      >
+                                                                        <input
+                                                                          type="checkbox"
+                                                                          checked={(sentimentCfg as any)[option.key] || false}
+                                                                          onChange={(e) =>
+                                                                            updateCfg({
+                                                                              ...sentimentCfg,
+                                                                              [option.key]: e.target.checked,
+                                                                            })
+                                                                          }
+                                                                          className="sr-only"
+                                                                        />
+                                                                        <span className="text-lg">{option.icon}</span>
+                                                                        <span className="text-[9px] font-medium text-white/80 text-center">
+                                                                          {option.label}
+                                                                        </span>
+                                                                      </label>
+                                                                    ))}
+                                                                  </div>
+                                                                </div>
+
+                                                                <FormField label="Seuil d'alerte (négatif)">
+                                                                  <div className="flex items-center gap-3 flex-1">
+                                                                    <input
+                                                                      type="range"
+                                                                      min="-1"
+                                                                      max="0"
+                                                                      step="0.1"
+                                                                      value={sentimentCfg.threshold}
+                                                                      onChange={(e) => updateCfg({ ...sentimentCfg, threshold: parseFloat(e.target.value) })}
+                                                                      className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-pink-500"
+                                                                    />
+                                                                    <span className="text-sm font-bold text-pink-400 w-12 text-right">
+                                                                      {sentimentCfg.threshold}
+                                                                    </span>
+                                                                  </div>
+                                                                </FormField>
+
+                                                                <div className="pt-2">
+                                                                  <button
+                                                                    onClick={() => setShowAdvancedSentiment(!showAdvancedSentiment)}
+                                                                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
+                                                                  >
+                                                                    <ChevronDown className={`h-4 w-4 transition-transform ${showAdvancedSentiment ? "rotate-180" : ""}`} />
+                                                                    <span>{showAdvancedSentiment ? "Moins" : "Plus"}</span>
+                                                                  </button>
+                                                                </div>
+
+                                                                {showAdvancedSentiment && (
+                                                                  <div className="space-y-4 pt-2">
+                                                                    <div className="text-xs font-medium text-muted-foreground">Actions selon le sentiment</div>
+                                                                    {Object.entries({
+                                                                      positive: { label: "Positif", desc: "Client satisfait" },
+                                                                      neutral: { label: "Neutre", desc: "Sentiment neutre" },
+                                                                      negative: { label: "Négatif", desc: "Client frustré" },
+                                                                    }).map(([key, { label, desc }]) => (
+                                                                      <FormField key={key} label={label}>
+                                                                        <StyledSelect
+                                                                          value={(sentimentCfg.actions as any)[key] || "continue"}
+                                                                          onChange={(e) => updateCfg({
+                                                                            ...sentimentCfg,
+                                                                            actions: { ...sentimentCfg.actions, [key]: e.target.value },
+                                                                          })}
+                                                                          options={[
+                                                                            { value: "continue", label: "Continuer le flux" },
+                                                                            { value: "escalate", label: "Escalader à un humain" },
+                                                                            { value: "special_response", label: "Réponse spéciale" },
+                                                                            { value: "stop", label: "Arrêter le workflow" }
+                                                                          ]}
+                                                                        />
+                                                                      </FormField>
+                                                                    ))}
+                                                                  </div>
+                                                                )}
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "ai_translate":
+                                                          const translateCfg = cfg({
+                                                            sourceLanguage: "auto",
+                                                            targetLanguage: "fr",
+                                                            preserveTone: true,
+                                                            formalityLevel: "neutral",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20 space-y-5 relative overflow-hidden">
+                                                                <div className="flex items-center justify-between">
+                                                                  <div className="flex items-center gap-2">
+                                                                    <div className="h-6 w-6 rounded-lg bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
+                                                                      <Globe className="h-3.5 w-3.5 text-blue-400" />
+                                                                    </div>
+                                                                    <label className="text-[10px] font-black uppercase text-white/80 tracking-widest">
+                                                                      Traduction IA
+                                                                    </label>
+                                                                  </div>
+                                                                  <Badge className="bg-blue-500/20 text-blue-400 border-none text-[8px] uppercase font-black px-2">
+                                                                    Multi-langues
+                                                                  </Badge>
+                                                                </div>
+
+                                                                {/* Source Language */}
+                                                                <div className="space-y-2">
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
+                                                                    Langue Source
+                                                                  </label>
+                                                                  <select
+                                                                    value={translateCfg.sourceLanguage}
+                                                                    onChange={(e) =>
+                                                                      updateCfg({
+                                                                        ...translateCfg,
+                                                                        sourceLanguage: e.target.value,
+                                                                      })
+                                                                    }
+                                                                    className="w-full bg-black/60 border border-white/10 rounded-xl h-10 text-xs px-3 text-white appearance-none cursor-pointer hover:border-blue-500/30 transition-all font-bold"
+                                                                  >
+                                                                    <option value="auto">🔍 Détection automatique</option>
+                                                                    <option value="en">🇬🇧 Anglais</option>
+                                                                    <option value="fr">🇫🇷 Français</option>
+                                                                    <option value="es">🇪🇸 Espagnol</option>
+                                                                    <option value="de">🇩🇪 Allemand</option>
+                                                                    <option value="ar">🇸🇦 Arabe</option>
+                                                                    <option value="zh">🇨🇳 Chinois</option>
+                                                                    <option value="pt">🇧🇷 Portugais</option>
+                                                                  </select>
+                                                                </div>
+
+                                                                {/* Target Language */}
+                                                                <div className="space-y-2">
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
+                                                                    Langue Cible *
+                                                                  </label>
+                                                                  <select
+                                                                    value={translateCfg.targetLanguage}
+                                                                    onChange={(e) =>
+                                                                      updateCfg({
+                                                                        ...translateCfg,
+                                                                        targetLanguage: e.target.value,
+                                                                      })
+                                                                    }
+                                                                    className="w-full bg-black/60 border border-white/10 rounded-xl h-10 text-xs px-3 text-white appearance-none cursor-pointer hover:border-blue-500/30 transition-all font-bold"
+                                                                  >
+                                                                    <option value="fr">🇫🇷 Français</option>
+                                                                    <option value="en">🇬🇧 Anglais</option>
+                                                                    <option value="es">🇪🇸 Espagnol</option>
+                                                                    <option value="de">🇩🇪 Allemand</option>
+                                                                    <option value="ar">🇸🇦 Arabe</option>
+                                                                    <option value="zh">🇨🇳 Chinois</option>
+                                                                    <option value="pt">🇧🇷 Portugais</option>
+                                                                    <option value="it">🇮🇹 Italien</option>
+                                                                    <option value="ja">🇯🇵 Japonais</option>
+                                                                    <option value="ko">🇰🇷 Coréen</option>
+                                                                  </select>
+                                                                </div>
+
+                                                                {/* Formality */}
+                                                                <div className="space-y-2">
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
+                                                                    Niveau de Formalité
+                                                                  </label>
+                                                                  <div className="grid grid-cols-3 gap-2">
+                                                                    {["informal", "neutral", "formal"].map((level) => (
+                                                                      <button
+                                                                        key={level}
+                                                                        onClick={() =>
+                                                                          updateCfg({
+                                                                            ...translateCfg,
+                                                                            formalityLevel: level,
+                                                                          })
+                                                                        }
+                                                                        className={`p-2 rounded-lg text-[9px] font-bold uppercase transition-all ${translateCfg.formalityLevel === level
+                                                                          ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                                                                          : "bg-white/5 text-muted-foreground hover:bg-white/10 border border-transparent"
+                                                                          }`}
+                                                                      >
+                                                                        {level === "informal" ? "😎 Informel" : level === "neutral" ? "😊 Neutre" : "🎩 Formel"}
+                                                                      </button>
+                                                                    ))}
+                                                                  </div>
+                                                                </div>
+
+                                                                {/* Options */}
+                                                                <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
+                                                                  <input
+                                                                    type="checkbox"
+                                                                    checked={translateCfg.preserveTone}
+                                                                    onChange={(e) =>
+                                                                      updateCfg({
+                                                                        ...translateCfg,
+                                                                        preserveTone: e.target.checked,
+                                                                      })
+                                                                    }
+                                                                    className="h-4 w-4 rounded bg-white/10 border-white/20 text-blue-500 focus:ring-blue-500/20"
+                                                                  />
+                                                                  <span className="text-[10px] font-medium text-white/80">Préserver le ton et les émojis</span>
+                                                                </label>
+                                                              </div>
+
+                                                              <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-3">
+                                                                <Globe className="h-4 w-4 text-blue-400 shrink-0 opacity-40" />
+                                                                <p className="text-[9px] text-muted-foreground leading-relaxed font-medium italic">
+                                                                  Traduction automatique de haute qualité pour communiquer avec vos clients internationaux.
+                                                                </p>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "ai_summarize":
+                                                          const summarizeCfg = cfg({
+                                                            mode: "conversation",
+                                                            length: "medium",
+                                                            format: "bullet",
+                                                            includeActionItems: true,
+                                                            includeSentiment: false,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-violet-500/10 to-transparent border border-violet-500/20 space-y-5 relative overflow-hidden">
+                                                                <div className="flex items-center justify-between">
+                                                                  <div className="flex items-center gap-2">
+                                                                    <div className="h-6 w-6 rounded-lg bg-violet-500/20 flex items-center justify-center border border-violet-500/30">
+                                                                      <FileText className="h-3.5 w-3.5 text-violet-400" />
+                                                                    </div>
+                                                                    <label className="text-[10px] font-black uppercase text-white/80 tracking-widest">
+                                                                      Résumé IA
+                                                                    </label>
+                                                                  </div>
+                                                                  <Badge className="bg-violet-500/20 text-violet-400 border-none text-[8px] uppercase font-black px-2">
+                                                                    Synthèse
+                                                                  </Badge>
+                                                                </div>
+
+                                                                {/* Mode */}
+                                                                <div className="space-y-2">
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
+                                                                    Type de Contenu
+                                                                  </label>
+                                                                  <select
+                                                                    value={summarizeCfg.mode}
+                                                                    onChange={(e) =>
+                                                                      updateCfg({
+                                                                        ...summarizeCfg,
+                                                                        mode: e.target.value,
+                                                                      })
+                                                                    }
+                                                                    className="w-full bg-black/60 border border-white/10 rounded-xl h-10 text-xs px-3 text-white appearance-none cursor-pointer hover:border-violet-500/30 transition-all font-bold"
+                                                                  >
+                                                                    <option value="conversation">💬 Conversation complète</option>
+                                                                    <option value="last_message">📩 Dernier message</option>
+                                                                    <option value="document">📄 Document/Texte</option>
+                                                                  </select>
+                                                                </div>
+
+                                                                {/* Longueur */}
+                                                                <div className="space-y-2">
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
+                                                                    Longueur du Résumé
+                                                                  </label>
+                                                                  <div className="grid grid-cols-3 gap-2">
+                                                                    {["short", "medium", "detailed"].map((len) => (
+                                                                      <button
+                                                                        key={len}
+                                                                        onClick={() =>
+                                                                          updateCfg({
+                                                                            ...summarizeCfg,
+                                                                            length: len,
+                                                                          })
+                                                                        }
+                                                                        className={`p-2 rounded-lg text-[9px] font-bold uppercase transition-all ${summarizeCfg.length === len
+                                                                          ? "bg-violet-500/20 text-violet-400 border border-violet-500/30"
+                                                                          : "bg-white/5 text-muted-foreground hover:bg-white/10 border border-transparent"
+                                                                          }`}
+                                                                      >
+                                                                        {len === "short" ? "📝 Court" : len === "medium" ? "📋 Moyen" : "📖 Détaillé"}
+                                                                      </button>
+                                                                    ))}
+                                                                  </div>
+                                                                </div>
+
+                                                                {/* Format */}
+                                                                <div className="space-y-2">
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
+                                                                    Format de Sortie
+                                                                  </label>
+                                                                  <select
+                                                                    value={summarizeCfg.format}
+                                                                    onChange={(e) =>
+                                                                      updateCfg({
+                                                                        ...summarizeCfg,
+                                                                        format: e.target.value,
+                                                                      })
+                                                                    }
+                                                                    className="w-full bg-black/60 border border-white/10 rounded-xl h-10 text-xs px-3 text-white appearance-none cursor-pointer hover:border-violet-500/30 transition-all font-bold"
+                                                                  >
+                                                                    <option value="bullet">• Points clés</option>
+                                                                    <option value="paragraph">📃 Paragraphe</option>
+                                                                    <option value="structured">📊 JSON structuré</option>
+                                                                  </select>
+                                                                </div>
+
+                                                                {/* Options */}
+                                                                <div className="space-y-2 pt-2 border-t border-white/5">
+                                                                  <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
+                                                                    <input
+                                                                      type="checkbox"
+                                                                      checked={summarizeCfg.includeActionItems}
+                                                                      onChange={(e) =>
+                                                                        updateCfg({
+                                                                          ...summarizeCfg,
+                                                                          includeActionItems: e.target.checked,
+                                                                        })
+                                                                      }
+                                                                      className="h-4 w-4 rounded bg-white/10 border-white/20 text-violet-500 focus:ring-violet-500/20"
+                                                                    />
+                                                                    <span className="text-[10px] font-medium text-white/80">Extraire les actions à faire</span>
+                                                                  </label>
+                                                                  <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
+                                                                    <input
+                                                                      type="checkbox"
+                                                                      checked={summarizeCfg.includeSentiment}
+                                                                      onChange={(e) =>
+                                                                        updateCfg({
+                                                                          ...summarizeCfg,
+                                                                          includeSentiment: e.target.checked,
+                                                                        })
+                                                                      }
+                                                                      className="h-4 w-4 rounded bg-white/10 border-white/20 text-violet-500 focus:ring-violet-500/20"
+                                                                    />
+                                                                    <span className="text-[10px] font-medium text-white/80">Inclure l'analyse de sentiment</span>
+                                                                  </label>
+                                                                </div>
+                                                              </div>
+
+                                                              <div className="p-4 rounded-xl bg-violet-500/5 border border-violet-500/10 flex gap-3">
+                                                                <FileText className="h-4 w-4 text-violet-400 shrink-0 opacity-40" />
+                                                                <p className="text-[9px] text-muted-foreground leading-relaxed font-medium italic">
+                                                                  Créez des résumés intelligents pour garder une trace des demandes clients.
+                                                                </p>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "ai_moderation":
+                                                          const moderationCfg = cfg({
+                                                            blockIfFlagged: true,
+                                                            threshold: 70,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-red-500/10 to-transparent border border-red-500/20 space-y-4">
+                                                                <div className="flex items-center gap-3">
+                                                                  <div className="h-10 w-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+                                                                    <ShieldCheck className="h-5 w-5 text-red-400" />
+                                                                  </div>
+                                                                  <div>
+                                                                    <h4 className="text-sm font-bold text-white">Modération IA</h4>
+                                                                    <p className="text-[10px] text-red-400/60">Détecte contenu inapproprié</p>
+                                                                  </div>
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Seuil (0-100)</label>
+                                                                  <Input
+                                                                    type="number"
+                                                                    min={0}
+                                                                    max={100}
+                                                                    value={moderationCfg.threshold}
+                                                                    onChange={(e) => updateCfg({ ...moderationCfg, threshold: parseInt(e.target.value) || 70 })}
+                                                                    className="mt-1 bg-black/40 border-white/10 h-10"
+                                                                  />
+                                                                </div>
+                                                                <div className="flex items-center justify-between p-3 rounded-xl bg-black/20">
+                                                                  <span className="text-[10px] text-white/70">Bloquer si flaggé</span>
+                                                                  <button
+                                                                    onClick={() => updateCfg({ ...moderationCfg, blockIfFlagged: !moderationCfg.blockIfFlagged })}
+                                                                    className={`relative w-10 h-6 rounded-full transition-colors ${moderationCfg.blockIfFlagged ? "bg-red-500" : "bg-white/20"}`}
+                                                                  >
+                                                                    <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${moderationCfg.blockIfFlagged ? "left-5" : "left-1"}`} />
+                                                                  </button>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "ai_analyze_image":
+                                                          const analyzeImageCfg = cfg({
+                                                            detailed: true,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-transparent border border-cyan-500/20 space-y-4">
+                                                                <div className="flex items-center gap-3">
+                                                                  <div className="h-10 w-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                                                                    <ImageIcon className="h-5 w-5 text-cyan-400" />
+                                                                  </div>
+                                                                  <div>
+                                                                    <h4 className="text-sm font-bold text-white">Analyser Image</h4>
+                                                                    <p className="text-[10px] text-cyan-400/60">GPT-4 Vision décrit l'image</p>
+                                                                  </div>
+                                                                </div>
+                                                                <div className="flex items-center justify-between p-3 rounded-xl bg-black/20">
+                                                                  <span className="text-[10px] text-white/70">Description détaillée</span>
+                                                                  <button
+                                                                    onClick={() => updateCfg({ ...analyzeImageCfg, detailed: !analyzeImageCfg.detailed })}
+                                                                    className={`relative w-10 h-6 rounded-full transition-colors ${analyzeImageCfg.detailed ? "bg-cyan-500" : "bg-white/20"}`}
+                                                                  >
+                                                                    <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${analyzeImageCfg.detailed ? "left-5" : "left-1"}`} />
+                                                                  </button>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "ai_generate_image":
+                                                          const generateImageCfg = cfg({
+                                                            size: "1024x1024",
+                                                            quality: "standard",
+                                                            prompt: "",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20 space-y-4">
+                                                                <div className="flex items-center gap-3">
+                                                                  <div className="h-10 w-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                                                                    <ImageIcon className="h-5 w-5 text-purple-400" />
+                                                                  </div>
+                                                                  <div>
+                                                                    <h4 className="text-sm font-bold text-white">Générer Image (DALL-E)</h4>
+                                                                    <p className="text-[10px] text-purple-400/60">Crée une image depuis un prompt</p>
+                                                                  </div>
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Prompt</label>
+                                                                  <textarea
+                                                                    value={generateImageCfg.prompt}
+                                                                    onChange={(e) => updateCfg({ ...generateImageCfg, prompt: e.target.value })}
+                                                                    className="w-full mt-1 h-20 bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white"
+                                                                    placeholder="Décrivez l'image à générer..."
+                                                                  />
+                                                                </div>
+                                                                <div className="grid grid-cols-2 gap-3">
+                                                                  <div>
+                                                                    <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Taille</label>
+                                                                    <select
+                                                                      value={generateImageCfg.size}
+                                                                      onChange={(e) => updateCfg({ ...generateImageCfg, size: e.target.value })}
+                                                                      className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
+                                                                    >
+                                                                      <option value="1024x1024">1024x1024</option>
+                                                                      <option value="1792x1024">1792x1024</option>
+                                                                      <option value="1024x1792">1024x1792</option>
+                                                                    </select>
+                                                                  </div>
+                                                                  <div>
+                                                                    <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Qualité</label>
+                                                                    <select
+                                                                      value={generateImageCfg.quality}
+                                                                      onChange={(e) => updateCfg({ ...generateImageCfg, quality: e.target.value })}
+                                                                      className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
+                                                                    >
+                                                                      <option value="standard">Standard</option>
+                                                                      <option value="hd">HD</option>
+                                                                    </select>
+                                                                  </div>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "ai_generate_audio":
+                                                          const generateAudioCfg = cfg({
+                                                            voice: "alloy",
+                                                            speed: 1.0,
+                                                            text: "",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-orange-500/10 to-transparent border border-orange-500/20 space-y-4">
+                                                                <div className="flex items-center gap-3">
+                                                                  <div className="h-10 w-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
+                                                                    <Mic className="h-5 w-5 text-orange-400" />
+                                                                  </div>
+                                                                  <div>
+                                                                    <h4 className="text-sm font-bold text-white">Générer Audio (TTS)</h4>
+                                                                    <p className="text-[10px] text-orange-400/60">Convertit texte en voix</p>
+                                                                  </div>
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Texte</label>
+                                                                  <textarea
+                                                                    value={generateAudioCfg.text}
+                                                                    onChange={(e) => updateCfg({ ...generateAudioCfg, text: e.target.value })}
+                                                                    className="w-full mt-1 h-20 bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white"
+                                                                    placeholder="Texte à convertir en audio..."
+                                                                  />
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Voix</label>
+                                                                  <select
+                                                                    value={generateAudioCfg.voice}
+                                                                    onChange={(e) => updateCfg({ ...generateAudioCfg, voice: e.target.value })}
+                                                                    className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
+                                                                  >
+                                                                    <option value="alloy">Alloy</option>
+                                                                    <option value="echo">Echo</option>
+                                                                    <option value="fable">Fable</option>
+                                                                    <option value="onyx">Onyx</option>
+                                                                    <option value="nova">Nova</option>
+                                                                    <option value="shimmer">Shimmer</option>
+                                                                  </select>
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Vitesse: {generateAudioCfg.speed}x</label>
+                                                                  <input
+                                                                    type="range"
+                                                                    min="0.25"
+                                                                    max="4"
+                                                                    step="0.25"
+                                                                    value={generateAudioCfg.speed}
+                                                                    onChange={(e) => updateCfg({ ...generateAudioCfg, speed: parseFloat(e.target.value) })}
+                                                                    className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                                                                  />
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "ai_transcribe":
+                                                          const transcribeCfg = cfg({
+                                                            language: "auto",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/20 space-y-4">
+                                                                <div className="flex items-center gap-3">
+                                                                  <div className="h-10 w-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                                                                    <Mic className="h-5 w-5 text-emerald-400" />
+                                                                  </div>
+                                                                  <div>
+                                                                    <h4 className="text-sm font-bold text-white">Transcrire Audio (Whisper)</h4>
+                                                                    <p className="text-[10px] text-emerald-400/60">Audio → Texte</p>
+                                                                  </div>
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Langue</label>
+                                                                  <select
+                                                                    value={transcribeCfg.language}
+                                                                    onChange={(e) => updateCfg({ ...transcribeCfg, language: e.target.value })}
+                                                                    className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
+                                                                  >
+                                                                    <option value="auto">Détection auto</option>
+                                                                    <option value="fr">Français</option>
+                                                                    <option value="en">Anglais</option>
+                                                                    <option value="es">Espagnol</option>
+                                                                    <option value="ar">Arabe</option>
+                                                                  </select>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "ai_generate_video":
+                                                          const generateVideoCfg = cfg({
+                                                            duration: 5,
+                                                            prompt: "",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-transparent border border-indigo-500/20 space-y-4">
+                                                                <div className="flex items-center gap-3">
+                                                                  <div className="h-10 w-10 rounded-xl bg-indigo-500/20 flex items-center justify-center">
+                                                                    <ImageIcon className="h-5 w-5 text-indigo-400" />
+                                                                  </div>
+                                                                  <div>
+                                                                    <h4 className="text-sm font-bold text-white">Générer Vidéo (Sora)</h4>
+                                                                    <p className="text-[10px] text-indigo-400/60">Crée une vidéo depuis un prompt</p>
+                                                                  </div>
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Prompt</label>
+                                                                  <textarea
+                                                                    value={generateVideoCfg.prompt}
+                                                                    onChange={(e) => updateCfg({ ...generateVideoCfg, prompt: e.target.value })}
+                                                                    className="w-full mt-1 h-20 bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white"
+                                                                    placeholder="Décrivez la vidéo à générer..."
+                                                                  />
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Durée (secondes)</label>
+                                                                  <Input
+                                                                    type="number"
+                                                                    min={1}
+                                                                    max={60}
+                                                                    value={generateVideoCfg.duration}
+                                                                    onChange={(e) => updateCfg({ ...generateVideoCfg, duration: parseInt(e.target.value) || 5 })}
+                                                                    className="mt-1 bg-black/40 border-white/10 h-10"
+                                                                  />
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "ai_edit_image":
+                                                          const editImageCfg = cfg({
+                                                            prompt: "",
+                                                            size: "1024x1024",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-pink-500/10 to-transparent border border-pink-500/20 space-y-4">
+                                                                <div className="flex items-center gap-3">
+                                                                  <div className="h-10 w-10 rounded-xl bg-pink-500/20 flex items-center justify-center">
+                                                                    <ImageIcon className="h-5 w-5 text-pink-400" />
+                                                                  </div>
+                                                                  <div>
+                                                                    <h4 className="text-sm font-bold text-white">Éditer Image</h4>
+                                                                    <p className="text-[10px] text-pink-400/60">Modifie une image avec DALL-E</p>
+                                                                  </div>
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Prompt de modification</label>
+                                                                  <textarea
+                                                                    value={editImageCfg.prompt}
+                                                                    onChange={(e) => updateCfg({ ...editImageCfg, prompt: e.target.value })}
+                                                                    className="w-full mt-1 h-20 bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white"
+                                                                    placeholder="Décrivez les modifications à apporter..."
+                                                                  />
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Taille</label>
+                                                                  <select
+                                                                    value={editImageCfg.size}
+                                                                    onChange={(e) => updateCfg({ ...editImageCfg, size: e.target.value })}
+                                                                    className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
+                                                                  >
+                                                                    <option value="1024x1024">1024x1024</option>
+                                                                    <option value="1792x1024">1792x1024</option>
+                                                                    <option value="1024x1792">1024x1792</option>
+                                                                  </select>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "ai_translate_audio":
+                                                          const translateAudioCfg = cfg({
+                                                            targetLanguage: "fr",
+                                                            format: "text",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 to-transparent border border-amber-500/20 space-y-4">
+                                                                <div className="flex items-center gap-3">
+                                                                  <div className="h-10 w-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                                                                    <Mic className="h-5 w-5 text-amber-400" />
+                                                                  </div>
+                                                                  <div>
+                                                                    <h4 className="text-sm font-bold text-white">Traduire Audio</h4>
+                                                                    <p className="text-[10px] text-amber-400/60">Traduit un enregistrement audio</p>
+                                                                  </div>
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Langue cible</label>
+                                                                  <select
+                                                                    value={translateAudioCfg.targetLanguage}
+                                                                    onChange={(e) => updateCfg({ ...translateAudioCfg, targetLanguage: e.target.value })}
+                                                                    className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
+                                                                  >
+                                                                    <option value="fr">Français</option>
+                                                                    <option value="en">Anglais</option>
+                                                                    <option value="es">Espagnol</option>
+                                                                    <option value="de">Allemand</option>
+                                                                    <option value="ar">Arabe</option>
+                                                                  </select>
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Format de sortie</label>
+                                                                  <select
+                                                                    value={translateAudioCfg.format}
+                                                                    onChange={(e) => updateCfg({ ...translateAudioCfg, format: e.target.value })}
+                                                                    className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
+                                                                  >
+                                                                    <option value="text">Texte</option>
+                                                                    <option value="json">JSON</option>
+                                                                    <option value="srt">SRT (sous-titres)</option>
+                                                                  </select>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "ai_delete_file":
+                                                          const deleteFileCfg = cfg({
+                                                            fileId: "",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-red-500/10 to-transparent border border-red-500/20 space-y-4">
+                                                                <div className="flex items-center gap-3">
+                                                                  <div className="h-10 w-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+                                                                    <FileText className="h-5 w-5 text-red-400" />
+                                                                  </div>
+                                                                  <div>
+                                                                    <h4 className="text-sm font-bold text-white">Supprimer Fichier</h4>
+                                                                    <p className="text-[10px] text-red-400/60">Supprime un fichier via OpenAI</p>
+                                                                  </div>
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">ID du fichier</label>
+                                                                  <Input
+                                                                    value={deleteFileCfg.fileId}
+                                                                    onChange={(e) => updateCfg({ ...deleteFileCfg, fileId: e.target.value })}
+                                                                    className="mt-1 bg-black/40 border-white/10 h-10"
+                                                                    placeholder="file-xxx"
+                                                                  />
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "ai_list_files":
+                                                          const listFilesCfg = cfg({
+                                                            purpose: "all",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20 space-y-4">
+                                                                <div className="flex items-center gap-3">
+                                                                  <div className="h-10 w-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                                                                    <FileText className="h-5 w-5 text-blue-400" />
+                                                                  </div>
+                                                                  <div>
+                                                                    <h4 className="text-sm font-bold text-white">Lister Fichiers</h4>
+                                                                    <p className="text-[10px] text-blue-400/60">Liste les fichiers disponibles</p>
+                                                                  </div>
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Filtre par usage</label>
+                                                                  <select
+                                                                    value={listFilesCfg.purpose}
+                                                                    onChange={(e) => updateCfg({ ...listFilesCfg, purpose: e.target.value })}
+                                                                    className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
+                                                                  >
+                                                                    <option value="all">Tous</option>
+                                                                    <option value="assistants">Assistants</option>
+                                                                    <option value="fine-tune">Fine-tuning</option>
+                                                                  </select>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "ai_upload_file":
+                                                          const uploadFileCfg = cfg({
+                                                            purpose: "assistants",
+                                                            fileUrl: "",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-green-500/10 to-transparent border border-green-500/20 space-y-4">
+                                                                <div className="flex items-center gap-3">
+                                                                  <div className="h-10 w-10 rounded-xl bg-green-500/20 flex items-center justify-center">
+                                                                    <Upload className="h-5 w-5 text-green-400" />
+                                                                  </div>
+                                                                  <div>
+                                                                    <h4 className="text-sm font-bold text-white">Téléverser Fichier</h4>
+                                                                    <p className="text-[10px] text-green-400/60">Téléverse un fichier vers OpenAI</p>
+                                                                  </div>
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">URL du fichier</label>
+                                                                  <Input
+                                                                    value={uploadFileCfg.fileUrl}
+                                                                    onChange={(e) => updateCfg({ ...uploadFileCfg, fileUrl: e.target.value })}
+                                                                    className="mt-1 bg-black/40 border-white/10 h-10"
+                                                                    placeholder="https://..."
+                                                                  />
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Usage</label>
+                                                                  <select
+                                                                    value={uploadFileCfg.purpose}
+                                                                    onChange={(e) => updateCfg({ ...uploadFileCfg, purpose: e.target.value })}
+                                                                    className="w-full mt-1 bg-black/40 border border-white/10 rounded-xl h-10 text-xs px-3 text-white"
+                                                                  >
+                                                                    <option value="assistants">Assistants</option>
+                                                                    <option value="fine-tune">Fine-tuning</option>
+                                                                  </select>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "ai_create_conversation":
+                                                          const createConvCfg = cfg({
+                                                            name: "",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20 space-y-4">
+                                                                <div className="flex items-center gap-3">
+                                                                  <div className="h-10 w-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                                                                    <BotMessageSquare className="h-5 w-5 text-purple-400" />
+                                                                  </div>
+                                                                  <div>
+                                                                    <h4 className="text-sm font-bold text-white">Créer Conversation</h4>
+                                                                    <p className="text-[10px] text-purple-400/60">Crée une nouvelle conversation</p>
+                                                                  </div>
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Nom de la conversation</label>
+                                                                  <Input
+                                                                    value={createConvCfg.name}
+                                                                    onChange={(e) => updateCfg({ ...createConvCfg, name: e.target.value })}
+                                                                    className="mt-1 bg-black/40 border-white/10 h-10"
+                                                                    placeholder="Conversation..."
+                                                                  />
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "ai_get_conversation":
+                                                          const getConvCfg = cfg({
+                                                            conversationId: "",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-transparent border border-cyan-500/20 space-y-4">
+                                                                <div className="flex items-center gap-3">
+                                                                  <div className="h-10 w-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                                                                    <BotMessageSquare className="h-5 w-5 text-cyan-400" />
+                                                                  </div>
+                                                                  <div>
+                                                                    <h4 className="text-sm font-bold text-white">Obtenir Conversation</h4>
+                                                                    <p className="text-[10px] text-cyan-400/60">Récupère une conversation existante</p>
+                                                                  </div>
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">ID de la conversation</label>
+                                                                  <Input
+                                                                    value={getConvCfg.conversationId}
+                                                                    onChange={(e) => updateCfg({ ...getConvCfg, conversationId: e.target.value })}
+                                                                    className="mt-1 bg-black/40 border-white/10 h-10"
+                                                                    placeholder="conv_xxx"
+                                                                  />
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "ai_remove_conversation":
+                                                          const removeConvCfg = cfg({
+                                                            conversationId: "",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-red-500/10 to-transparent border border-red-500/20 space-y-4">
+                                                                <div className="flex items-center gap-3">
+                                                                  <div className="h-10 w-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+                                                                    <BotMessageSquare className="h-5 w-5 text-red-400" />
+                                                                  </div>
+                                                                  <div>
+                                                                    <h4 className="text-sm font-bold text-white">Supprimer Conversation</h4>
+                                                                    <p className="text-[10px] text-red-400/60">Supprime une conversation</p>
+                                                                  </div>
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">ID de la conversation</label>
+                                                                  <Input
+                                                                    value={removeConvCfg.conversationId}
+                                                                    onChange={(e) => updateCfg({ ...removeConvCfg, conversationId: e.target.value })}
+                                                                    className="mt-1 bg-black/40 border-white/10 h-10"
+                                                                    placeholder="conv_xxx"
+                                                                  />
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "ai_update_conversation":
+                                                          const updateConvCfg = cfg({
+                                                            conversationId: "",
+                                                            name: "",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-orange-500/10 to-transparent border border-orange-500/20 space-y-4">
+                                                                <div className="flex items-center gap-3">
+                                                                  <div className="h-10 w-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
+                                                                    <BotMessageSquare className="h-5 w-5 text-orange-400" />
+                                                                  </div>
+                                                                  <div>
+                                                                    <h4 className="text-sm font-bold text-white">Mettre à jour Conversation</h4>
+                                                                    <p className="text-[10px] text-orange-400/60">Met à jour une conversation</p>
+                                                                  </div>
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">ID de la conversation</label>
+                                                                  <Input
+                                                                    value={updateConvCfg.conversationId}
+                                                                    onChange={(e) => updateCfg({ ...updateConvCfg, conversationId: e.target.value })}
+                                                                    className="mt-1 bg-black/40 border-white/10 h-10"
+                                                                    placeholder="conv_xxx"
+                                                                  />
+                                                                </div>
+                                                                <div>
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">Nouveau nom</label>
+                                                                  <Input
+                                                                    value={updateConvCfg.name}
+                                                                    onChange={(e) => updateCfg({ ...updateConvCfg, name: e.target.value })}
+                                                                    className="mt-1 bg-black/40 border-white/10 h-10"
+                                                                    placeholder="Nouveau nom..."
+                                                                  />
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "keyword":
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="flex items-center justify-between px-1">
+                                                                <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider">
+                                                                  Déclencheurs (un
+                                                                  par ligne)
+                                                                </label>
+                                                                <Badge
+                                                                  variant="outline"
+                                                                  className="text-[7px] border-primary/30 text-primary uppercase font-black"
+                                                                >
+                                                                  Insensible à la
+                                                                  casse
+                                                                </Badge>
+                                                              </div>
+                                                              <textarea
+                                                                value={
+                                                                  currentCfg.keywords ||
+                                                                  ""
+                                                                }
+                                                                onChange={(e) =>
+                                                                  updateCfg({
+                                                                    ...currentCfg,
+                                                                    keywords:
+                                                                      e.target
+                                                                        .value,
+                                                                  })
+                                                                }
+                                                                className="w-full h-32 bg-black/40 border border-white/10 rounded-2xl p-4 text-xs text-white/90 font-mono focus:border-primary/50 transition-all shadow-inner scrollbar-hide"
+                                                                placeholder="devis&#10;prix&#10;commander&#10;acheter"
+                                                              />
+                                                              <div className="p-3 rounded-xl bg-primary/5 border border-white/5">
+                                                                <p className="text-[8px] text-muted-foreground italic px-1 font-medium">
+                                                                  L'automatisation
+                                                                  se lancera si le
+                                                                  message contient
+                                                                  l'un de ces mots.
+                                                                </p>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "delay":
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Attendre</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Pause avant l'action suivante</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="Durée (secondes)">
+                                                                  <StyledInput
+                                                                    type="number"
+                                                                    value={String(currentCfg.delaySeconds || 1)}
+                                                                    onChange={(e) => updateCfg({ ...currentCfg, delaySeconds: parseInt(e.target.value) || 0 })}
+                                                                    placeholder="1"
+                                                                  />
+                                                                </FormField>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "send_text":
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Envoyer texte</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Envoie un message texte personnalisé</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-sm text-white/80 font-medium">Contenu du message</label>
+                                                                    <div className="flex items-center gap-1">
+                                                                      <OutputSelector
+                                                                        currentNodeId={node.id}
+                                                                        onInsert={(value) => {
+                                                                          const currentText = currentCfg.text || "";
+                                                                          const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentText.length;
+                                                                          const newText = currentText.slice(0, cursorPos) + value + currentText.slice(cursorPos);
+                                                                          updateCfg({
+                                                                            ...currentCfg,
+                                                                            text: newText,
+                                                                          });
+                                                                        }}
+                                                                      />
+                                                                    </div>
+                                                                  </div>
+                                                                  <textarea
+                                                                    value={currentCfg.text || ""}
+                                                                    onChange={(e) => updateCfg({ ...currentCfg, text: e.target.value })}
+                                                                    className="w-full min-h-[120px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none"
+                                                                    placeholder="Écrivez votre message ici... Utilisez Variables pour insérer des données."
+                                                                  />
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "send_image":
+                                                          const img = cfg({
+                                                            url: "",
+                                                            caption: "",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Envoyer image</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Envoie une image ou photo</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="URL de l'image">
+                                                                  <div className="flex gap-2 flex-1">
+                                                                    <StyledInput
+                                                                      value={img.url}
+                                                                      onChange={(e) => updateCfg({ ...img, url: e.target.value })}
+                                                                      placeholder="https://..."
+                                                                    />
+                                                                    <Button
+                                                                      size="icon"
+                                                                      variant="outline"
+                                                                      className="h-9 w-9 border-white/10 bg-white/5 shrink-0"
+                                                                    >
+                                                                      <Upload className="h-3.5 w-3.5" />
+                                                                    </Button>
+                                                                  </div>
+                                                                </FormField>
+
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-sm text-white/80 font-medium">Légende</label>
+                                                                    <OutputSelector
+                                                                      currentNodeId={node.id}
+                                                                      onInsert={(value) => {
+                                                                        const currentCaption = img.caption || "";
+                                                                        const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentCaption.length;
+                                                                        const newCaption = currentCaption.slice(0, cursorPos) + value + currentCaption.slice(cursorPos);
+                                                                        updateCfg({ ...img, caption: newCaption });
+                                                                      }}
+                                                                    />
+                                                                  </div>
+                                                                  <textarea
+                                                                    value={img.caption}
+                                                                    onChange={(e) => updateCfg({ ...img, caption: e.target.value })}
+                                                                    className="w-full min-h-[80px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none"
+                                                                    placeholder="Description de la photo..."
+                                                                  />
+                                                                </div>
+
+                                                                {img.url && (
+                                                                  <div className="rounded-xl overflow-hidden border border-white/10 aspect-video bg-black/40 flex items-center justify-center">
+                                                                    <img src={img.url} alt="Preview" className="max-h-full object-contain" />
+                                                                  </div>
+                                                                )}
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "condition":
+                                                          const cond = cfg({
+                                                            field: "message",
+                                                            operator: "contains",
+                                                            value: "",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Condition Si/Sinon</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Crée deux chemins selon une condition</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="Si la donnée...">
+                                                                  <StyledSelect
+                                                                    value={cond.field}
+                                                                    onChange={(e) => updateCfg({ ...cond, field: e.target.value })}
+                                                                    options={[
+                                                                      { value: "message", label: "Message reçu" },
+                                                                      { value: "name", label: "Nom du contact" },
+                                                                      { value: "phone", label: "Numéro de téléphone" }
+                                                                    ]}
+                                                                  />
+                                                                </FormField>
+
+                                                                <FormField label="Opérateur">
+                                                                  <StyledSelect
+                                                                    value={cond.operator}
+                                                                    onChange={(e) => updateCfg({ ...cond, operator: e.target.value })}
+                                                                    options={[
+                                                                      { value: "contains", label: "Contient" },
+                                                                      { value: "equals", label: "Est égal à" },
+                                                                      { value: "starts", label: "Commence par" },
+                                                                      { value: "exists", label: "Existe / Rempli" }
+                                                                    ]}
+                                                                  />
+                                                                </FormField>
+
+                                                                <FormField label="Valeur attendue">
+                                                                  <StyledInput
+                                                                    value={cond.value}
+                                                                    onChange={(e) => updateCfg({ ...cond, value: e.target.value })}
+                                                                    placeholder="Ex: Bonjour..."
+                                                                  />
+                                                                </FormField>
+
+                                                                <div className="flex items-center gap-2 p-3 rounded-lg bg-orange-500/5 border border-orange-500/10">
+                                                                  <GitBranch className="h-4 w-4 text-orange-400" />
+                                                                  <p className="text-[9px] text-orange-400/80 font-medium">
+                                                                    Ce bloc crée deux chemins : <b>VRAI</b> et <b>FAUX</b>. Connectez les nœuds suivants selon le résultat.
+                                                                  </p>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "show_catalog":
+                                                          const cat = cfg({
+                                                            category: "all",
+                                                            layout: "grid",
+                                                            selectedProducts: [],
+                                                          });
+
+                                                          const toggleProduct = (
+                                                            pid: number,
+                                                          ) => {
+                                                            const current =
+                                                              cat.selectedProducts ||
+                                                              [];
+                                                            const next =
+                                                              current.includes(pid)
+                                                                ? current.filter(
+                                                                  (id: number) =>
+                                                                    id !== pid,
+                                                                )
+                                                                : [...current, pid];
+                                                            updateCfg({
+                                                              ...cat,
+                                                              selectedProducts:
+                                                                next,
+                                                            });
+                                                          };
+
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Envoyer Catalogue</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Affiche la liste de vos produits</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-sm text-white/80 font-medium">Sélection des produits</label>
+                                                                    <span className="text-xs text-primary font-mono">
+                                                                      {(cat.selectedProducts || []).length} sélectionnés
+                                                                    </span>
+                                                                  </div>
+
+                                                                  <div className="max-h-60 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
+                                                                    {products.map(
+                                                                      (p) => (
+                                                                        <div
+                                                                          key={p.id}
+                                                                          onClick={() =>
+                                                                            toggleProduct(
+                                                                              p.id,
+                                                                            )
+                                                                          }
+                                                                          className={`flex items-center justify-between p-2 rounded-lg border transition-all cursor-pointer ${(
+                                                                            cat.selectedProducts ||
+                                                                            []
+                                                                          ).includes(
+                                                                            p.id,
+                                                                          )
+                                                                            ? "bg-primary/10 border-primary/30"
+                                                                            : "bg-white/5 border-white/5 hover:border-white/10"
+                                                                            }`}
+                                                                        >
+                                                                          <div className="flex items-center gap-3">
+                                                                            {p.image?.startsWith(
+                                                                              "data:",
+                                                                            ) ? (
+                                                                              <img
+                                                                                src={
+                                                                                  p.image
+                                                                                }
+                                                                                className="w-8 h-8 rounded-md object-cover"
+                                                                                alt={
+                                                                                  p.name
+                                                                                }
+                                                                              />
+                                                                            ) : (
+                                                                              <span className="text-sm">
+                                                                                {
+                                                                                  p.image
+                                                                                }
+                                                                              </span>
+                                                                            )}
+                                                                            <div className="flex flex-col">
+                                                                              <span className="text-[11px] font-bold text-white/90">
+                                                                                {
+                                                                                  p.name
+                                                                                }
+                                                                              </span>
+                                                                              <span className="text-[9px] text-muted-foreground">
+                                                                                {p.price.toLocaleString()}{" "}
+                                                                                {
+                                                                                  currency
+                                                                                }
+                                                                              </span>
+                                                                            </div>
+                                                                          </div>
+                                                                          <div
+                                                                            className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${(
+                                                                              cat.selectedProducts ||
+                                                                              []
+                                                                            ).includes(
+                                                                              p.id,
+                                                                            )
+                                                                              ? "bg-primary border-primary"
+                                                                              : "border-white/20"
+                                                                              }`}
+                                                                          >
+                                                                            {(
+                                                                              cat.selectedProducts ||
+                                                                              []
+                                                                            ).includes(
+                                                                              p.id,
+                                                                            ) && (
+                                                                                <Check className="h-2.5 w-2.5 text-black font-bold" />
+                                                                              )}
+                                                                          </div>
+                                                                        </div>
+                                                                      ),
+                                                                    )}
+                                                                  </div>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "chariow":
+                                                          const chariow = cfg({
+                                                            action: "view",
+                                                            currency: "XOF",
+                                                            aiInstructions: "",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div
+                                                                className="
                     relative w-full
                     rounded-2xl
                     bg-[#1a1a1a] border-orange-500/30 border-2
@@ -10521,2321 +11541,2388 @@ Ton but est de transformer chaque message en vente.
                     ring-2 ring-primary/20 ring-offset-2 ring-offset-background
                     hover:shadow-lg transition-all duration-200
                 "
-                                                          >
-                                                            <div className="text-orange-400">
-                                                              <div className="relative flex items-center justify-center h-10 w-10">
-                                                                <img
-                                                                  alt="Chariow"
-                                                                  className="w-full h-full object-contain"
-                                                                  src="/chariow-logo.png"
-                                                                />
-                                                              </div>
-                                                            </div>
-
-                                                            <div className="flex-1 px-4">
-                                                              <label className="text-[11px] font-black uppercase text-white/90 tracking-widest block">
-                                                                Chariow
-                                                              </label>
-                                                              <span className="text-[9px] text-orange-400/80 font-medium">
-                                                                Checkout &
-                                                                Panier
-                                                              </span>
-                                                            </div>
-
-                                                            <div className="absolute top-2 right-2 opacity-30">
-                                                              <GripVertical className="h-3 w-3" />
-                                                            </div>
-                                                          </div>
-
-                                                          <div className="p-4 rounded-xl bg-orange-500/5 border border-orange-500/10 space-y-3">
-                                                            <div className="space-y-1.5">
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">
-                                                                Lien de la
-                                                                boutique
-                                                              </label>
-                                                              <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg px-2 focus-within:border-orange-500/50 transition-colors">
-                                                                <Link2 className="h-3.5 w-3.5 text-white/40" />
-                                                                <input
-                                                                  type="url"
-                                                                  value={
-                                                                    chariow.storeUrl ||
-                                                                    ""
-                                                                  }
-                                                                  onChange={(
-                                                                    e,
-                                                                  ) =>
-                                                                    updateCfg({
-                                                                      ...chariow,
-                                                                      storeUrl:
-                                                                        e.target
-                                                                          .value,
-                                                                    })
-                                                                  }
-                                                                  className="w-full h-9 bg-transparent border-none text-xs text-white placeholder:text-white/20 focus:ring-0 px-0"
-                                                                  placeholder="https://chariow.com/..."
-                                                                />
-                                                              </div>
-                                                              <p className="text-[8px] text-muted-foreground italic px-1">
-                                                                L'IA utilisera
-                                                                ce lien pour
-                                                                accéder à vos
-                                                                produits.
-                                                              </p>
-                                                            </div>
-
-                                                            <div className="space-y-1.5">
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">
-                                                                Action
-                                                              </label>
-                                                              <select
-                                                                value={
-                                                                  chariow.action
-                                                                }
-                                                                onChange={(e) =>
-                                                                  updateCfg({
-                                                                    ...chariow,
-                                                                    action:
-                                                                      e.target
-                                                                        .value,
-                                                                  })
-                                                                }
-                                                                className="w-full bg-black/40 border border-white/10 rounded-lg h-9 text-xs px-2 text-white focus:border-orange-500/50 transition-colors"
                                                               >
-                                                                <option value="view">
-                                                                  Envoyer le
-                                                                  Catalogue /
-                                                                  Panier
-                                                                </option>
-                                                                <option value="checkout">
-                                                                  Envoyer le
-                                                                  Lien de
-                                                                  Paiement
-                                                                </option>
-                                                                <option value="clear">
-                                                                  Vider le
-                                                                  Panier du
-                                                                  client
-                                                                </option>
-                                                              </select>
+                                                                <div className="text-orange-400">
+                                                                  <div className="relative flex items-center justify-center h-10 w-10">
+                                                                    <img
+                                                                      alt="Chariow"
+                                                                      className="w-full h-full object-contain"
+                                                                      src="/chariow-logo.png"
+                                                                    />
+                                                                  </div>
+                                                                </div>
+
+                                                                <div className="flex-1 px-4">
+                                                                  <label className="text-[11px] font-black uppercase text-white/90 tracking-widest block">
+                                                                    Chariow
+                                                                  </label>
+                                                                  <span className="text-[9px] text-orange-400/80 font-medium">
+                                                                    Checkout &
+                                                                    Panier
+                                                                  </span>
+                                                                </div>
+
+                                                                <div className="absolute top-2 right-2 opacity-30">
+                                                                  <GripVertical className="h-3 w-3" />
+                                                                </div>
+                                                              </div>
+
+                                                              <div className="p-4 rounded-xl bg-orange-500/5 border border-orange-500/10 space-y-3">
+                                                                <div className="space-y-1.5">
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">
+                                                                    Lien de la
+                                                                    boutique
+                                                                  </label>
+                                                                  <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-lg px-2 focus-within:border-orange-500/50 transition-colors">
+                                                                    <Link2 className="h-3.5 w-3.5 text-white/40" />
+                                                                    <input
+                                                                      type="url"
+                                                                      value={
+                                                                        chariow.storeUrl ||
+                                                                        ""
+                                                                      }
+                                                                      onChange={(
+                                                                        e,
+                                                                      ) =>
+                                                                        updateCfg({
+                                                                          ...chariow,
+                                                                          storeUrl:
+                                                                            e.target
+                                                                              .value,
+                                                                        })
+                                                                      }
+                                                                      className="w-full h-9 bg-transparent border-none text-xs text-white placeholder:text-white/20 focus:ring-0 px-0"
+                                                                      placeholder="https://chariow.com/..."
+                                                                    />
+                                                                  </div>
+                                                                  <p className="text-[8px] text-muted-foreground italic px-1">
+                                                                    L'IA utilisera
+                                                                    ce lien pour
+                                                                    accéder à vos
+                                                                    produits.
+                                                                  </p>
+                                                                </div>
+
+                                                                <div className="space-y-1.5">
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">
+                                                                    Action
+                                                                  </label>
+                                                                  <select
+                                                                    value={
+                                                                      chariow.action
+                                                                    }
+                                                                    onChange={(e) =>
+                                                                      updateCfg({
+                                                                        ...chariow,
+                                                                        action:
+                                                                          e.target
+                                                                            .value,
+                                                                      })
+                                                                    }
+                                                                    className="w-full bg-black/40 border border-white/10 rounded-lg h-9 text-xs px-2 text-white focus:border-orange-500/50 transition-colors"
+                                                                  >
+                                                                    <option value="view">
+                                                                      Envoyer le
+                                                                      Catalogue /
+                                                                      Panier
+                                                                    </option>
+                                                                    <option value="checkout">
+                                                                      Envoyer le
+                                                                      Lien de
+                                                                      Paiement
+                                                                    </option>
+                                                                    <option value="clear">
+                                                                      Vider le
+                                                                      Panier du
+                                                                      client
+                                                                    </option>
+                                                                  </select>
+                                                                </div>
+                                                              </div>
+
+                                                              {instructionsUI}
                                                             </div>
-                                                          </div>
+                                                          );
 
-                                                          {instructionsUI}
-                                                        </div>
-                                                      );
+                                                        case "add_to_cart":
+                                                          const addToCartCfg = cfg({
+                                                            productId: "",
+                                                            quantity: 1,
+                                                            autoDetect: true,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Ajouter au panier</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Détecte et ajoute un produit au panier</p>
+                                                              </div>
 
-                                                    case "add_to_cart":
-                                                      const addToCartCfg = cfg({
-                                                        productId: "",
-                                                        quantity: 1,
-                                                        autoDetect: true,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Ajouter au panier</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Détecte et ajoute un produit au panier</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="Détection automatique">
-                                                              <ToggleSwitch
-                                                                checked={addToCartCfg.autoDetect}
-                                                                onChange={() => updateCfg({ ...addToCartCfg, autoDetect: !addToCartCfg.autoDetect })}
-                                                              />
-                                                            </FormField>
-
-                                                            {!addToCartCfg.autoDetect && (
-                                                              <>
-                                                                <FormField label="ID du produit">
-                                                                  <StyledInput
-                                                                    value={addToCartCfg.productId}
-                                                                    onChange={(e) => updateCfg({ ...addToCartCfg, productId: e.target.value })}
-                                                                    placeholder="1"
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="Détection automatique">
+                                                                  <ToggleSwitch
+                                                                    checked={addToCartCfg.autoDetect}
+                                                                    onChange={() => updateCfg({ ...addToCartCfg, autoDetect: !addToCartCfg.autoDetect })}
                                                                   />
                                                                 </FormField>
 
-                                                                <FormField label="Quantité">
+                                                                {!addToCartCfg.autoDetect && (
+                                                                  <>
+                                                                    <FormField label="ID du produit">
+                                                                      <StyledInput
+                                                                        value={addToCartCfg.productId}
+                                                                        onChange={(e) => updateCfg({ ...addToCartCfg, productId: e.target.value })}
+                                                                        placeholder="1"
+                                                                      />
+                                                                    </FormField>
+
+                                                                    <FormField label="Quantité">
+                                                                      <StyledInput
+                                                                        type="number"
+                                                                        value={String(addToCartCfg.quantity)}
+                                                                        onChange={(e) => updateCfg({ ...addToCartCfg, quantity: parseInt(e.target.value) || 1 })}
+                                                                        placeholder="1"
+                                                                      />
+                                                                    </FormField>
+                                                                  </>
+                                                                )}
+
+                                                                <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                                                                  <p className="text-[9px] text-muted-foreground leading-relaxed">
+                                                                    {addToCartCfg.autoDetect
+                                                                      ? "Analyse intelligemment le message du client pour identifier le produit souhaité."
+                                                                      : "Ajoute le produit spécifié au panier avec la quantité indiquée."}
+                                                                  </p>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+                                                        case "show_cart":
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/20 space-y-4">
+                                                                <div className="flex items-center justify-between">
+                                                                  <div className="flex items-center gap-2">
+                                                                    <div className="h-6 w-6 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
+                                                                      <ShoppingBag className="h-3.5 w-3.5 text-emerald-400" />
+                                                                    </div>
+                                                                    <label className="text-[10px] font-black uppercase text-white/80 tracking-widest">
+                                                                      Afficher Panier
+                                                                    </label>
+                                                                  </div>
+                                                                  <Badge className="bg-emerald-500/20 text-emerald-400 border-none text-[8px] uppercase font-black px-2">
+                                                                    Panier
+                                                                  </Badge>
+                                                                </div>
+                                                                <p className="text-[10px] text-white/60 leading-relaxed">
+                                                                  Affiche le contenu actuel du panier du client avec tous les articles ajoutés, les quantités et le total.
+                                                                </p>
+                                                              </div>
+                                                              <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex gap-3 shadow-inner">
+                                                                <ShoppingBag className="h-4 w-4 text-emerald-400 shrink-0 opacity-40" />
+                                                                <p className="text-[9px] text-muted-foreground leading-relaxed font-medium italic">
+                                                                  <b>Astuce:</b> Ce bloc affiche automatiquement tous les produits ajoutés au panier via le bloc "Ajouter au panier".
+                                                                </p>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "order_status":
+                                                          const orderStatusCfg = cfg({
+                                                            orderId: "",
+                                                            autoDetect: true,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20 space-y-4">
+                                                                <div className="flex items-center justify-between">
+                                                                  <div className="flex items-center gap-2">
+                                                                    <div className="h-6 w-6 rounded-lg bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
+                                                                      <Truck className="h-3.5 w-3.5 text-blue-400" />
+                                                                    </div>
+                                                                    <label className="text-[10px] font-black uppercase text-white/80 tracking-widest">
+                                                                      Suivi Commande
+                                                                    </label>
+                                                                  </div>
+                                                                  <Badge className="bg-blue-500/20 text-blue-400 border-none text-[8px] uppercase font-black px-2">
+                                                                    Statut
+                                                                  </Badge>
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
+                                                                      Détection automatique
+                                                                    </label>
+                                                                    <button
+                                                                      onClick={() => updateCfg({ ...orderStatusCfg, autoDetect: !orderStatusCfg.autoDetect })}
+                                                                      className={`relative w-10 h-6 rounded-full transition-colors ${orderStatusCfg.autoDetect ? "bg-blue-500" : "bg-white/20"}`}
+                                                                    >
+                                                                      <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${orderStatusCfg.autoDetect ? "left-5" : "left-1"}`} />
+                                                                    </button>
+                                                                  </div>
+                                                                  {!orderStatusCfg.autoDetect && (
+                                                                    <div>
+                                                                      <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
+                                                                        ID de commande
+                                                                      </label>
+                                                                      <Input
+                                                                        value={orderStatusCfg.orderId}
+                                                                        onChange={(e) => updateCfg({ ...orderStatusCfg, orderId: e.target.value })}
+                                                                        className="mt-1 bg-black/40 border-white/10 h-10"
+                                                                        placeholder="CMD-12345"
+                                                                      />
+                                                                    </div>
+                                                                  )}
+                                                                </div>
+                                                                <p className="text-[10px] text-white/60 leading-relaxed">
+                                                                  {orderStatusCfg.autoDetect
+                                                                    ? "Extrait automatiquement le numéro de commande du message pour donner le statut en temps réel (Préparation, Expédition, Livré, etc)."
+                                                                    : "Utilise l'ID de commande spécifié pour afficher le statut."}
+                                                                </p>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "apply_promo":
+                                                          const promoCfg = cfg({
+                                                            promoCode: "",
+                                                            discountType: "percentage",
+                                                            discountValue: 10,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Code promo</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Applique une réduction au panier</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="Code promo">
+                                                                  <StyledInput
+                                                                    value={promoCfg.promoCode}
+                                                                    onChange={(e) => updateCfg({ ...promoCfg, promoCode: e.target.value })}
+                                                                    placeholder="PROMO10"
+                                                                  />
+                                                                </FormField>
+
+                                                                <FormField label="Type de réduction">
+                                                                  <StyledSelect
+                                                                    value={promoCfg.discountType}
+                                                                    onChange={(e) => updateCfg({ ...promoCfg, discountType: e.target.value })}
+                                                                    options={[
+                                                                      { value: "percentage", label: "Pourcentage (%)" },
+                                                                      { value: "fixed", label: "Montant fixe" }
+                                                                    ]}
+                                                                  />
+                                                                </FormField>
+
+                                                                <FormField label="Valeur de la réduction">
                                                                   <StyledInput
                                                                     type="number"
-                                                                    value={String(addToCartCfg.quantity)}
-                                                                    onChange={(e) => updateCfg({ ...addToCartCfg, quantity: parseInt(e.target.value) || 1 })}
-                                                                    placeholder="1"
+                                                                    value={String(promoCfg.discountValue)}
+                                                                    onChange={(e) => updateCfg({ ...promoCfg, discountValue: parseFloat(e.target.value) || 0 })}
+                                                                    placeholder={promoCfg.discountType === "percentage" ? "10" : "1000"}
                                                                   />
                                                                 </FormField>
-                                                              </>
-                                                            )}
 
-                                                            <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                                                              <p className="text-[9px] text-muted-foreground leading-relaxed">
-                                                                {addToCartCfg.autoDetect
-                                                                  ? "Analyse intelligemment le message du client pour identifier le produit souhaité."
-                                                                  : "Ajoute le produit spécifié au panier avec la quantité indiquée."}
-                                                              </p>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-                                                    case "show_cart":
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/20 space-y-4">
-                                                            <div className="flex items-center justify-between">
-                                                              <div className="flex items-center gap-2">
-                                                                <div className="h-6 w-6 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
-                                                                  <ShoppingBag className="h-3.5 w-3.5 text-emerald-400" />
+                                                                <div className="p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
+                                                                  <p className="text-[9px] text-muted-foreground leading-relaxed">
+                                                                    {promoCfg.discountType === "percentage"
+                                                                      ? "Pourcentage de réduction (ex: 10 = 10%)"
+                                                                      : "Montant fixe en devise (ex: 1000 = 1000 XOF)"}
+                                                                  </p>
                                                                 </div>
-                                                                <label className="text-[10px] font-black uppercase text-white/80 tracking-widest">
-                                                                  Afficher Panier
-                                                                </label>
                                                               </div>
-                                                              <Badge className="bg-emerald-500/20 text-emerald-400 border-none text-[8px] uppercase font-black px-2">
-                                                                Panier
-                                                              </Badge>
                                                             </div>
-                                                            <p className="text-[10px] text-white/60 leading-relaxed">
-                                                              Affiche le contenu actuel du panier du client avec tous les articles ajoutés, les quantités et le total.
-                                                            </p>
-                                                          </div>
-                                                          <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex gap-3 shadow-inner">
-                                                            <ShoppingBag className="h-4 w-4 text-emerald-400 shrink-0 opacity-40" />
-                                                            <p className="text-[9px] text-muted-foreground leading-relaxed font-medium italic">
-                                                              <b>Astuce:</b> Ce bloc affiche automatiquement tous les produits ajoutés au panier via le bloc "Ajouter au panier".
-                                                            </p>
-                                                          </div>
-                                                        </div>
-                                                      );
+                                                          );
 
-                                                    case "order_status":
-                                                      const orderStatusCfg = cfg({
-                                                        orderId: "",
-                                                        autoDetect: true,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20 space-y-4">
-                                                            <div className="flex items-center justify-between">
-                                                              <div className="flex items-center gap-2">
-                                                                <div className="h-6 w-6 rounded-lg bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
-                                                                  <Truck className="h-3.5 w-3.5 text-blue-400" />
-                                                                </div>
-                                                                <label className="text-[10px] font-black uppercase text-white/80 tracking-widest">
-                                                                  Suivi Commande
-                                                                </label>
+                                                        case "check_availability":
+                                                          const availabilityCfg = cfg({
+                                                            calendarId: "",
+                                                            dateRange: 7,
+                                                            duration: 30,
+                                                            timezone: "Africa/Abidjan",
+                                                            showWeekends: true,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Vérifier disponibilité</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Affiche les créneaux libres</p>
                                                               </div>
-                                                              <Badge className="bg-blue-500/20 text-blue-400 border-none text-[8px] uppercase font-black px-2">
-                                                                Statut
-                                                              </Badge>
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                              <div className="flex items-center justify-between">
-                                                                <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
-                                                                  Détection automatique
-                                                                </label>
-                                                                <button
-                                                                  onClick={() => updateCfg({ ...orderStatusCfg, autoDetect: !orderStatusCfg.autoDetect })}
-                                                                  className={`relative w-10 h-6 rounded-full transition-colors ${orderStatusCfg.autoDetect ? "bg-blue-500" : "bg-white/20"}`}
-                                                                >
-                                                                  <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${orderStatusCfg.autoDetect ? "left-5" : "left-1"}`} />
-                                                                </button>
-                                                              </div>
-                                                              {!orderStatusCfg.autoDetect && (
-                                                                <div>
-                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider px-1">
-                                                                    ID de commande
-                                                                  </label>
-                                                                  <Input
-                                                                    value={orderStatusCfg.orderId}
-                                                                    onChange={(e) => updateCfg({ ...orderStatusCfg, orderId: e.target.value })}
-                                                                    className="mt-1 bg-black/40 border-white/10 h-10"
-                                                                    placeholder="CMD-12345"
-                                                                  />
-                                                                </div>
-                                                              )}
-                                                            </div>
-                                                            <p className="text-[10px] text-white/60 leading-relaxed">
-                                                              {orderStatusCfg.autoDetect
-                                                                ? "Extrait automatiquement le numéro de commande du message pour donner le statut en temps réel (Préparation, Expédition, Livré, etc)."
-                                                                : "Utilise l'ID de commande spécifié pour afficher le statut."}
-                                                            </p>
-                                                          </div>
-                                                        </div>
-                                                      );
 
-                                                    case "apply_promo":
-                                                      const promoCfg = cfg({
-                                                        promoCode: "",
-                                                        discountType: "percentage",
-                                                        discountValue: 10,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Code promo</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Applique une réduction au panier</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="Code promo">
-                                                              <StyledInput
-                                                                value={promoCfg.promoCode}
-                                                                onChange={(e) => updateCfg({ ...promoCfg, promoCode: e.target.value })}
-                                                                placeholder="PROMO10"
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Type de réduction">
-                                                              <StyledSelect
-                                                                value={promoCfg.discountType}
-                                                                onChange={(e) => updateCfg({ ...promoCfg, discountType: e.target.value })}
-                                                                options={[
-                                                                  { value: "percentage", label: "Pourcentage (%)" },
-                                                                  { value: "fixed", label: "Montant fixe" }
-                                                                ]}
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Valeur de la réduction">
-                                                              <StyledInput
-                                                                type="number"
-                                                                value={String(promoCfg.discountValue)}
-                                                                onChange={(e) => updateCfg({ ...promoCfg, discountValue: parseFloat(e.target.value) || 0 })}
-                                                                placeholder={promoCfg.discountType === "percentage" ? "10" : "1000"}
-                                                              />
-                                                            </FormField>
-
-                                                            <div className="p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
-                                                              <p className="text-[9px] text-muted-foreground leading-relaxed">
-                                                                {promoCfg.discountType === "percentage"
-                                                                  ? "Pourcentage de réduction (ex: 10 = 10%)"
-                                                                  : "Montant fixe en devise (ex: 1000 = 1000 XOF)"}
-                                                              </p>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "check_availability":
-                                                      const availabilityCfg = cfg({
-                                                        calendarId: "",
-                                                        dateRange: 7,
-                                                        duration: 30,
-                                                        timezone: "Africa/Abidjan",
-                                                        showWeekends: true,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Vérifier disponibilité</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Affiche les créneaux libres</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="ID Calendrier">
-                                                              <StyledInput
-                                                                value={availabilityCfg.calendarId}
-                                                                onChange={(e) => updateCfg({ ...availabilityCfg, calendarId: e.target.value })}
-                                                                placeholder="cal_123456"
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Période (jours)">
-                                                              <StyledInput
-                                                                type="number"
-                                                                value={String(availabilityCfg.dateRange)}
-                                                                onChange={(e) => updateCfg({ ...availabilityCfg, dateRange: parseInt(e.target.value) || 7 })}
-                                                                placeholder="7"
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Durée (minutes)">
-                                                              <StyledSelect
-                                                                value={String(availabilityCfg.duration)}
-                                                                onChange={(e) => updateCfg({ ...availabilityCfg, duration: parseInt(e.target.value) })}
-                                                                options={[
-                                                                  { value: "15", label: "15 minutes" },
-                                                                  { value: "30", label: "30 minutes" },
-                                                                  { value: "45", label: "45 minutes" },
-                                                                  { value: "60", label: "1 heure" },
-                                                                  { value: "90", label: "1h30" },
-                                                                  { value: "120", label: "2 heures" }
-                                                                ]}
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Fuseau horaire">
-                                                              <StyledSelect
-                                                                value={availabilityCfg.timezone}
-                                                                onChange={(e) => updateCfg({ ...availabilityCfg, timezone: e.target.value })}
-                                                                options={[
-                                                                  { value: "Africa/Abidjan", label: "Abidjan (GMT+0)" },
-                                                                  { value: "Africa/Dakar", label: "Dakar (GMT+0)" },
-                                                                  { value: "Europe/Paris", label: "Paris (GMT+1)" },
-                                                                  { value: "America/New_York", label: "New York (GMT-5)" }
-                                                                ]}
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Afficher les week-ends">
-                                                              <ToggleSwitch
-                                                                checked={availabilityCfg.showWeekends}
-                                                                onChange={() => updateCfg({ ...availabilityCfg, showWeekends: !availabilityCfg.showWeekends })}
-                                                              />
-                                                            </FormField>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "book_appointment":
-                                                      const bookCfg = cfg({
-                                                        calendarId: "",
-                                                        duration: 30,
-                                                        title: "Rendez-vous",
-                                                        description: "",
-                                                        timezone: "Africa/Abidjan",
-                                                        requireConfirmation: true,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Réserver RDV</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Crée un rendez-vous dans l'agenda</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="ID Calendrier">
-                                                              <StyledInput
-                                                                value={bookCfg.calendarId}
-                                                                onChange={(e) => updateCfg({ ...bookCfg, calendarId: e.target.value })}
-                                                                placeholder="cal_123456"
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Titre du RDV">
-                                                              <StyledInput
-                                                                value={bookCfg.title}
-                                                                onChange={(e) => updateCfg({ ...bookCfg, title: e.target.value })}
-                                                                placeholder="Rendez-vous"
-                                                              />
-                                                            </FormField>
-
-                                                            <div className="space-y-2">
-                                                              <div className="flex items-center justify-between">
-                                                                <label className="text-sm text-white/80 font-medium">Description</label>
-                                                                <OutputSelector
-                                                                  currentNodeId={node.id}
-                                                                  onInsert={(value) => {
-                                                                    const currentDesc = bookCfg.description || "";
-                                                                    const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentDesc.length;
-                                                                    const newDesc = currentDesc.slice(0, cursorPos) + value + currentDesc.slice(cursorPos);
-                                                                    updateCfg({ ...bookCfg, description: newDesc });
-                                                                  }}
-                                                                />
-                                                              </div>
-                                                              <textarea
-                                                                value={bookCfg.description}
-                                                                onChange={(e) => updateCfg({ ...bookCfg, description: e.target.value })}
-                                                                className="w-full min-h-[80px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none"
-                                                                placeholder="Description du rendez-vous..."
-                                                              />
-                                                            </div>
-
-                                                            <FormField label="Durée (minutes)">
-                                                              <StyledSelect
-                                                                value={String(bookCfg.duration)}
-                                                                onChange={(e) => updateCfg({ ...bookCfg, duration: parseInt(e.target.value) })}
-                                                                options={[
-                                                                  { value: "15", label: "15 minutes" },
-                                                                  { value: "30", label: "30 minutes" },
-                                                                  { value: "45", label: "45 minutes" },
-                                                                  { value: "60", label: "1 heure" },
-                                                                  { value: "90", label: "1h30" },
-                                                                  { value: "120", label: "2 heures" }
-                                                                ]}
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Fuseau horaire">
-                                                              <StyledSelect
-                                                                value={bookCfg.timezone}
-                                                                onChange={(e) => updateCfg({ ...bookCfg, timezone: e.target.value })}
-                                                                options={[
-                                                                  { value: "Africa/Abidjan", label: "Abidjan (GMT+0)" },
-                                                                  { value: "Africa/Dakar", label: "Dakar (GMT+0)" },
-                                                                  { value: "Europe/Paris", label: "Paris (GMT+1)" },
-                                                                  { value: "America/New_York", label: "New York (GMT-5)" }
-                                                                ]}
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Demander confirmation">
-                                                              <ToggleSwitch
-                                                                checked={bookCfg.requireConfirmation}
-                                                                onChange={() => updateCfg({ ...bookCfg, requireConfirmation: !bookCfg.requireConfirmation })}
-                                                              />
-                                                            </FormField>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "cancel_appointment":
-                                                      const cancelCfg = cfg({
-                                                        appointmentId: "",
-                                                        calendarId: "",
-                                                        autoDetect: true,
-                                                        sendCancellationMessage: true,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Annuler RDV</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Annule un rendez-vous existant</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="Détection automatique">
-                                                              <ToggleSwitch
-                                                                checked={cancelCfg.autoDetect}
-                                                                onChange={() => updateCfg({ ...cancelCfg, autoDetect: !cancelCfg.autoDetect })}
-                                                              />
-                                                            </FormField>
-
-                                                            {!cancelCfg.autoDetect && (
-                                                              <>
+                                                              <div className="py-4 space-y-4">
                                                                 <FormField label="ID Calendrier">
                                                                   <StyledInput
-                                                                    value={cancelCfg.calendarId}
-                                                                    onChange={(e) => updateCfg({ ...cancelCfg, calendarId: e.target.value })}
+                                                                    value={availabilityCfg.calendarId}
+                                                                    onChange={(e) => updateCfg({ ...availabilityCfg, calendarId: e.target.value })}
                                                                     placeholder="cal_123456"
                                                                   />
                                                                 </FormField>
 
-                                                                <FormField label="ID du rendez-vous">
+                                                                <FormField label="Période (jours)">
                                                                   <StyledInput
-                                                                    value={cancelCfg.appointmentId}
-                                                                    onChange={(e) => updateCfg({ ...cancelCfg, appointmentId: e.target.value })}
-                                                                    placeholder="appt_123456"
+                                                                    type="number"
+                                                                    value={String(availabilityCfg.dateRange)}
+                                                                    onChange={(e) => updateCfg({ ...availabilityCfg, dateRange: parseInt(e.target.value) || 7 })}
+                                                                    placeholder="7"
                                                                   />
                                                                 </FormField>
-                                                              </>
-                                                            )}
 
-                                                            <FormField label="Envoyer message d'annulation">
-                                                              <ToggleSwitch
-                                                                checked={cancelCfg.sendCancellationMessage}
-                                                                onChange={() => updateCfg({ ...cancelCfg, sendCancellationMessage: !cancelCfg.sendCancellationMessage })}
-                                                              />
-                                                            </FormField>
-
-                                                            <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/10">
-                                                              <p className="text-[9px] text-muted-foreground leading-relaxed">
-                                                                {cancelCfg.autoDetect
-                                                                  ? "Détecte automatiquement le rendez-vous à annuler depuis le message du client."
-                                                                  : "Annule le rendez-vous spécifié par son ID."}
-                                                              </p>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "send_reminder":
-                                                      const reminderCfg = cfg({
-                                                        appointmentId: "",
-                                                        calendarId: "",
-                                                        reminderTime: 24,
-                                                        reminderUnit: "hours",
-                                                        message: "Rappel: Vous avez un rendez-vous demain à {time}",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Rappel RDV</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Envoie un rappel avant le rendez-vous</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="ID Calendrier">
-                                                              <StyledInput
-                                                                value={reminderCfg.calendarId}
-                                                                onChange={(e) => updateCfg({ ...reminderCfg, calendarId: e.target.value })}
-                                                                placeholder="cal_123456"
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Temps avant le RDV">
-                                                              <div className="flex gap-2 flex-1">
-                                                                <StyledInput
-                                                                  type="number"
-                                                                  value={String(reminderCfg.reminderTime)}
-                                                                  onChange={(e) => updateCfg({ ...reminderCfg, reminderTime: parseInt(e.target.value) || 24 })}
-                                                                  placeholder="24"
-                                                                  className="flex-1"
-                                                                />
-                                                                <StyledSelect
-                                                                  value={reminderCfg.reminderUnit}
-                                                                  onChange={(e) => updateCfg({ ...reminderCfg, reminderUnit: e.target.value })}
-                                                                  options={[
-                                                                    { value: "minutes", label: "minutes" },
-                                                                    { value: "hours", label: "heures" },
-                                                                    { value: "days", label: "jours" }
-                                                                  ]}
-                                                                  maxWidth="120px"
-                                                                />
-                                                              </div>
-                                                            </FormField>
-
-                                                            <div className="space-y-2">
-                                                              <div className="flex items-center justify-between">
-                                                                <label className="text-sm text-white/80 font-medium">Message de rappel</label>
-                                                                <OutputSelector
-                                                                  currentNodeId={node.id}
-                                                                  onInsert={(value) => {
-                                                                    const currentMsg = reminderCfg.message || "";
-                                                                    const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentMsg.length;
-                                                                    const newMsg = currentMsg.slice(0, cursorPos) + value + currentMsg.slice(cursorPos);
-                                                                    updateCfg({ ...reminderCfg, message: newMsg });
-                                                                  }}
-                                                                />
-                                                              </div>
-                                                              <textarea
-                                                                value={reminderCfg.message}
-                                                                onChange={(e) => updateCfg({ ...reminderCfg, message: e.target.value })}
-                                                                className="w-full min-h-[80px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none"
-                                                                placeholder="Rappel: Vous avez un rendez-vous demain à {time}"
-                                                              />
-                                                            </div>
-
-                                                            <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
-                                                              <p className="text-[9px] text-muted-foreground leading-relaxed">
-                                                                Variables disponibles : <code className="text-blue-400">{"{time}"}</code>, <code className="text-blue-400">{"{date}"}</code>, <code className="text-blue-400">{"{title}"}</code>
-                                                              </p>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "create_group":
-                                                      const createGroupCfg = cfg({
-                                                        groupName: "",
-                                                        description: "",
-                                                        participants: [],
-                                                        autoAddCreator: true,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Créer groupe</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Crée un nouveau groupe WhatsApp</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="Nom du groupe">
-                                                              <StyledInput
-                                                                value={createGroupCfg.groupName}
-                                                                onChange={(e) => updateCfg({ ...createGroupCfg, groupName: e.target.value })}
-                                                                placeholder="Mon Groupe"
-                                                              />
-                                                            </FormField>
-
-                                                            <div className="space-y-2">
-                                                              <div className="flex items-center justify-between">
-                                                                <label className="text-sm text-white/80 font-medium">Description</label>
-                                                                <OutputSelector
-                                                                  currentNodeId={node.id}
-                                                                  onInsert={(value) => {
-                                                                    const currentDesc = createGroupCfg.description || "";
-                                                                    const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentDesc.length;
-                                                                    const newDesc = currentDesc.slice(0, cursorPos) + value + currentDesc.slice(cursorPos);
-                                                                    updateCfg({ ...createGroupCfg, description: newDesc });
-                                                                  }}
-                                                                />
-                                                              </div>
-                                                              <textarea
-                                                                value={createGroupCfg.description}
-                                                                onChange={(e) => updateCfg({ ...createGroupCfg, description: e.target.value })}
-                                                                className="w-full min-h-[80px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none"
-                                                                placeholder="Description du groupe..."
-                                                              />
-                                                            </div>
-
-                                                            <div className="space-y-2">
-                                                              <div className="flex items-center justify-between">
-                                                                <label className="text-sm text-white/80 font-medium">Participants</label>
-                                                                <OutputSelector
-                                                                  currentNodeId={node.id}
-                                                                  onInsert={(value) => {
-                                                                    const currentParticipants = Array.isArray(createGroupCfg.participants) ? createGroupCfg.participants.join(' ') : '';
-                                                                    const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentParticipants.length;
-                                                                    const newParticipants = currentParticipants.slice(0, cursorPos) + value + currentParticipants.slice(cursorPos);
-                                                                    const numbers = newParticipants.split(/\s+/).filter(n => n.trim());
-                                                                    updateCfg({ ...createGroupCfg, participants: numbers });
-                                                                  }}
-                                                                />
-                                                              </div>
-                                                              <textarea
-                                                                value={Array.isArray(createGroupCfg.participants) ? createGroupCfg.participants.join(' ') : createGroupCfg.participants || ''}
-                                                                onChange={(e) => {
-                                                                  const numbers = e.target.value.split(/\s+/).filter(n => n.trim());
-                                                                  updateCfg({ ...createGroupCfg, participants: numbers });
-                                                                }}
-                                                                className="w-full min-h-[100px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none font-mono text-xs"
-                                                                placeholder="{{contact.phone}} +221771234568 +221771234569"
-                                                              />
-                                                              <div className="flex flex-wrap gap-1.5">
-                                                                <button
-                                                                  type="button"
-                                                                  onClick={() => {
-                                                                    const current = Array.isArray(createGroupCfg.participants) ? createGroupCfg.participants : [];
-                                                                    updateCfg({ ...createGroupCfg, participants: [...current, '{{contact.phone}}'] });
-                                                                  }}
-                                                                  className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
-                                                                >
-                                                                  + Numéro client
-                                                                </button>
-                                                                <button
-                                                                  type="button"
-                                                                  onClick={() => {
-                                                                    const current = Array.isArray(createGroupCfg.participants) ? createGroupCfg.participants : [];
-                                                                    updateCfg({ ...createGroupCfg, participants: [...current, '{{message.from}}'] });
-                                                                  }}
-                                                                  className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
-                                                                >
-                                                                  + Expéditeur
-                                                                </button>
-                                                                <button
-                                                                  type="button"
-                                                                  onClick={() => {
-                                                                    const current = Array.isArray(createGroupCfg.participants) ? createGroupCfg.participants : [];
-                                                                    updateCfg({ ...createGroupCfg, participants: [...current, '{{previous.output.phone}}'] });
-                                                                  }}
-                                                                  className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
-                                                                >
-                                                                  + Sortie précédente
-                                                                </button>
-                                                              </div>
-                                                              <p className="text-[8px] text-muted-foreground/60">
-                                                                Utilisez des variables comme <code className="text-primary">{"{{contact.phone}}"}</code> ou saisissez des numéros séparés par des espaces
-                                                              </p>
-                                                            </div>
-
-                                                            <FormField label="Ajouter le créateur automatiquement">
-                                                              <ToggleSwitch
-                                                                checked={createGroupCfg.autoAddCreator}
-                                                                onChange={() => updateCfg({ ...createGroupCfg, autoAddCreator: !createGroupCfg.autoAddCreator })}
-                                                              />
-                                                            </FormField>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "add_participant":
-                                                      const addPartCfg = cfg({
-                                                        groupId: "",
-                                                        phoneNumber: "",
-                                                        autoDetect: true,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Ajouter membre</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Ajoute un contact au groupe</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="Détection automatique">
-                                                              <ToggleSwitch
-                                                                checked={addPartCfg.autoDetect}
-                                                                onChange={() => updateCfg({ ...addPartCfg, autoDetect: !addPartCfg.autoDetect })}
-                                                              />
-                                                            </FormField>
-
-                                                            {!addPartCfg.autoDetect && (
-                                                              <>
-                                                                <FormField label="ID du groupe">
-                                                                  <div className="flex gap-2">
-                                                                    <StyledInput
-                                                                      value={addPartCfg.groupId}
-                                                                      onChange={(e) => updateCfg({ ...addPartCfg, groupId: e.target.value })}
-                                                                      placeholder="{{previous.output.groupId}}"
-                                                                      className="flex-1"
-                                                                    />
-                                                                    <OutputSelector
-                                                                      currentNodeId={node.id}
-                                                                      onInsert={(value) => updateCfg({ ...addPartCfg, groupId: addPartCfg.groupId + value })}
-                                                                    />
-                                                                  </div>
+                                                                <FormField label="Durée (minutes)">
+                                                                  <StyledSelect
+                                                                    value={String(availabilityCfg.duration)}
+                                                                    onChange={(e) => updateCfg({ ...availabilityCfg, duration: parseInt(e.target.value) })}
+                                                                    options={[
+                                                                      { value: "15", label: "15 minutes" },
+                                                                      { value: "30", label: "30 minutes" },
+                                                                      { value: "45", label: "45 minutes" },
+                                                                      { value: "60", label: "1 heure" },
+                                                                      { value: "90", label: "1h30" },
+                                                                      { value: "120", label: "2 heures" }
+                                                                    ]}
+                                                                  />
                                                                 </FormField>
 
-                                                                <FormField label="Numéro de téléphone">
-                                                                  <div className="flex gap-2">
-                                                                    <StyledInput
-                                                                      value={addPartCfg.phoneNumber}
-                                                                      onChange={(e) => updateCfg({ ...addPartCfg, phoneNumber: e.target.value })}
-                                                                      placeholder="{{contact.phone}}"
-                                                                      className="flex-1"
-                                                                    />
-                                                                    <OutputSelector
-                                                                      currentNodeId={node.id}
-                                                                      onInsert={(value) => updateCfg({ ...addPartCfg, phoneNumber: addPartCfg.phoneNumber + value })}
-                                                                    />
-                                                                  </div>
-                                                                  <div className="flex flex-wrap gap-1.5 mt-2">
-                                                                    <button
-                                                                      type="button"
-                                                                      onClick={() => updateCfg({ ...addPartCfg, phoneNumber: '{{contact.phone}}' })}
-                                                                      className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
-                                                                    >
-                                                                      Utiliser numéro client
-                                                                    </button>
-                                                                    <button
-                                                                      type="button"
-                                                                      onClick={() => updateCfg({ ...addPartCfg, phoneNumber: '{{message.from}}' })}
-                                                                      className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
-                                                                    >
-                                                                      Utiliser expéditeur
-                                                                    </button>
-                                                                  </div>
+                                                                <FormField label="Fuseau horaire">
+                                                                  <StyledSelect
+                                                                    value={availabilityCfg.timezone}
+                                                                    onChange={(e) => updateCfg({ ...availabilityCfg, timezone: e.target.value })}
+                                                                    options={[
+                                                                      { value: "Africa/Abidjan", label: "Abidjan (GMT+0)" },
+                                                                      { value: "Africa/Dakar", label: "Dakar (GMT+0)" },
+                                                                      { value: "Europe/Paris", label: "Paris (GMT+1)" },
+                                                                      { value: "America/New_York", label: "New York (GMT-5)" }
+                                                                    ]}
+                                                                  />
                                                                 </FormField>
-                                                              </>
-                                                            )}
 
-                                                            <div className="p-3 rounded-lg bg-green-500/5 border border-green-500/10">
-                                                              <p className="text-[9px] text-muted-foreground leading-relaxed">
-                                                                {addPartCfg.autoDetect
-                                                                  ? "Détecte automatiquement le groupe et le numéro depuis le message du client."
-                                                                  : "Ajoute le numéro spécifié au groupe indiqué."}
-                                                              </p>
+                                                                <FormField label="Afficher les week-ends">
+                                                                  <ToggleSwitch
+                                                                    checked={availabilityCfg.showWeekends}
+                                                                    onChange={() => updateCfg({ ...availabilityCfg, showWeekends: !availabilityCfg.showWeekends })}
+                                                                  />
+                                                                </FormField>
+                                                              </div>
                                                             </div>
-                                                          </div>
-                                                        </div>
-                                                      );
+                                                          );
 
-                                                    case "remove_participant":
-                                                      const removePartCfg = cfg({
-                                                        groupId: "",
-                                                        phoneNumber: "",
-                                                        autoDetect: true,
-                                                        checkSubscription: false,
-                                                        subscriptionPlatform: "",
-                                                        subscriptionApiUrl: "",
-                                                        subscriptionApiKey: "",
-                                                        removeIfExpired: true,
-                                                        removeIfCancelled: true,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Retirer membre</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Retire un membre du groupe (avec vérification d'abonnement)</p>
-                                                          </div>
+                                                        case "book_appointment":
+                                                          const bookCfg = cfg({
+                                                            calendarId: "",
+                                                            duration: 30,
+                                                            title: "Rendez-vous",
+                                                            description: "",
+                                                            timezone: "Africa/Abidjan",
+                                                            requireConfirmation: true,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Réserver RDV</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Crée un rendez-vous dans l'agenda</p>
+                                                              </div>
 
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="Détection automatique">
-                                                              <ToggleSwitch
-                                                                checked={removePartCfg.autoDetect}
-                                                                onChange={() => updateCfg({ ...removePartCfg, autoDetect: !removePartCfg.autoDetect })}
-                                                              />
-                                                            </FormField>
-                                                            <p className="text-[8px] text-muted-foreground/60">Détecte automatiquement le groupe et le numéro depuis le message du client</p>
-
-                                                            {!removePartCfg.autoDetect && (
-                                                              <>
-                                                                <FormField label="ID du groupe">
-                                                                  <div className="flex gap-2">
-                                                                    <StyledInput
-                                                                      value={removePartCfg.groupId}
-                                                                      onChange={(e) => updateCfg({ ...removePartCfg, groupId: e.target.value })}
-                                                                      placeholder="{{previous.output.groupId}}"
-                                                                      className="flex-1"
-                                                                    />
-                                                                    <OutputSelector
-                                                                      currentNodeId={node.id}
-                                                                      onInsert={(value) => updateCfg({ ...removePartCfg, groupId: removePartCfg.groupId + value })}
-                                                                    />
-                                                                  </div>
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="ID Calendrier">
+                                                                  <StyledInput
+                                                                    value={bookCfg.calendarId}
+                                                                    onChange={(e) => updateCfg({ ...bookCfg, calendarId: e.target.value })}
+                                                                    placeholder="cal_123456"
+                                                                  />
                                                                 </FormField>
 
-                                                                <FormField label="Numéro de téléphone">
-                                                                  <div className="flex gap-2">
-                                                                    <StyledInput
-                                                                      value={removePartCfg.phoneNumber}
-                                                                      onChange={(e) => updateCfg({ ...removePartCfg, phoneNumber: e.target.value })}
-                                                                      placeholder="{{contact.phone}}"
-                                                                      className="flex-1"
-                                                                    />
+                                                                <FormField label="Titre du RDV">
+                                                                  <StyledInput
+                                                                    value={bookCfg.title}
+                                                                    onChange={(e) => updateCfg({ ...bookCfg, title: e.target.value })}
+                                                                    placeholder="Rendez-vous"
+                                                                  />
+                                                                </FormField>
+
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-sm text-white/80 font-medium">Description</label>
                                                                     <OutputSelector
                                                                       currentNodeId={node.id}
-                                                                      onInsert={(value) => updateCfg({ ...removePartCfg, phoneNumber: removePartCfg.phoneNumber + value })}
+                                                                      onInsert={(value) => {
+                                                                        const currentDesc = bookCfg.description || "";
+                                                                        const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentDesc.length;
+                                                                        const newDesc = currentDesc.slice(0, cursorPos) + value + currentDesc.slice(cursorPos);
+                                                                        updateCfg({ ...bookCfg, description: newDesc });
+                                                                      }}
                                                                     />
                                                                   </div>
-                                                                  <div className="flex flex-wrap gap-1.5 mt-2">
-                                                                    <button
-                                                                      type="button"
-                                                                      onClick={() => updateCfg({ ...removePartCfg, phoneNumber: '{{contact.phone}}' })}
-                                                                      className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
-                                                                    >
-                                                                      Utiliser numéro client
-                                                                    </button>
-                                                                    <button
-                                                                      type="button"
-                                                                      onClick={() => updateCfg({ ...removePartCfg, phoneNumber: '{{message.from}}' })}
-                                                                      className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
-                                                                    >
-                                                                      Utiliser expéditeur
-                                                                    </button>
-                                                                  </div>
-                                                                </FormField>
-                                                              </>
-                                                            )}
-
-                                                            <div className="p-4 rounded-xl bg-gradient-to-br from-orange-500/10 to-transparent border border-orange-500/20 space-y-4">
-                                                              <div className="flex items-center justify-between">
-                                                                <div className="flex items-center gap-2">
-                                                                  <div className="h-6 w-6 rounded-lg bg-orange-500/20 flex items-center justify-center border border-orange-500/30">
-                                                                    <ShieldCheck className="h-3.5 w-3.5 text-orange-400" />
-                                                                  </div>
-                                                                  <label className="text-[10px] font-black uppercase text-white/80 tracking-widest">
-                                                                    Vérification d'abonnement
-                                                                  </label>
+                                                                  <textarea
+                                                                    value={bookCfg.description}
+                                                                    onChange={(e) => updateCfg({ ...bookCfg, description: e.target.value })}
+                                                                    className="w-full min-h-[80px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none"
+                                                                    placeholder="Description du rendez-vous..."
+                                                                  />
                                                                 </div>
-                                                                <Badge className="bg-orange-500/20 text-orange-400 border-none text-[8px] uppercase font-black px-2">
-                                                                  Optionnel
-                                                                </Badge>
+
+                                                                <FormField label="Durée (minutes)">
+                                                                  <StyledSelect
+                                                                    value={String(bookCfg.duration)}
+                                                                    onChange={(e) => updateCfg({ ...bookCfg, duration: parseInt(e.target.value) })}
+                                                                    options={[
+                                                                      { value: "15", label: "15 minutes" },
+                                                                      { value: "30", label: "30 minutes" },
+                                                                      { value: "45", label: "45 minutes" },
+                                                                      { value: "60", label: "1 heure" },
+                                                                      { value: "90", label: "1h30" },
+                                                                      { value: "120", label: "2 heures" }
+                                                                    ]}
+                                                                  />
+                                                                </FormField>
+
+                                                                <FormField label="Fuseau horaire">
+                                                                  <StyledSelect
+                                                                    value={bookCfg.timezone}
+                                                                    onChange={(e) => updateCfg({ ...bookCfg, timezone: e.target.value })}
+                                                                    options={[
+                                                                      { value: "Africa/Abidjan", label: "Abidjan (GMT+0)" },
+                                                                      { value: "Africa/Dakar", label: "Dakar (GMT+0)" },
+                                                                      { value: "Europe/Paris", label: "Paris (GMT+1)" },
+                                                                      { value: "America/New_York", label: "New York (GMT-5)" }
+                                                                    ]}
+                                                                  />
+                                                                </FormField>
+
+                                                                <FormField label="Demander confirmation">
+                                                                  <ToggleSwitch
+                                                                    checked={bookCfg.requireConfirmation}
+                                                                    onChange={() => updateCfg({ ...bookCfg, requireConfirmation: !bookCfg.requireConfirmation })}
+                                                                  />
+                                                                </FormField>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "cancel_appointment":
+                                                          const cancelCfg = cfg({
+                                                            appointmentId: "",
+                                                            calendarId: "",
+                                                            autoDetect: true,
+                                                            sendCancellationMessage: true,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Annuler RDV</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Annule un rendez-vous existant</p>
                                                               </div>
 
-                                                              <FormField label="Vérifier l'abonnement avant retrait">
-                                                                <ToggleSwitch
-                                                                  checked={removePartCfg.checkSubscription}
-                                                                  onChange={() => updateCfg({ ...removePartCfg, checkSubscription: !removePartCfg.checkSubscription })}
-                                                                />
-                                                              </FormField>
-                                                              <p className="text-[8px] text-muted-foreground/60">Vérifie le statut d'abonnement avant de retirer le membre</p>
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="Détection automatique">
+                                                                  <ToggleSwitch
+                                                                    checked={cancelCfg.autoDetect}
+                                                                    onChange={() => updateCfg({ ...cancelCfg, autoDetect: !cancelCfg.autoDetect })}
+                                                                  />
+                                                                </FormField>
 
-                                                              {removePartCfg.checkSubscription && (
-                                                                <>
-                                                                  <FormField label="Plateforme d'abonnement">
+                                                                {!cancelCfg.autoDetect && (
+                                                                  <>
+                                                                    <FormField label="ID Calendrier">
+                                                                      <StyledInput
+                                                                        value={cancelCfg.calendarId}
+                                                                        onChange={(e) => updateCfg({ ...cancelCfg, calendarId: e.target.value })}
+                                                                        placeholder="cal_123456"
+                                                                      />
+                                                                    </FormField>
+
+                                                                    <FormField label="ID du rendez-vous">
+                                                                      <StyledInput
+                                                                        value={cancelCfg.appointmentId}
+                                                                        onChange={(e) => updateCfg({ ...cancelCfg, appointmentId: e.target.value })}
+                                                                        placeholder="appt_123456"
+                                                                      />
+                                                                    </FormField>
+                                                                  </>
+                                                                )}
+
+                                                                <FormField label="Envoyer message d'annulation">
+                                                                  <ToggleSwitch
+                                                                    checked={cancelCfg.sendCancellationMessage}
+                                                                    onChange={() => updateCfg({ ...cancelCfg, sendCancellationMessage: !cancelCfg.sendCancellationMessage })}
+                                                                  />
+                                                                </FormField>
+
+                                                                <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/10">
+                                                                  <p className="text-[9px] text-muted-foreground leading-relaxed">
+                                                                    {cancelCfg.autoDetect
+                                                                      ? "Détecte automatiquement le rendez-vous à annuler depuis le message du client."
+                                                                      : "Annule le rendez-vous spécifié par son ID."}
+                                                                  </p>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "send_reminder":
+                                                          const reminderCfg = cfg({
+                                                            appointmentId: "",
+                                                            calendarId: "",
+                                                            reminderTime: 24,
+                                                            reminderUnit: "hours",
+                                                            message: "Rappel: Vous avez un rendez-vous demain à {time}",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Rappel RDV</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Envoie un rappel avant le rendez-vous</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="ID Calendrier">
+                                                                  <StyledInput
+                                                                    value={reminderCfg.calendarId}
+                                                                    onChange={(e) => updateCfg({ ...reminderCfg, calendarId: e.target.value })}
+                                                                    placeholder="cal_123456"
+                                                                  />
+                                                                </FormField>
+
+                                                                <FormField label="Temps avant le RDV">
+                                                                  <div className="flex gap-2 flex-1">
+                                                                    <StyledInput
+                                                                      type="number"
+                                                                      value={String(reminderCfg.reminderTime)}
+                                                                      onChange={(e) => updateCfg({ ...reminderCfg, reminderTime: parseInt(e.target.value) || 24 })}
+                                                                      placeholder="24"
+                                                                      className="flex-1"
+                                                                    />
                                                                     <StyledSelect
-                                                                      value={removePartCfg.subscriptionPlatform}
-                                                                      onChange={(e) => updateCfg({ ...removePartCfg, subscriptionPlatform: e.target.value })}
+                                                                      value={reminderCfg.reminderUnit}
+                                                                      onChange={(e) => updateCfg({ ...reminderCfg, reminderUnit: e.target.value })}
                                                                       options={[
-                                                                        { value: "custom", label: "API personnalisée" },
-                                                                        { value: "stripe", label: "Stripe" },
-                                                                        { value: "paypal", label: "PayPal" },
-                                                                        { value: "moneroo", label: "Moneroo" },
-                                                                        { value: "database", label: "Base de données" },
+                                                                        { value: "minutes", label: "minutes" },
+                                                                        { value: "hours", label: "heures" },
+                                                                        { value: "days", label: "jours" }
                                                                       ]}
+                                                                      maxWidth="120px"
+                                                                    />
+                                                                  </div>
+                                                                </FormField>
+
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-sm text-white/80 font-medium">Message de rappel</label>
+                                                                    <OutputSelector
+                                                                      currentNodeId={node.id}
+                                                                      onInsert={(value) => {
+                                                                        const currentMsg = reminderCfg.message || "";
+                                                                        const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentMsg.length;
+                                                                        const newMsg = currentMsg.slice(0, cursorPos) + value + currentMsg.slice(cursorPos);
+                                                                        updateCfg({ ...reminderCfg, message: newMsg });
+                                                                      }}
+                                                                    />
+                                                                  </div>
+                                                                  <textarea
+                                                                    value={reminderCfg.message}
+                                                                    onChange={(e) => updateCfg({ ...reminderCfg, message: e.target.value })}
+                                                                    className="w-full min-h-[80px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none"
+                                                                    placeholder="Rappel: Vous avez un rendez-vous demain à {time}"
+                                                                  />
+                                                                </div>
+
+                                                                <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
+                                                                  <p className="text-[9px] text-muted-foreground leading-relaxed">
+                                                                    Variables disponibles : <code className="text-blue-400">{"{time}"}</code>, <code className="text-blue-400">{"{date}"}</code>, <code className="text-blue-400">{"{title}"}</code>
+                                                                  </p>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "create_group":
+                                                          const createGroupCfg = cfg({
+                                                            groupName: "",
+                                                            description: "",
+                                                            participants: [],
+                                                            autoAddCreator: true,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Créer groupe</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Crée un nouveau groupe WhatsApp</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="Nom du groupe">
+                                                                  <StyledInput
+                                                                    value={createGroupCfg.groupName}
+                                                                    onChange={(e) => updateCfg({ ...createGroupCfg, groupName: e.target.value })}
+                                                                    placeholder="Mon Groupe"
+                                                                  />
+                                                                </FormField>
+
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-sm text-white/80 font-medium">Description</label>
+                                                                    <OutputSelector
+                                                                      currentNodeId={node.id}
+                                                                      onInsert={(value) => {
+                                                                        const currentDesc = createGroupCfg.description || "";
+                                                                        const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentDesc.length;
+                                                                        const newDesc = currentDesc.slice(0, cursorPos) + value + currentDesc.slice(cursorPos);
+                                                                        updateCfg({ ...createGroupCfg, description: newDesc });
+                                                                      }}
+                                                                    />
+                                                                  </div>
+                                                                  <textarea
+                                                                    value={createGroupCfg.description}
+                                                                    onChange={(e) => updateCfg({ ...createGroupCfg, description: e.target.value })}
+                                                                    className="w-full min-h-[80px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none"
+                                                                    placeholder="Description du groupe..."
+                                                                  />
+                                                                </div>
+
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-sm text-white/80 font-medium">Participants</label>
+                                                                    <OutputSelector
+                                                                      currentNodeId={node.id}
+                                                                      onInsert={(value) => {
+                                                                        const currentParticipants = Array.isArray(createGroupCfg.participants) ? createGroupCfg.participants.join(' ') : '';
+                                                                        const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentParticipants.length;
+                                                                        const newParticipants = currentParticipants.slice(0, cursorPos) + value + currentParticipants.slice(cursorPos);
+                                                                        const numbers = newParticipants.split(/\s+/).filter(n => n.trim());
+                                                                        updateCfg({ ...createGroupCfg, participants: numbers });
+                                                                      }}
+                                                                    />
+                                                                  </div>
+                                                                  <textarea
+                                                                    value={Array.isArray(createGroupCfg.participants) ? createGroupCfg.participants.join(' ') : createGroupCfg.participants || ''}
+                                                                    onChange={(e) => {
+                                                                      const numbers = e.target.value.split(/\s+/).filter(n => n.trim());
+                                                                      updateCfg({ ...createGroupCfg, participants: numbers });
+                                                                    }}
+                                                                    className="w-full min-h-[100px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none font-mono text-xs"
+                                                                    placeholder="{{contact.phone}} +221771234568 +221771234569"
+                                                                  />
+                                                                  <div className="flex flex-wrap gap-1.5">
+                                                                    <button
+                                                                      type="button"
+                                                                      onClick={() => {
+                                                                        const current = Array.isArray(createGroupCfg.participants) ? createGroupCfg.participants : [];
+                                                                        updateCfg({ ...createGroupCfg, participants: [...current, '{{contact.phone}}'] });
+                                                                      }}
+                                                                      className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
+                                                                    >
+                                                                      + Numéro client
+                                                                    </button>
+                                                                    <button
+                                                                      type="button"
+                                                                      onClick={() => {
+                                                                        const current = Array.isArray(createGroupCfg.participants) ? createGroupCfg.participants : [];
+                                                                        updateCfg({ ...createGroupCfg, participants: [...current, '{{message.from}}'] });
+                                                                      }}
+                                                                      className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
+                                                                    >
+                                                                      + Expéditeur
+                                                                    </button>
+                                                                    <button
+                                                                      type="button"
+                                                                      onClick={() => {
+                                                                        const current = Array.isArray(createGroupCfg.participants) ? createGroupCfg.participants : [];
+                                                                        updateCfg({ ...createGroupCfg, participants: [...current, '{{previous.output.phone}}'] });
+                                                                      }}
+                                                                      className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
+                                                                    >
+                                                                      + Sortie précédente
+                                                                    </button>
+                                                                  </div>
+                                                                  <p className="text-[8px] text-muted-foreground/60">
+                                                                    Utilisez des variables comme <code className="text-primary">{"{{contact.phone}}"}</code> ou saisissez des numéros séparés par des espaces
+                                                                  </p>
+                                                                </div>
+
+                                                                <FormField label="Ajouter le créateur automatiquement">
+                                                                  <ToggleSwitch
+                                                                    checked={createGroupCfg.autoAddCreator}
+                                                                    onChange={() => updateCfg({ ...createGroupCfg, autoAddCreator: !createGroupCfg.autoAddCreator })}
+                                                                  />
+                                                                </FormField>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "add_participant":
+                                                          const addPartCfg = cfg({
+                                                            groupId: "",
+                                                            phoneNumber: "",
+                                                            autoDetect: true,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Ajouter membre</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Ajoute un contact au groupe</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="Détection automatique">
+                                                                  <ToggleSwitch
+                                                                    checked={addPartCfg.autoDetect}
+                                                                    onChange={() => updateCfg({ ...addPartCfg, autoDetect: !addPartCfg.autoDetect })}
+                                                                  />
+                                                                </FormField>
+
+                                                                {!addPartCfg.autoDetect && (
+                                                                  <>
+                                                                    <FormField label="ID du groupe">
+                                                                      <div className="flex gap-2">
+                                                                        <StyledInput
+                                                                          value={addPartCfg.groupId}
+                                                                          onChange={(e) => updateCfg({ ...addPartCfg, groupId: e.target.value })}
+                                                                          placeholder="{{previous.output.groupId}}"
+                                                                          className="flex-1"
+                                                                        />
+                                                                        <OutputSelector
+                                                                          currentNodeId={node.id}
+                                                                          onInsert={(value) => updateCfg({ ...addPartCfg, groupId: addPartCfg.groupId + value })}
+                                                                        />
+                                                                      </div>
+                                                                    </FormField>
+
+                                                                    <FormField label="Numéro de téléphone">
+                                                                      <div className="flex gap-2">
+                                                                        <StyledInput
+                                                                          value={addPartCfg.phoneNumber}
+                                                                          onChange={(e) => updateCfg({ ...addPartCfg, phoneNumber: e.target.value })}
+                                                                          placeholder="{{contact.phone}}"
+                                                                          className="flex-1"
+                                                                        />
+                                                                        <OutputSelector
+                                                                          currentNodeId={node.id}
+                                                                          onInsert={(value) => updateCfg({ ...addPartCfg, phoneNumber: addPartCfg.phoneNumber + value })}
+                                                                        />
+                                                                      </div>
+                                                                      <div className="flex flex-wrap gap-1.5 mt-2">
+                                                                        <button
+                                                                          type="button"
+                                                                          onClick={() => updateCfg({ ...addPartCfg, phoneNumber: '{{contact.phone}}' })}
+                                                                          className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
+                                                                        >
+                                                                          Utiliser numéro client
+                                                                        </button>
+                                                                        <button
+                                                                          type="button"
+                                                                          onClick={() => updateCfg({ ...addPartCfg, phoneNumber: '{{message.from}}' })}
+                                                                          className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
+                                                                        >
+                                                                          Utiliser expéditeur
+                                                                        </button>
+                                                                      </div>
+                                                                    </FormField>
+                                                                  </>
+                                                                )}
+
+                                                                <div className="p-3 rounded-lg bg-green-500/5 border border-green-500/10">
+                                                                  <p className="text-[9px] text-muted-foreground leading-relaxed">
+                                                                    {addPartCfg.autoDetect
+                                                                      ? "Détecte automatiquement le groupe et le numéro depuis le message du client."
+                                                                      : "Ajoute le numéro spécifié au groupe indiqué."}
+                                                                  </p>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "remove_participant":
+                                                          const removePartCfg = cfg({
+                                                            groupId: "",
+                                                            phoneNumber: "",
+                                                            autoDetect: true,
+                                                            checkSubscription: false,
+                                                            subscriptionPlatform: "",
+                                                            subscriptionApiUrl: "",
+                                                            subscriptionApiKey: "",
+                                                            removeIfExpired: true,
+                                                            removeIfCancelled: true,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Retirer membre</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Retire un membre du groupe (avec vérification d'abonnement)</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="Détection automatique">
+                                                                  <ToggleSwitch
+                                                                    checked={removePartCfg.autoDetect}
+                                                                    onChange={() => updateCfg({ ...removePartCfg, autoDetect: !removePartCfg.autoDetect })}
+                                                                  />
+                                                                </FormField>
+                                                                <p className="text-[8px] text-muted-foreground/60">Détecte automatiquement le groupe et le numéro depuis le message du client</p>
+
+                                                                {!removePartCfg.autoDetect && (
+                                                                  <>
+                                                                    <FormField label="ID du groupe">
+                                                                      <div className="flex gap-2">
+                                                                        <StyledInput
+                                                                          value={removePartCfg.groupId}
+                                                                          onChange={(e) => updateCfg({ ...removePartCfg, groupId: e.target.value })}
+                                                                          placeholder="{{previous.output.groupId}}"
+                                                                          className="flex-1"
+                                                                        />
+                                                                        <OutputSelector
+                                                                          currentNodeId={node.id}
+                                                                          onInsert={(value) => updateCfg({ ...removePartCfg, groupId: removePartCfg.groupId + value })}
+                                                                        />
+                                                                      </div>
+                                                                    </FormField>
+
+                                                                    <FormField label="Numéro de téléphone">
+                                                                      <div className="flex gap-2">
+                                                                        <StyledInput
+                                                                          value={removePartCfg.phoneNumber}
+                                                                          onChange={(e) => updateCfg({ ...removePartCfg, phoneNumber: e.target.value })}
+                                                                          placeholder="{{contact.phone}}"
+                                                                          className="flex-1"
+                                                                        />
+                                                                        <OutputSelector
+                                                                          currentNodeId={node.id}
+                                                                          onInsert={(value) => updateCfg({ ...removePartCfg, phoneNumber: removePartCfg.phoneNumber + value })}
+                                                                        />
+                                                                      </div>
+                                                                      <div className="flex flex-wrap gap-1.5 mt-2">
+                                                                        <button
+                                                                          type="button"
+                                                                          onClick={() => updateCfg({ ...removePartCfg, phoneNumber: '{{contact.phone}}' })}
+                                                                          className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
+                                                                        >
+                                                                          Utiliser numéro client
+                                                                        </button>
+                                                                        <button
+                                                                          type="button"
+                                                                          onClick={() => updateCfg({ ...removePartCfg, phoneNumber: '{{message.from}}' })}
+                                                                          className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
+                                                                        >
+                                                                          Utiliser expéditeur
+                                                                        </button>
+                                                                      </div>
+                                                                    </FormField>
+                                                                  </>
+                                                                )}
+
+                                                                <div className="p-4 rounded-xl bg-gradient-to-br from-orange-500/10 to-transparent border border-orange-500/20 space-y-4">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-2">
+                                                                      <div className="h-6 w-6 rounded-lg bg-orange-500/20 flex items-center justify-center border border-orange-500/30">
+                                                                        <ShieldCheck className="h-3.5 w-3.5 text-orange-400" />
+                                                                      </div>
+                                                                      <label className="text-[10px] font-black uppercase text-white/80 tracking-widest">
+                                                                        Vérification d'abonnement
+                                                                      </label>
+                                                                    </div>
+                                                                    <Badge className="bg-orange-500/20 text-orange-400 border-none text-[8px] uppercase font-black px-2">
+                                                                      Optionnel
+                                                                    </Badge>
+                                                                  </div>
+
+                                                                  <FormField label="Vérifier l'abonnement avant retrait">
+                                                                    <ToggleSwitch
+                                                                      checked={removePartCfg.checkSubscription}
+                                                                      onChange={() => updateCfg({ ...removePartCfg, checkSubscription: !removePartCfg.checkSubscription })}
                                                                     />
                                                                   </FormField>
+                                                                  <p className="text-[8px] text-muted-foreground/60">Vérifie le statut d'abonnement avant de retirer le membre</p>
 
-                                                                  {removePartCfg.subscriptionPlatform === "custom" && (
+                                                                  {removePartCfg.checkSubscription && (
                                                                     <>
-                                                                      <FormField label="URL de l'API">
-                                                                        <div className="flex gap-2">
-                                                                          <StyledInput
-                                                                            value={removePartCfg.subscriptionApiUrl}
-                                                                            onChange={(e) => updateCfg({ ...removePartCfg, subscriptionApiUrl: e.target.value })}
-                                                                            placeholder="https://api.example.com/subscription/{{contact.phone}}"
-                                                                            className="flex-1"
-                                                                          />
-                                                                          <OutputSelector
-                                                                            currentNodeId={node.id}
-                                                                            onInsert={(value) => updateCfg({ ...removePartCfg, subscriptionApiUrl: removePartCfg.subscriptionApiUrl + value })}
-                                                                          />
-                                                                        </div>
-                                                                      </FormField>
-
-                                                                      <FormField label="Clé API (optionnel)">
-                                                                        <StyledInput
-                                                                          type="password"
-                                                                          value={removePartCfg.subscriptionApiKey}
-                                                                          onChange={(e) => updateCfg({ ...removePartCfg, subscriptionApiKey: e.target.value })}
-                                                                          placeholder="sk_live_..."
+                                                                      <FormField label="Plateforme d'abonnement">
+                                                                        <StyledSelect
+                                                                          value={removePartCfg.subscriptionPlatform}
+                                                                          onChange={(e) => updateCfg({ ...removePartCfg, subscriptionPlatform: e.target.value })}
+                                                                          options={[
+                                                                            { value: "custom", label: "API personnalisée" },
+                                                                            { value: "stripe", label: "Stripe" },
+                                                                            { value: "paypal", label: "PayPal" },
+                                                                            { value: "moneroo", label: "Moneroo" },
+                                                                            { value: "database", label: "Base de données" },
+                                                                          ]}
                                                                         />
                                                                       </FormField>
+
+                                                                      {removePartCfg.subscriptionPlatform === "custom" && (
+                                                                        <>
+                                                                          <FormField label="URL de l'API">
+                                                                            <div className="flex gap-2">
+                                                                              <StyledInput
+                                                                                value={removePartCfg.subscriptionApiUrl}
+                                                                                onChange={(e) => updateCfg({ ...removePartCfg, subscriptionApiUrl: e.target.value })}
+                                                                                placeholder="https://api.example.com/subscription/{{contact.phone}}"
+                                                                                className="flex-1"
+                                                                              />
+                                                                              <OutputSelector
+                                                                                currentNodeId={node.id}
+                                                                                onInsert={(value) => updateCfg({ ...removePartCfg, subscriptionApiUrl: removePartCfg.subscriptionApiUrl + value })}
+                                                                              />
+                                                                            </div>
+                                                                          </FormField>
+
+                                                                          <FormField label="Clé API (optionnel)">
+                                                                            <StyledInput
+                                                                              type="password"
+                                                                              value={removePartCfg.subscriptionApiKey}
+                                                                              onChange={(e) => updateCfg({ ...removePartCfg, subscriptionApiKey: e.target.value })}
+                                                                              placeholder="sk_live_..."
+                                                                            />
+                                                                          </FormField>
+                                                                        </>
+                                                                      )}
+
+                                                                      <div className="space-y-2">
+                                                                        <FormField label="Retirer si abonnement expiré">
+                                                                          <ToggleSwitch
+                                                                            checked={removePartCfg.removeIfExpired}
+                                                                            onChange={() => updateCfg({ ...removePartCfg, removeIfExpired: !removePartCfg.removeIfExpired })}
+                                                                          />
+                                                                        </FormField>
+                                                                        <p className="text-[8px] text-muted-foreground/60">Retire automatiquement si l'abonnement n'est pas renouvelé</p>
+
+                                                                        <FormField label="Retirer si abonnement annulé">
+                                                                          <ToggleSwitch
+                                                                            checked={removePartCfg.removeIfCancelled}
+                                                                            onChange={() => updateCfg({ ...removePartCfg, removeIfCancelled: !removePartCfg.removeIfCancelled })}
+                                                                          />
+                                                                        </FormField>
+                                                                        <p className="text-[8px] text-muted-foreground/60">Retire si l'utilisateur a annulé son abonnement</p>
+                                                                      </div>
+
+                                                                      <div className="p-3 rounded-lg bg-orange-500/5 border border-orange-500/10">
+                                                                        <p className="text-[9px] text-muted-foreground leading-relaxed">
+                                                                          <b>Fonctionnement:</b> Le système vérifie automatiquement le statut d'abonnement du contact. Si l'abonnement est expiré ou annulé, le membre sera retiré du groupe.
+                                                                        </p>
+                                                                      </div>
                                                                     </>
                                                                   )}
+                                                                </div>
 
+                                                                <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/10">
+                                                                  <p className="text-[9px] text-muted-foreground leading-relaxed">
+                                                                    {removePartCfg.autoDetect
+                                                                      ? "Détecte automatiquement le groupe et le numéro depuis le message du client."
+                                                                      : removePartCfg.checkSubscription
+                                                                        ? "Vérifie l'abonnement et retire le membre si nécessaire."
+                                                                        : "Retire le numéro spécifié du groupe indiqué."}
+                                                                  </p>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "group_announcement":
+                                                          const announcementCfg = cfg({
+                                                            groupId: "",
+                                                            enabled: true,
+                                                            autoDetect: true,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Mode annonce</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Seuls les admins peuvent écrire</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="Activer le mode annonce">
+                                                                  <ToggleSwitch
+                                                                    checked={announcementCfg.enabled}
+                                                                    onChange={() => updateCfg({ ...announcementCfg, enabled: !announcementCfg.enabled })}
+                                                                  />
+                                                                </FormField>
+
+                                                                <FormField label="Détection automatique du groupe">
+                                                                  <ToggleSwitch
+                                                                    checked={announcementCfg.autoDetect}
+                                                                    onChange={() => updateCfg({ ...announcementCfg, autoDetect: !announcementCfg.autoDetect })}
+                                                                  />
+                                                                </FormField>
+
+                                                                {!announcementCfg.autoDetect && (
+                                                                  <FormField label="ID du groupe">
+                                                                    <div className="flex gap-2">
+                                                                      <StyledInput
+                                                                        value={announcementCfg.groupId}
+                                                                        onChange={(e) => updateCfg({ ...announcementCfg, groupId: e.target.value })}
+                                                                        placeholder="{{previous.output.groupId}}"
+                                                                        className="flex-1"
+                                                                      />
+                                                                      <OutputSelector
+                                                                        currentNodeId={node.id}
+                                                                        onInsert={(value) => updateCfg({ ...announcementCfg, groupId: announcementCfg.groupId + value })}
+                                                                      />
+                                                                    </div>
+                                                                    <div className="flex flex-wrap gap-1.5 mt-2">
+                                                                      <button
+                                                                        type="button"
+                                                                        onClick={() => updateCfg({ ...announcementCfg, groupId: '{{previous.output.groupId}}' })}
+                                                                        className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
+                                                                      >
+                                                                        Utiliser groupe précédent
+                                                                      </button>
+                                                                    </div>
+                                                                  </FormField>
+                                                                )}
+
+                                                                <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
+                                                                  <p className="text-[9px] text-muted-foreground leading-relaxed">
+                                                                    {announcementCfg.enabled
+                                                                      ? "En mode annonce, seuls les administrateurs peuvent envoyer des messages dans le groupe."
+                                                                      : "Le mode annonce sera désactivé, tous les membres pourront écrire."}
+                                                                  </p>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "bulk_add_members":
+                                                          const bam = cfg({
+                                                            source: "csv",
+                                                            delay: 30,
+                                                            groupId: "",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Ajout massif</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Ajoute plusieurs membres d'un coup</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="Source des données">
+                                                                  <StyledSelect
+                                                                    value={bam.source}
+                                                                    onChange={(e) => updateCfg({ ...bam, source: e.target.value })}
+                                                                    options={[
+                                                                      { value: "csv", label: "Fichier CSV" },
+                                                                      { value: "manual", label: "Liste manuelle" }
+                                                                    ]}
+                                                                  />
+                                                                </FormField>
+
+                                                                {bam.source === "csv" ? (
                                                                   <div className="space-y-2">
-                                                                    <FormField label="Retirer si abonnement expiré">
-                                                                      <ToggleSwitch
-                                                                        checked={removePartCfg.removeIfExpired}
-                                                                        onChange={() => updateCfg({ ...removePartCfg, removeIfExpired: !removePartCfg.removeIfExpired })}
+                                                                    <div className="flex items-center justify-between">
+                                                                      <label className="text-sm text-white/80 font-medium">URL du fichier CSV</label>
+                                                                      <OutputSelector
+                                                                        currentNodeId={node.id}
+                                                                        onInsert={(value) => updateCfg({ ...bam, csvUrl: (bam.csvUrl || '') + value })}
                                                                       />
-                                                                    </FormField>
-                                                                    <p className="text-[8px] text-muted-foreground/60">Retire automatiquement si l'abonnement n'est pas renouvelé</p>
-
-                                                                    <FormField label="Retirer si abonnement annulé">
-                                                                      <ToggleSwitch
-                                                                        checked={removePartCfg.removeIfCancelled}
-                                                                        onChange={() => updateCfg({ ...removePartCfg, removeIfCancelled: !removePartCfg.removeIfCancelled })}
-                                                                      />
-                                                                    </FormField>
-                                                                    <p className="text-[8px] text-muted-foreground/60">Retire si l'utilisateur a annulé son abonnement</p>
-                                                                  </div>
-
-                                                                  <div className="p-3 rounded-lg bg-orange-500/5 border border-orange-500/10">
-                                                                    <p className="text-[9px] text-muted-foreground leading-relaxed">
-                                                                      <b>Fonctionnement:</b> Le système vérifie automatiquement le statut d'abonnement du contact. Si l'abonnement est expiré ou annulé, le membre sera retiré du groupe.
+                                                                    </div>
+                                                                    <StyledInput
+                                                                      value={bam.csvUrl || ""}
+                                                                      onChange={(e) => updateCfg({ ...bam, csvUrl: e.target.value })}
+                                                                      placeholder="{{previous.output.csvUrl}} ou https://example.com/members.csv"
+                                                                    />
+                                                                    <p className="text-[8px] text-muted-foreground/60">
+                                                                      Le CSV doit contenir une colonne "phone" ou "number" avec les numéros
                                                                     </p>
                                                                   </div>
-                                                                </>
-                                                              )}
-                                                            </div>
-
-                                                            <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/10">
-                                                              <p className="text-[9px] text-muted-foreground leading-relaxed">
-                                                                {removePartCfg.autoDetect
-                                                                  ? "Détecte automatiquement le groupe et le numéro depuis le message du client."
-                                                                  : removePartCfg.checkSubscription
-                                                                    ? "Vérifie l'abonnement et retire le membre si nécessaire."
-                                                                    : "Retire le numéro spécifié du groupe indiqué."}
-                                                              </p>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "group_announcement":
-                                                      const announcementCfg = cfg({
-                                                        groupId: "",
-                                                        enabled: true,
-                                                        autoDetect: true,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Mode annonce</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Seuls les admins peuvent écrire</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="Activer le mode annonce">
-                                                              <ToggleSwitch
-                                                                checked={announcementCfg.enabled}
-                                                                onChange={() => updateCfg({ ...announcementCfg, enabled: !announcementCfg.enabled })}
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Détection automatique du groupe">
-                                                              <ToggleSwitch
-                                                                checked={announcementCfg.autoDetect}
-                                                                onChange={() => updateCfg({ ...announcementCfg, autoDetect: !announcementCfg.autoDetect })}
-                                                              />
-                                                            </FormField>
-
-                                                            {!announcementCfg.autoDetect && (
-                                                              <FormField label="ID du groupe">
-                                                                <div className="flex gap-2">
-                                                                  <StyledInput
-                                                                    value={announcementCfg.groupId}
-                                                                    onChange={(e) => updateCfg({ ...announcementCfg, groupId: e.target.value })}
-                                                                    placeholder="{{previous.output.groupId}}"
-                                                                    className="flex-1"
-                                                                  />
-                                                                  <OutputSelector
-                                                                    currentNodeId={node.id}
-                                                                    onInsert={(value) => updateCfg({ ...announcementCfg, groupId: announcementCfg.groupId + value })}
-                                                                  />
-                                                                </div>
-                                                                <div className="flex flex-wrap gap-1.5 mt-2">
-                                                                  <button
-                                                                    type="button"
-                                                                    onClick={() => updateCfg({ ...announcementCfg, groupId: '{{previous.output.groupId}}' })}
-                                                                    className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
-                                                                  >
-                                                                    Utiliser groupe précédent
-                                                                  </button>
-                                                                </div>
-                                                              </FormField>
-                                                            )}
-
-                                                            <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
-                                                              <p className="text-[9px] text-muted-foreground leading-relaxed">
-                                                                {announcementCfg.enabled
-                                                                  ? "En mode annonce, seuls les administrateurs peuvent envoyer des messages dans le groupe."
-                                                                  : "Le mode annonce sera désactivé, tous les membres pourront écrire."}
-                                                              </p>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "bulk_add_members":
-                                                      const bam = cfg({
-                                                        source: "csv",
-                                                        delay: 30,
-                                                        groupId: "",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Ajout massif</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Ajoute plusieurs membres d'un coup</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="Source des données">
-                                                              <StyledSelect
-                                                                value={bam.source}
-                                                                onChange={(e) => updateCfg({ ...bam, source: e.target.value })}
-                                                                options={[
-                                                                  { value: "csv", label: "Fichier CSV" },
-                                                                  { value: "manual", label: "Liste manuelle" }
-                                                                ]}
-                                                              />
-                                                            </FormField>
-
-                                                            {bam.source === "csv" ? (
-                                                              <div className="space-y-2">
-                                                                <div className="flex items-center justify-between">
-                                                                  <label className="text-sm text-white/80 font-medium">URL du fichier CSV</label>
-                                                                  <OutputSelector
-                                                                    currentNodeId={node.id}
-                                                                    onInsert={(value) => updateCfg({ ...bam, csvUrl: (bam.csvUrl || '') + value })}
-                                                                  />
-                                                                </div>
-                                                                <StyledInput
-                                                                  value={bam.csvUrl || ""}
-                                                                  onChange={(e) => updateCfg({ ...bam, csvUrl: e.target.value })}
-                                                                  placeholder="{{previous.output.csvUrl}} ou https://example.com/members.csv"
-                                                                />
-                                                                <p className="text-[8px] text-muted-foreground/60">
-                                                                  Le CSV doit contenir une colonne "phone" ou "number" avec les numéros
-                                                                </p>
-                                                              </div>
-                                                            ) : (
-                                                              <div className="space-y-2">
-                                                                <div className="flex items-center justify-between">
-                                                                  <label className="text-sm text-white/80 font-medium">Numéros</label>
-                                                                  <OutputSelector
-                                                                    currentNodeId={node.id}
-                                                                    onInsert={(value) => {
-                                                                      const current = Array.isArray(bam.phoneNumbers) ? bam.phoneNumbers.join(' ') : '';
-                                                                      const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || current.length;
-                                                                      const newNumbers = current.slice(0, cursorPos) + value + current.slice(cursorPos);
-                                                                      const numbers = newNumbers.split(/\s+/).filter(n => n.trim());
-                                                                      updateCfg({ ...bam, phoneNumbers: numbers });
-                                                                    }}
-                                                                  />
-                                                                </div>
-                                                                <textarea
-                                                                  value={Array.isArray(bam.phoneNumbers) ? bam.phoneNumbers.join(' ') : ''}
-                                                                  onChange={(e) => {
-                                                                    const numbers = e.target.value.split(/\s+/).filter(n => n.trim());
-                                                                    updateCfg({ ...bam, phoneNumbers: numbers });
-                                                                  }}
-                                                                  className="w-full min-h-[120px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none font-mono text-xs"
-                                                                  placeholder="{{contact.phone}} {{previous.output.phone}} +221771234569"
-                                                                />
-                                                                <div className="flex flex-wrap gap-1.5">
-                                                                  <button
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                      const current = Array.isArray(bam.phoneNumbers) ? bam.phoneNumbers : [];
-                                                                      updateCfg({ ...bam, phoneNumbers: [...current, '{{contact.phone}}'] });
-                                                                    }}
-                                                                    className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
-                                                                  >
-                                                                    + Numéro client
-                                                                  </button>
-                                                                  <button
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                      const current = Array.isArray(bam.phoneNumbers) ? bam.phoneNumbers : [];
-                                                                      updateCfg({ ...bam, phoneNumbers: [...current, '{{previous.output.phones}}'] });
-                                                                    }}
-                                                                    className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
-                                                                  >
-                                                                    + Liste précédente
-                                                                  </button>
-                                                                </div>
-                                                                <p className="text-[8px] text-muted-foreground/60">
-                                                                  Utilisez des variables ou séparez les numéros par des espaces
-                                                                </p>
-                                                              </div>
-                                                            )}
-
-                                                            <FormField label="ID du groupe">
-                                                              <div className="flex gap-2">
-                                                                <StyledInput
-                                                                  value={bam.groupId}
-                                                                  onChange={(e) => updateCfg({ ...bam, groupId: e.target.value })}
-                                                                  placeholder="{{previous.output.groupId}}"
-                                                                  className="flex-1"
-                                                                />
-                                                                <OutputSelector
-                                                                  currentNodeId={node.id}
-                                                                  onInsert={(value) => updateCfg({ ...bam, groupId: bam.groupId + value })}
-                                                                />
-                                                              </div>
-                                                              <div className="flex flex-wrap gap-1.5 mt-2">
-                                                                <button
-                                                                  type="button"
-                                                                  onClick={() => updateCfg({ ...bam, groupId: '{{previous.output.groupId}}' })}
-                                                                  className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
-                                                                >
-                                                                  Utiliser groupe précédent
-                                                                </button>
-                                                              </div>
-                                                            </FormField>
-
-                                                            <FormField label="Délai entre ajouts (secondes)">
-                                                              <StyledInput
-                                                                type="number"
-                                                                value={String(bam.delay)}
-                                                                onChange={(e) => updateCfg({ ...bam, delay: parseInt(e.target.value) || 30 })}
-                                                                placeholder="30"
-                                                              />
-                                                            </FormField>
-
-                                                            <div className="p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
-                                                              <p className="text-[9px] text-muted-foreground leading-relaxed">
-                                                                ⚠️ <b>Attention:</b> Un délai est recommandé pour éviter les limitations de WhatsApp. Minimum 30 secondes recommandé.
-                                                              </p>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "checkout":
-                                                      const chk = cfg({
-                                                        gateway: "moneroo",
-                                                        apiKey: "",
-                                                        successUrl: "",
-                                                        failureUrl: "",
-                                                        testMode: true,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-gradient-to-br from-white/5 to-transparent border border-white/10 space-y-5 shadow-inner">
-                                                            <div className="flex items-center justify-between">
-                                                              <div className="flex items-center gap-2">
-                                                                <div className="h-6 w-6 rounded-lg bg-orange-500/20 flex items-center justify-center border border-orange-500/30">
-                                                                  <CreditCard className="h-3 w-3 text-orange-400" />
-                                                                </div>
-                                                                <label className="text-[10px] font-black uppercase text-white/80 tracking-widest">
-                                                                  Paiement
-                                                                  Moneroo
-                                                                </label>
-                                                              </div>
-                                                              <Badge className="bg-orange-500/10 text-orange-500 border-none text-[7px] uppercase font-black px-2">
-                                                                Certifié
-                                                              </Badge>
-                                                            </div>
-
-                                                            <div className="p-4 rounded-xl bg-orange-500/5 border border-orange-500/10 group transition-all hover:bg-orange-500/10 active:scale-[0.98]">
-                                                              <div className="flex items-center gap-4">
-                                                                <div className="h-10 w-10 rounded-xl bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform">
-                                                                  <Zap className="h-5 w-5 text-white fill-current" />
-                                                                </div>
-                                                                <div className="flex flex-col">
-                                                                  <span className="text-[12px] font-black text-white italic uppercase tracking-tighter">
-                                                                    Moneroo
-                                                                    Gateway
-                                                                  </span>
-                                                                  <span className="text-[8px] text-orange-400/60 font-black uppercase tracking-widest">
-                                                                    Intégration
-                                                                    Directe
-                                                                  </span>
-                                                                </div>
-                                                              </div>
-                                                            </div>
-
-                                                            <div className="space-y-2 pt-2">
-                                                              <div className="flex items-center justify-between px-1">
-                                                                <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider">
-                                                                  Clé API
-                                                                  Secrète
-                                                                </label>
-                                                                {chk.apiKey && (
-                                                                  <span className="text-[8px] text-emerald-400 font-bold uppercase flex items-center gap-1 animate-pulse">
-                                                                    <Check className="h-2.5 w-2.5" />{" "}
-                                                                    Active
-                                                                  </span>
+                                                                ) : (
+                                                                  <div className="space-y-2">
+                                                                    <div className="flex items-center justify-between">
+                                                                      <label className="text-sm text-white/80 font-medium">Numéros</label>
+                                                                      <OutputSelector
+                                                                        currentNodeId={node.id}
+                                                                        onInsert={(value) => {
+                                                                          const current = Array.isArray(bam.phoneNumbers) ? bam.phoneNumbers.join(' ') : '';
+                                                                          const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || current.length;
+                                                                          const newNumbers = current.slice(0, cursorPos) + value + current.slice(cursorPos);
+                                                                          const numbers = newNumbers.split(/\s+/).filter(n => n.trim());
+                                                                          updateCfg({ ...bam, phoneNumbers: numbers });
+                                                                        }}
+                                                                      />
+                                                                    </div>
+                                                                    <textarea
+                                                                      value={Array.isArray(bam.phoneNumbers) ? bam.phoneNumbers.join(' ') : ''}
+                                                                      onChange={(e) => {
+                                                                        const numbers = e.target.value.split(/\s+/).filter(n => n.trim());
+                                                                        updateCfg({ ...bam, phoneNumbers: numbers });
+                                                                      }}
+                                                                      className="w-full min-h-[120px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none font-mono text-xs"
+                                                                      placeholder="{{contact.phone}} {{previous.output.phone}} +221771234569"
+                                                                    />
+                                                                    <div className="flex flex-wrap gap-1.5">
+                                                                      <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                          const current = Array.isArray(bam.phoneNumbers) ? bam.phoneNumbers : [];
+                                                                          updateCfg({ ...bam, phoneNumbers: [...current, '{{contact.phone}}'] });
+                                                                        }}
+                                                                        className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
+                                                                      >
+                                                                        + Numéro client
+                                                                      </button>
+                                                                      <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                          const current = Array.isArray(bam.phoneNumbers) ? bam.phoneNumbers : [];
+                                                                          updateCfg({ ...bam, phoneNumbers: [...current, '{{previous.output.phones}}'] });
+                                                                        }}
+                                                                        className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
+                                                                      >
+                                                                        + Liste précédente
+                                                                      </button>
+                                                                    </div>
+                                                                    <p className="text-[8px] text-muted-foreground/60">
+                                                                      Utilisez des variables ou séparez les numéros par des espaces
+                                                                    </p>
+                                                                  </div>
                                                                 )}
+
+                                                                <FormField label="ID du groupe">
+                                                                  <div className="flex gap-2">
+                                                                    <StyledInput
+                                                                      value={bam.groupId}
+                                                                      onChange={(e) => updateCfg({ ...bam, groupId: e.target.value })}
+                                                                      placeholder="{{previous.output.groupId}}"
+                                                                      className="flex-1"
+                                                                    />
+                                                                    <OutputSelector
+                                                                      currentNodeId={node.id}
+                                                                      onInsert={(value) => updateCfg({ ...bam, groupId: bam.groupId + value })}
+                                                                    />
+                                                                  </div>
+                                                                  <div className="flex flex-wrap gap-1.5 mt-2">
+                                                                    <button
+                                                                      type="button"
+                                                                      onClick={() => updateCfg({ ...bam, groupId: '{{previous.output.groupId}}' })}
+                                                                      className="px-2 py-1 text-[9px] bg-primary/10 border border-primary/20 text-primary rounded-md hover:bg-primary/20 transition-colors"
+                                                                    >
+                                                                      Utiliser groupe précédent
+                                                                    </button>
+                                                                  </div>
+                                                                </FormField>
+
+                                                                <FormField label="Délai entre ajouts (secondes)">
+                                                                  <StyledInput
+                                                                    type="number"
+                                                                    value={String(bam.delay)}
+                                                                    onChange={(e) => updateCfg({ ...bam, delay: parseInt(e.target.value) || 30 })}
+                                                                    placeholder="30"
+                                                                  />
+                                                                </FormField>
+
+                                                                <div className="p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
+                                                                  <p className="text-[9px] text-muted-foreground leading-relaxed">
+                                                                    ⚠️ <b>Attention:</b> Un délai est recommandé pour éviter les limitations de WhatsApp. Minimum 30 secondes recommandé.
+                                                                  </p>
+                                                                </div>
                                                               </div>
-                                                              <div className="relative group">
-                                                                <Input
-                                                                  type="password"
-                                                                  value={
-                                                                    chk.apiKey
-                                                                  }
-                                                                  onChange={(
-                                                                    e,
-                                                                  ) =>
+                                                            </div>
+                                                          );
+
+                                                        case "checkout":
+                                                          const chk = cfg({
+                                                            gateway: "moneroo",
+                                                            apiKey: "",
+                                                            successUrl: "",
+                                                            failureUrl: "",
+                                                            testMode: true,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-gradient-to-br from-white/5 to-transparent border border-white/10 space-y-5 shadow-inner">
+                                                                <div className="flex items-center justify-between">
+                                                                  <div className="flex items-center gap-2">
+                                                                    <div className="h-6 w-6 rounded-lg bg-orange-500/20 flex items-center justify-center border border-orange-500/30">
+                                                                      <CreditCard className="h-3 w-3 text-orange-400" />
+                                                                    </div>
+                                                                    <label className="text-[10px] font-black uppercase text-white/80 tracking-widest">
+                                                                      Paiement
+                                                                      Moneroo
+                                                                    </label>
+                                                                  </div>
+                                                                  <Badge className="bg-orange-500/10 text-orange-500 border-none text-[7px] uppercase font-black px-2">
+                                                                    Certifié
+                                                                  </Badge>
+                                                                </div>
+
+                                                                <div className="p-4 rounded-xl bg-orange-500/5 border border-orange-500/10 group transition-all hover:bg-orange-500/10 active:scale-[0.98]">
+                                                                  <div className="flex items-center gap-4">
+                                                                    <div className="h-10 w-10 rounded-xl bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20 group-hover:scale-110 transition-transform">
+                                                                      <Zap className="h-5 w-5 text-white fill-current" />
+                                                                    </div>
+                                                                    <div className="flex flex-col">
+                                                                      <span className="text-[12px] font-black text-white italic uppercase tracking-tighter">
+                                                                        Moneroo
+                                                                        Gateway
+                                                                      </span>
+                                                                      <span className="text-[8px] text-orange-400/60 font-black uppercase tracking-widest">
+                                                                        Intégration
+                                                                        Directe
+                                                                      </span>
+                                                                    </div>
+                                                                  </div>
+                                                                </div>
+
+                                                                <div className="space-y-2 pt-2">
+                                                                  <div className="flex items-center justify-between px-1">
+                                                                    <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider">
+                                                                      Clé API
+                                                                      Secrète
+                                                                    </label>
+                                                                    {chk.apiKey && (
+                                                                      <span className="text-[8px] text-emerald-400 font-bold uppercase flex items-center gap-1 animate-pulse">
+                                                                        <Check className="h-2.5 w-2.5" />{" "}
+                                                                        Active
+                                                                      </span>
+                                                                    )}
+                                                                  </div>
+                                                                  <div className="relative group">
+                                                                    <Input
+                                                                      type="password"
+                                                                      value={
+                                                                        chk.apiKey
+                                                                      }
+                                                                      onChange={(
+                                                                        e,
+                                                                      ) =>
+                                                                        updateCfg({
+                                                                          ...chk,
+                                                                          apiKey:
+                                                                            e.target
+                                                                              .value,
+                                                                        })
+                                                                      }
+                                                                      className="bg-black/60 border-white/10 h-10 text-xs pr-10 font-mono focus:border-orange-500/50 transition-all rounded-xl shadow-inner"
+                                                                      placeholder="mo_live_..."
+                                                                    />
+                                                                    <ShieldCheck className="absolute right-3 top-3 h-4 w-4 text-white/10 group-focus-within:text-orange-400 transition-colors" />
+                                                                  </div>
+                                                                </div>
+
+                                                                <div
+                                                                  className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-all cursor-pointer group"
+                                                                  onClick={() =>
                                                                     updateCfg({
                                                                       ...chk,
-                                                                      apiKey:
-                                                                        e.target
-                                                                          .value,
+                                                                      testMode:
+                                                                        !chk.testMode,
                                                                     })
                                                                   }
-                                                                  className="bg-black/60 border-white/10 h-10 text-xs pr-10 font-mono focus:border-orange-500/50 transition-all rounded-xl shadow-inner"
-                                                                  placeholder="mo_live_..."
-                                                                />
-                                                                <ShieldCheck className="absolute right-3 top-3 h-4 w-4 text-white/10 group-focus-within:text-orange-400 transition-colors" />
+                                                                >
+                                                                  <div className="flex flex-col">
+                                                                    <span className="text-[10px] font-black text-white/90 uppercase tracking-tight group-hover:text-primary transition-colors">
+                                                                      Environnement
+                                                                      Test
+                                                                    </span>
+                                                                    <span className="text-[8px] text-muted-foreground font-medium uppercase italic opacity-60 line-clamp-1">
+                                                                      Simuler des
+                                                                      transactions
+                                                                      sans frais
+                                                                      réels
+                                                                    </span>
+                                                                  </div>
+                                                                  <button
+                                                                    className={`w-10 h-5 rounded-full transition-all relative ${chk.testMode ? "bg-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.3)]" : "bg-white/10"}`}
+                                                                  >
+                                                                    <div
+                                                                      className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${chk.testMode ? "right-1" : "left-1"}`}
+                                                                    />
+                                                                  </button>
+                                                                </div>
                                                               </div>
-                                                            </div>
 
-                                                            <div
-                                                              className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:border-white/10 transition-all cursor-pointer group"
-                                                              onClick={() =>
-                                                                updateCfg({
-                                                                  ...chk,
-                                                                  testMode:
-                                                                    !chk.testMode,
-                                                                })
-                                                              }
-                                                            >
-                                                              <div className="flex flex-col">
-                                                                <span className="text-[10px] font-black text-white/90 uppercase tracking-tight group-hover:text-primary transition-colors">
-                                                                  Environnement
-                                                                  Test
-                                                                </span>
-                                                                <span className="text-[8px] text-muted-foreground font-medium uppercase italic opacity-60 line-clamp-1">
-                                                                  Simuler des
-                                                                  transactions
-                                                                  sans frais
-                                                                  réels
-                                                                </span>
-                                                              </div>
-                                                              <button
-                                                                className={`w-10 h-5 rounded-full transition-all relative ${chk.testMode ? "bg-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.3)]" : "bg-white/10"}`}
-                                                              >
-                                                                <div
-                                                                  className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${chk.testMode ? "right-1" : "left-1"}`}
-                                                                />
-                                                              </button>
-                                                            </div>
-                                                          </div>
-
-                                                          <div className="p-5 rounded-2xl bg-black/20 border border-white/5 space-y-5">
-                                                            <div className="space-y-2">
-                                                              <div className="flex items-center gap-2 px-1">
-                                                                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]" />
-                                                                <label className="text-[9px] font-bold uppercase text-emerald-400/80 tracking-widest">
-                                                                  URL de succès
-                                                                </label>
-                                                              </div>
-                                                              <Input
-                                                                value={
-                                                                  chk.successUrl
-                                                                }
-                                                                onChange={(e) =>
-                                                                  updateCfg({
-                                                                    ...chk,
-                                                                    successUrl:
-                                                                      e.target
-                                                                        .value,
-                                                                  })
-                                                                }
-                                                                className="bg-emerald-500/5 border-emerald-500/10 h-10 text-xs rounded-xl focus:border-emerald-500/50 transition-all shadow-inner"
-                                                                placeholder="https://..."
-                                                              />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                              <div className="flex items-center gap-2 px-1">
-                                                                <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                                                                <label className="text-[9px] font-bold uppercase text-red-400/80 tracking-widest">
-                                                                  URL
-                                                                  d&apos;échec
-                                                                </label>
-                                                              </div>
-                                                              <Input
-                                                                value={
-                                                                  chk.failureUrl
-                                                                }
-                                                                onChange={(e) =>
-                                                                  updateCfg({
-                                                                    ...chk,
-                                                                    failureUrl:
-                                                                      e.target
-                                                                        .value,
-                                                                  })
-                                                                }
-                                                                className="bg-red-500/5 border-red-500/10 h-10 text-xs rounded-xl focus:border-red-500/50 transition-all shadow-inner"
-                                                                placeholder="https://..."
-                                                              />
-                                                            </div>
-                                                          </div>
-
-                                                          <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-4 items-start shadow-inner">
-                                                            <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-500/20">
-                                                              <HelpCircle className="h-4 w-4 text-blue-400" />
-                                                            </div>
-                                                            <div className="space-y-1">
-                                                              <p className="text-[10px] font-black text-blue-400 uppercase tracking-tighter">
-                                                                Fonctionnement
-                                                              </p>
-                                                              <p className="text-[9px] text-blue-400/60 leading-relaxed italic font-medium">
-                                                                Une fois
-                                                                configuré, ce
-                                                                bloc génère un
-                                                                lien de paiement
-                                                                unique pour
-                                                                chaque commande
-                                                                et redirige
-                                                                automatiquement
-                                                                le client via
-                                                                WhatsApp.
-                                                              </p>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-                                                    case "http_request":
-                                                      const httpCfg = cfg({
-                                                        method: "GET",
-                                                        url: "",
-                                                        headers: {},
-                                                        body: "",
-                                                        timeout: 30,
-                                                        retryOnFailure: false,
-                                                        maxRetries: 3,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Requête HTTP</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Appelle une API externe (GET/POST)</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="Méthode">
-                                                              <StyledSelect
-                                                                value={httpCfg.method}
-                                                                onChange={(e) => updateCfg({ ...httpCfg, method: e.target.value })}
-                                                                options={[
-                                                                  { value: "GET", label: "GET" },
-                                                                  { value: "POST", label: "POST" },
-                                                                  { value: "PUT", label: "PUT" },
-                                                                  { value: "DELETE", label: "DELETE" },
-                                                                  { value: "PATCH", label: "PATCH" }
-                                                                ]}
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="URL">
-                                                              <StyledInput
-                                                                value={httpCfg.url}
-                                                                onChange={(e) => updateCfg({ ...httpCfg, url: e.target.value })}
-                                                                placeholder="https://api.example.com/endpoint"
-                                                              />
-                                                            </FormField>
-
-                                                            <div className="space-y-2">
-                                                              <div className="flex items-center justify-between">
-                                                                <label className="text-sm text-white/80 font-medium">Headers (JSON)</label>
-                                                                <OutputSelector
-                                                                  currentNodeId={node.id}
-                                                                  onInsert={(value) => {
-                                                                    const currentHeaders = JSON.stringify(httpCfg.headers || {}, null, 2);
-                                                                    const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentHeaders.length;
-                                                                    const newHeaders = currentHeaders.slice(0, cursorPos) + value + currentHeaders.slice(cursorPos);
-                                                                    try {
-                                                                      updateCfg({ ...httpCfg, headers: JSON.parse(newHeaders) });
-                                                                    } catch (e) {
-                                                                      // Invalid JSON, keep as is
+                                                              <div className="p-5 rounded-2xl bg-black/20 border border-white/5 space-y-5">
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center gap-2 px-1">
+                                                                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]" />
+                                                                    <label className="text-[9px] font-bold uppercase text-emerald-400/80 tracking-widest">
+                                                                      URL de succès
+                                                                    </label>
+                                                                  </div>
+                                                                  <Input
+                                                                    value={
+                                                                      chk.successUrl
                                                                     }
-                                                                  }}
-                                                                />
-                                                              </div>
-                                                              <textarea
-                                                                value={JSON.stringify(httpCfg.headers || {}, null, 2)}
-                                                                onChange={(e) => {
-                                                                  try {
-                                                                    const parsed = JSON.parse(e.target.value);
-                                                                    updateCfg({ ...httpCfg, headers: parsed });
-                                                                  } catch (e) {
-                                                                    // Invalid JSON, keep as is
-                                                                  }
-                                                                }}
-                                                                className="w-full min-h-[80px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none font-mono text-xs"
-                                                                placeholder='{"Authorization": "Bearer token", "Content-Type": "application/json"}'
-                                                              />
-                                                            </div>
-
-                                                            {(httpCfg.method === "POST" || httpCfg.method === "PUT" || httpCfg.method === "PATCH") && (
-                                                              <div className="space-y-2">
-                                                                <div className="flex items-center justify-between">
-                                                                  <label className="text-sm text-white/80 font-medium">Body (JSON)</label>
-                                                                  <OutputSelector
-                                                                    currentNodeId={node.id}
-                                                                    onInsert={(value) => {
-                                                                      const currentBody = httpCfg.body || "";
-                                                                      const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentBody.length;
-                                                                      const newBody = currentBody.slice(0, cursorPos) + value + currentBody.slice(cursorPos);
-                                                                      updateCfg({ ...httpCfg, body: newBody });
-                                                                    }}
+                                                                    onChange={(e) =>
+                                                                      updateCfg({
+                                                                        ...chk,
+                                                                        successUrl:
+                                                                          e.target
+                                                                            .value,
+                                                                      })
+                                                                    }
+                                                                    className="bg-emerald-500/5 border-emerald-500/10 h-10 text-xs rounded-xl focus:border-emerald-500/50 transition-all shadow-inner"
+                                                                    placeholder="https://..."
                                                                   />
                                                                 </div>
-                                                                <textarea
-                                                                  value={httpCfg.body}
-                                                                  onChange={(e) => updateCfg({ ...httpCfg, body: e.target.value })}
-                                                                  className="w-full min-h-[100px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none font-mono text-xs"
-                                                                  placeholder='{"key": "value"}'
-                                                                />
-                                                              </div>
-                                                            )}
-
-                                                            <FormField label="Timeout (secondes)">
-                                                              <StyledInput
-                                                                type="number"
-                                                                value={String(httpCfg.timeout)}
-                                                                onChange={(e) => updateCfg({ ...httpCfg, timeout: parseInt(e.target.value) || 30 })}
-                                                                placeholder="30"
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Réessayer en cas d'échec">
-                                                              <ToggleSwitch
-                                                                checked={httpCfg.retryOnFailure}
-                                                                onChange={() => updateCfg({ ...httpCfg, retryOnFailure: !httpCfg.retryOnFailure })}
-                                                              />
-                                                            </FormField>
-
-                                                            {httpCfg.retryOnFailure && (
-                                                              <FormField label="Nombre de tentatives max">
-                                                                <StyledInput
-                                                                  type="number"
-                                                                  value={String(httpCfg.maxRetries)}
-                                                                  onChange={(e) => updateCfg({ ...httpCfg, maxRetries: parseInt(e.target.value) || 3 })}
-                                                                  placeholder="3"
-                                                                />
-                                                              </FormField>
-                                                            )}
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "run_javascript":
-                                                      const jsCfg = cfg({
-                                                        code: "",
-                                                        timeout: 10,
-                                                        allowAsync: false,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Code JavaScript</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Exécute du code personnalisé</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <div className="space-y-2">
-                                                              <div className="flex items-center justify-between">
-                                                                <label className="text-sm text-white/80 font-medium">Code JavaScript</label>
-                                                                <OutputSelector
-                                                                  currentNodeId={node.id}
-                                                                  onInsert={(value) => {
-                                                                    const currentCode = jsCfg.code || "";
-                                                                    const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentCode.length;
-                                                                    const newCode = currentCode.slice(0, cursorPos) + value + currentCode.slice(cursorPos);
-                                                                    updateCfg({ ...jsCfg, code: newCode });
-                                                                  }}
-                                                                />
-                                                              </div>
-                                                              <textarea
-                                                                value={jsCfg.code}
-                                                                onChange={(e) => updateCfg({ ...jsCfg, code: e.target.value })}
-                                                                className="w-full min-h-[200px] bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none font-mono text-xs"
-                                                                placeholder="// Votre code JavaScript ici&#10;const result = context.message.toUpperCase();&#10;return { result };"
-                                                              />
-                                                            </div>
-
-                                                            <FormField label="Timeout (secondes)">
-                                                              <StyledInput
-                                                                type="number"
-                                                                value={String(jsCfg.timeout)}
-                                                                onChange={(e) => updateCfg({ ...jsCfg, timeout: parseInt(e.target.value) || 10 })}
-                                                                placeholder="10"
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Autoriser async/await">
-                                                              <ToggleSwitch
-                                                                checked={jsCfg.allowAsync}
-                                                                onChange={() => updateCfg({ ...jsCfg, allowAsync: !jsCfg.allowAsync })}
-                                                              />
-                                                            </FormField>
-
-                                                            <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
-                                                              <p className="text-[9px] text-muted-foreground leading-relaxed">
-                                                                Variables disponibles : <code className="text-blue-400">context</code> (contexte du workflow), <code className="text-blue-400">inputs</code> (données des nœuds précédents)
-                                                              </p>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "google_sheets":
-                                                      const sheetsCfg = cfg({
-                                                        spreadsheetId: "",
-                                                        sheetName: "",
-                                                        action: "read",
-                                                        range: "A1:Z1000",
-                                                        credentials: "",
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Google Sheets</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Lit ou écrit dans une feuille Google</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="ID de la feuille">
-                                                              <StyledInput
-                                                                value={sheetsCfg.spreadsheetId}
-                                                                onChange={(e) => updateCfg({ ...sheetsCfg, spreadsheetId: e.target.value })}
-                                                                placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Nom de l'onglet">
-                                                              <StyledInput
-                                                                value={sheetsCfg.sheetName}
-                                                                onChange={(e) => updateCfg({ ...sheetsCfg, sheetName: e.target.value })}
-                                                                placeholder="Feuille1"
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Action">
-                                                              <StyledSelect
-                                                                value={sheetsCfg.action}
-                                                                onChange={(e) => updateCfg({ ...sheetsCfg, action: e.target.value })}
-                                                                options={[
-                                                                  { value: "read", label: "Lire" },
-                                                                  { value: "write", label: "Écrire" },
-                                                                  { value: "append", label: "Ajouter" },
-                                                                  { value: "update", label: "Mettre à jour" }
-                                                                ]}
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Plage (Range)">
-                                                              <StyledInput
-                                                                value={sheetsCfg.range}
-                                                                onChange={(e) => updateCfg({ ...sheetsCfg, range: e.target.value })}
-                                                                placeholder="A1:Z1000"
-                                                              />
-                                                            </FormField>
-
-                                                            <div className="space-y-2">
-                                                              <div className="flex items-center justify-between">
-                                                                <label className="text-sm text-white/80 font-medium">Credentials JSON</label>
-                                                              </div>
-                                                              <textarea
-                                                                value={sheetsCfg.credentials}
-                                                                onChange={(e) => updateCfg({ ...sheetsCfg, credentials: e.target.value })}
-                                                                className="w-full min-h-[100px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none font-mono text-xs"
-                                                                placeholder='{"type": "service_account", "project_id": "..."}'
-                                                              />
-                                                              <p className="text-[8px] text-muted-foreground/60">
-                                                                JSON des credentials Google Service Account
-                                                              </p>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "database_query":
-                                                      const dbCfg = cfg({
-                                                        query: "",
-                                                        databaseType: "postgresql",
-                                                        connectionString: "",
-                                                        timeout: 30,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-0">
-                                                          <div className="pb-4 border-b border-white/5">
-                                                            <h3 className="text-base font-semibold text-white">Base de données</h3>
-                                                            <p className="text-xs text-muted-foreground mt-0.5">Requête SQL personnalisée</p>
-                                                          </div>
-
-                                                          <div className="py-4 space-y-4">
-                                                            <FormField label="Type de base de données">
-                                                              <StyledSelect
-                                                                value={dbCfg.databaseType}
-                                                                onChange={(e) => updateCfg({ ...dbCfg, databaseType: e.target.value })}
-                                                                options={[
-                                                                  { value: "postgresql", label: "PostgreSQL" },
-                                                                  { value: "mysql", label: "MySQL" },
-                                                                  { value: "sqlite", label: "SQLite" },
-                                                                  { value: "mongodb", label: "MongoDB" }
-                                                                ]}
-                                                              />
-                                                            </FormField>
-
-                                                            <FormField label="Chaîne de connexion">
-                                                              <StyledInput
-                                                                value={dbCfg.connectionString}
-                                                                onChange={(e) => updateCfg({ ...dbCfg, connectionString: e.target.value })}
-                                                                placeholder="postgresql://user:password@host:5432/database"
-                                                              />
-                                                            </FormField>
-
-                                                            <div className="space-y-2">
-                                                              <div className="flex items-center justify-between">
-                                                                <label className="text-sm text-white/80 font-medium">Requête SQL</label>
-                                                                <OutputSelector
-                                                                  currentNodeId={node.id}
-                                                                  onInsert={(value) => {
-                                                                    const currentQuery = dbCfg.query || "";
-                                                                    const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentQuery.length;
-                                                                    const newQuery = currentQuery.slice(0, cursorPos) + value + currentQuery.slice(cursorPos);
-                                                                    updateCfg({ ...dbCfg, query: newQuery });
-                                                                  }}
-                                                                />
-                                                              </div>
-                                                              <textarea
-                                                                value={dbCfg.query}
-                                                                onChange={(e) => updateCfg({ ...dbCfg, query: e.target.value })}
-                                                                className="w-full min-h-[150px] bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none font-mono text-xs"
-                                                                placeholder="SELECT * FROM users WHERE id = $1;"
-                                                              />
-                                                            </div>
-
-                                                            <FormField label="Timeout (secondes)">
-                                                              <StyledInput
-                                                                type="number"
-                                                                value={String(dbCfg.timeout)}
-                                                                onChange={(e) => updateCfg({ ...dbCfg, timeout: parseInt(e.target.value) || 30 })}
-                                                                placeholder="30"
-                                                              />
-                                                            </FormField>
-
-                                                            <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/10">
-                                                              <p className="text-[9px] text-muted-foreground leading-relaxed">
-                                                                ⚠️ <b>Attention:</b> Utilisez des requêtes paramétrées pour éviter les injections SQL. Utilisez $1, $2, etc. pour les paramètres.
-                                                              </p>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "get_group_members":
-                                                    case "chat_list_collector":
-                                                      const ext = cfg({
-                                                        exportFormat: "csv",
-                                                        autoSync: false,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-4 rounded-xl bg-black/20 border border-white/5 space-y-4">
-                                                            <div className="space-y-1.5">
-                                                              <label className="text-[9px] font-bold uppercase text-muted-foreground/60">
-                                                                Format
-                                                                d'exportation
-                                                              </label>
-                                                              <div className="flex gap-2">
-                                                                {[
-                                                                  "csv",
-                                                                  "xlsx",
-                                                                  "json",
-                                                                ].map((f) => (
-                                                                  <button
-                                                                    key={f}
-                                                                    onClick={() =>
-                                                                      updateCfg(
-                                                                        {
-                                                                          ...ext,
-                                                                          exportFormat:
-                                                                            f,
-                                                                        },
-                                                                      )
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center gap-2 px-1">
+                                                                    <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                                                                    <label className="text-[9px] font-bold uppercase text-red-400/80 tracking-widest">
+                                                                      URL
+                                                                      d&apos;échec
+                                                                    </label>
+                                                                  </div>
+                                                                  <Input
+                                                                    value={
+                                                                      chk.failureUrl
                                                                     }
-                                                                    className={`flex-1 py-1.5 rounded-md text-[9px] font-black uppercase border transition-all ${ext.exportFormat === f ? "bg-primary/20 border-primary text-primary" : "bg-white/5 border-white/10 text-white/30"}`}
-                                                                  >
-                                                                    {f}
-                                                                  </button>
-                                                                ))}
-                                                              </div>
-                                                            </div>
-                                                            <div className="flex items-center justify-between">
-                                                              <span className="text-[10px] font-bold text-white/80">
-                                                                Sync auto vers
-                                                                CRM
-                                                              </span>
-                                                              <button
-                                                                onClick={() =>
-                                                                  updateCfg({
-                                                                    ...ext,
-                                                                    autoSync:
-                                                                      !ext.autoSync,
-                                                                  })
-                                                                }
-                                                                className={`w-8 h-4 rounded-full transition-all relative ${ext.autoSync ? "bg-primary" : "bg-white/10"}`}
-                                                              >
-                                                                <div
-                                                                  className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${ext.autoSync ? "right-0.5" : "left-0.5"}`}
-                                                                />
-                                                              </button>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    case "anti_ban":
-                                                      const ab = cfg({
-                                                        min: 2,
-                                                        max: 10,
-                                                      });
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-8 rounded-3xl bg-gradient-to-br from-indigo-500/10 to-transparent border border-indigo-500/20 flex flex-col items-center justify-center text-center space-y-4 shadow-inner relative overflow-hidden group">
-                                                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(99,102,241,0.05)_0%,_transparent_70%)]" />
-                                                            <div className="h-20 w-20 rounded-[2.5rem] bg-indigo-500/10 flex items-center justify-center border-2 border-indigo-500/30 shadow-[0_20px_40px_-10px_rgba(99,102,241,0.3)] group-hover:scale-105 transition-transform duration-500">
-                                                              <ShieldCheck className="h-10 w-10 text-indigo-400" />
-                                                            </div>
-                                                            <div className="space-y-1 relative">
-                                                              <h4 className="text-[13px] font-black uppercase text-white tracking-[0.3em] font-sans italic">
-                                                                Protection
-                                                              </h4>
-                                                              <p className="text-[9px] text-indigo-400/60 font-black uppercase tracking-widest px-1">
-                                                                Simulation
-                                                                Humaine
-                                                              </p>
-                                                            </div>
-                                                            <div className="grid grid-cols-2 gap-4 w-full pt-4 relative">
-                                                              <div className="space-y-1.5">
-                                                                <label className="text-[8px] font-black text-muted-foreground uppercase tracking-widest px-1">
-                                                                  Min (sec)
-                                                                </label>
-                                                                <Input
-                                                                  type="number"
-                                                                  value={ab.min}
-                                                                  onChange={(
-                                                                    e,
-                                                                  ) =>
-                                                                    updateCfg({
-                                                                      ...ab,
-                                                                      min:
-                                                                        parseInt(
-                                                                          e
-                                                                            .target
+                                                                    onChange={(e) =>
+                                                                      updateCfg({
+                                                                        ...chk,
+                                                                        failureUrl:
+                                                                          e.target
                                                                             .value,
-                                                                        ) || 0,
-                                                                    })
-                                                                  }
-                                                                  className="bg-black/60 border-white/10 text-center h-12 text-lg text-indigo-400 font-bold rounded-xl focus:border-indigo-500/50"
-                                                                />
+                                                                      })
+                                                                    }
+                                                                    className="bg-red-500/5 border-red-500/10 h-10 text-xs rounded-xl focus:border-red-500/50 transition-all shadow-inner"
+                                                                    placeholder="https://..."
+                                                                  />
+                                                                </div>
                                                               </div>
-                                                              <div className="space-y-1.5">
-                                                                <label className="text-[8px] font-black text-muted-foreground uppercase tracking-widest px-1">
-                                                                  Max (sec)
-                                                                </label>
-                                                                <Input
-                                                                  type="number"
-                                                                  value={ab.max}
-                                                                  onChange={(
-                                                                    e,
-                                                                  ) =>
-                                                                    updateCfg({
-                                                                      ...ab,
-                                                                      max:
-                                                                        parseInt(
-                                                                          e
-                                                                            .target
-                                                                            .value,
-                                                                        ) || 0,
-                                                                    })
-                                                                  }
-                                                                  className="bg-black/60 border-white/10 text-center h-12 text-lg text-indigo-400 font-bold rounded-xl focus:border-indigo-500/50"
-                                                                />
+
+                                                              <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 flex gap-4 items-start shadow-inner">
+                                                                <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-500/20">
+                                                                  <HelpCircle className="h-4 w-4 text-blue-400" />
+                                                                </div>
+                                                                <div className="space-y-1">
+                                                                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-tighter">
+                                                                    Fonctionnement
+                                                                  </p>
+                                                                  <p className="text-[9px] text-blue-400/60 leading-relaxed italic font-medium">
+                                                                    Une fois
+                                                                    configuré, ce
+                                                                    bloc génère un
+                                                                    lien de paiement
+                                                                    unique pour
+                                                                    chaque commande
+                                                                    et redirige
+                                                                    automatiquement
+                                                                    le client via
+                                                                    WhatsApp.
+                                                                  </p>
+                                                                </div>
                                                               </div>
                                                             </div>
-                                                          </div>
-                                                          <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10 flex gap-3 shadow-inner">
-                                                            <Activity className="h-4 w-4 text-indigo-400 shrink-0 opacity-40" />
-                                                            <p className="text-[9px] text-muted-foreground leading-relaxed font-medium italic">
-                                                              Ce bloc ajoute un
-                                                              délai aléatoire
-                                                              entre{" "}
-                                                              <b>{ab.min}s</b>{" "}
-                                                              et{" "}
-                                                              <b>{ab.max}s</b>{" "}
-                                                              pour simuler un
-                                                              comportement
-                                                              humain et éviter
-                                                              le bannissement.
-                                                            </p>
-                                                          </div>
-                                                        </div>
-                                                      );
-
-                                                    default: {
-                                                      // 🔧 Interface générique simple pour les blocs sans UI dédiée
-                                                      let parsedConfig: Record<string, any> = {};
-                                                      try {
-                                                        parsedConfig = node.config
-                                                          ? JSON.parse(node.config)
-                                                          : {};
-                                                      } catch {
-                                                        parsedConfig = {};
-                                                      }
-
-                                                      const entries = Object.entries(
-                                                        parsedConfig,
-                                                      ) as [string, any][];
-
-                                                      const updateConfigObject = (
-                                                        newObj: Record<string, any>,
-                                                      ) => {
-                                                        setNodes(
-                                                          nodes.map((n) =>
-                                                            n.id === node.id
-                                                              ? {
-                                                                ...n,
-                                                                config: JSON.stringify(
-                                                                  newObj,
-                                                                  null,
-                                                                  2,
-                                                                ),
-                                                              }
-                                                              : n,
-                                                          ),
-                                                        );
-                                                      };
-
-                                                      return (
-                                                        <div className="space-y-4">
-                                                          <div className="p-5 rounded-2xl bg-black/40 border border-white/10 space-y-4 shadow-inner group transition-all hover:border-white/20">
-                                                            <div className="flex items-center justify-between px-1">
-                                                              <div className="flex items-center gap-2">
-                                                                <Terminal className="h-3 w-3 text-muted-foreground" />
-                                                                <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-widest">
-                                                                  Paramètres
-                                                                  avancés
-                                                                </label>
+                                                          );
+                                                        case "http_request":
+                                                          const httpCfg = cfg({
+                                                            method: "GET",
+                                                            url: "",
+                                                            headers: {},
+                                                            body: "",
+                                                            timeout: 30,
+                                                            retryOnFailure: false,
+                                                            maxRetries: 3,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Requête HTTP</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Appelle une API externe (GET/POST)</p>
                                                               </div>
-                                                              <Badge
-                                                                variant="outline"
-                                                                className="text-[7px] border-white/10 text-muted-foreground/40 font-black uppercase px-2"
-                                                              >
-                                                                Optionnel
-                                                              </Badge>
-                                                            </div>
 
-                                                            <div className="space-y-3">
-                                                              {entries.length ===
-                                                                0 && (
-                                                                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 space-y-2">
-                                                                    <div className="flex items-center gap-2">
-                                                                      <Sparkles className="h-4 w-4 text-primary" />
-                                                                      <p className="text-[10px] font-bold text-primary">
-                                                                        Aucun paramètre défini
-                                                                      </p>
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="Méthode">
+                                                                  <StyledSelect
+                                                                    value={httpCfg.method}
+                                                                    onChange={(e) => updateCfg({ ...httpCfg, method: e.target.value })}
+                                                                    options={[
+                                                                      { value: "GET", label: "GET" },
+                                                                      { value: "POST", label: "POST" },
+                                                                      { value: "PUT", label: "PUT" },
+                                                                      { value: "DELETE", label: "DELETE" },
+                                                                      { value: "PATCH", label: "PATCH" }
+                                                                    ]}
+                                                                  />
+                                                                </FormField>
+
+                                                                <FormField label="URL">
+                                                                  <StyledInput
+                                                                    value={httpCfg.url}
+                                                                    onChange={(e) => updateCfg({ ...httpCfg, url: e.target.value })}
+                                                                    placeholder="https://api.example.com/endpoint"
+                                                                  />
+                                                                </FormField>
+
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-sm text-white/80 font-medium">Headers (JSON)</label>
+                                                                    <OutputSelector
+                                                                      currentNodeId={node.id}
+                                                                      onInsert={(value) => {
+                                                                        const currentHeaders = JSON.stringify(httpCfg.headers || {}, null, 2);
+                                                                        const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentHeaders.length;
+                                                                        const newHeaders = currentHeaders.slice(0, cursorPos) + value + currentHeaders.slice(cursorPos);
+                                                                        try {
+                                                                          updateCfg({ ...httpCfg, headers: JSON.parse(newHeaders) });
+                                                                        } catch (e) {
+                                                                          // Invalid JSON, keep as is
+                                                                        }
+                                                                      }}
+                                                                    />
+                                                                  </div>
+                                                                  <textarea
+                                                                    value={JSON.stringify(httpCfg.headers || {}, null, 2)}
+                                                                    onChange={(e) => {
+                                                                      try {
+                                                                        const parsed = JSON.parse(e.target.value);
+                                                                        updateCfg({ ...httpCfg, headers: parsed });
+                                                                      } catch (e) {
+                                                                        // Invalid JSON, keep as is
+                                                                      }
+                                                                    }}
+                                                                    className="w-full min-h-[80px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none font-mono text-xs"
+                                                                    placeholder='{"Authorization": "Bearer token", "Content-Type": "application/json"}'
+                                                                  />
+                                                                </div>
+
+                                                                {(httpCfg.method === "POST" || httpCfg.method === "PUT" || httpCfg.method === "PATCH") && (
+                                                                  <div className="space-y-2">
+                                                                    <div className="flex items-center justify-between">
+                                                                      <label className="text-sm text-white/80 font-medium">Body (JSON)</label>
+                                                                      <OutputSelector
+                                                                        currentNodeId={node.id}
+                                                                        onInsert={(value) => {
+                                                                          const currentBody = httpCfg.body || "";
+                                                                          const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentBody.length;
+                                                                          const newBody = currentBody.slice(0, cursorPos) + value + currentBody.slice(cursorPos);
+                                                                          updateCfg({ ...httpCfg, body: newBody });
+                                                                        }}
+                                                                      />
                                                                     </div>
-                                                                    <p className="text-[9px] text-muted-foreground/70 leading-relaxed">
-                                                                      Ajoutez des paramètres personnalisés pour ce bloc. Choisissez le type de champ (Texte, Nombre, Oui/Non, Liste) selon vos besoins.
-                                                                    </p>
+                                                                    <textarea
+                                                                      value={httpCfg.body}
+                                                                      onChange={(e) => updateCfg({ ...httpCfg, body: e.target.value })}
+                                                                      className="w-full min-h-[100px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none font-mono text-xs"
+                                                                      placeholder='{"key": "value"}'
+                                                                    />
                                                                   </div>
                                                                 )}
 
-                                                              {entries.map(
-                                                                (
-                                                                  [key, value],
-                                                                  idx,
-                                                                ) => {
-                                                                  // Déterminer le type de valeur
-                                                                  const valueType = typeof value === 'boolean' ? 'boolean'
-                                                                    : typeof value === 'number' ? 'number'
-                                                                      : Array.isArray(value) ? 'select'
-                                                                        : 'text';
+                                                                <FormField label="Timeout (secondes)">
+                                                                  <StyledInput
+                                                                    type="number"
+                                                                    value={String(httpCfg.timeout)}
+                                                                    onChange={(e) => updateCfg({ ...httpCfg, timeout: parseInt(e.target.value) || 30 })}
+                                                                    placeholder="30"
+                                                                  />
+                                                                </FormField>
 
-                                                                  // Si c'est un booléen, utiliser un toggle
-                                                                  if (valueType === 'boolean') {
-                                                                    return (
-                                                                      <div
-                                                                        key={key || idx}
-                                                                        className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10 hover:border-white/20 transition-all"
+                                                                <FormField label="Réessayer en cas d'échec">
+                                                                  <ToggleSwitch
+                                                                    checked={httpCfg.retryOnFailure}
+                                                                    onChange={() => updateCfg({ ...httpCfg, retryOnFailure: !httpCfg.retryOnFailure })}
+                                                                  />
+                                                                </FormField>
+
+                                                                {httpCfg.retryOnFailure && (
+                                                                  <FormField label="Nombre de tentatives max">
+                                                                    <StyledInput
+                                                                      type="number"
+                                                                      value={String(httpCfg.maxRetries)}
+                                                                      onChange={(e) => updateCfg({ ...httpCfg, maxRetries: parseInt(e.target.value) || 3 })}
+                                                                      placeholder="3"
+                                                                    />
+                                                                  </FormField>
+                                                                )}
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "run_javascript":
+                                                          const jsCfg = cfg({
+                                                            code: "",
+                                                            timeout: 10,
+                                                            allowAsync: false,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Code JavaScript</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Exécute du code personnalisé</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-sm text-white/80 font-medium">Code JavaScript</label>
+                                                                    <OutputSelector
+                                                                      currentNodeId={node.id}
+                                                                      onInsert={(value) => {
+                                                                        const currentCode = jsCfg.code || "";
+                                                                        const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentCode.length;
+                                                                        const newCode = currentCode.slice(0, cursorPos) + value + currentCode.slice(cursorPos);
+                                                                        updateCfg({ ...jsCfg, code: newCode });
+                                                                      }}
+                                                                    />
+                                                                  </div>
+                                                                  <textarea
+                                                                    value={jsCfg.code}
+                                                                    onChange={(e) => updateCfg({ ...jsCfg, code: e.target.value })}
+                                                                    className="w-full min-h-[200px] bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none font-mono text-xs"
+                                                                    placeholder="// Votre code JavaScript ici&#10;const result = context.message.toUpperCase();&#10;return { result };"
+                                                                  />
+                                                                </div>
+
+                                                                <FormField label="Timeout (secondes)">
+                                                                  <StyledInput
+                                                                    type="number"
+                                                                    value={String(jsCfg.timeout)}
+                                                                    onChange={(e) => updateCfg({ ...jsCfg, timeout: parseInt(e.target.value) || 10 })}
+                                                                    placeholder="10"
+                                                                  />
+                                                                </FormField>
+
+                                                                <FormField label="Autoriser async/await">
+                                                                  <ToggleSwitch
+                                                                    checked={jsCfg.allowAsync}
+                                                                    onChange={() => updateCfg({ ...jsCfg, allowAsync: !jsCfg.allowAsync })}
+                                                                  />
+                                                                </FormField>
+
+                                                                <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
+                                                                  <p className="text-[9px] text-muted-foreground leading-relaxed">
+                                                                    Variables disponibles : <code className="text-blue-400">context</code> (contexte du workflow), <code className="text-blue-400">inputs</code> (données des nœuds précédents)
+                                                                  </p>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "google_sheets":
+                                                          const sheetsCfg = cfg({
+                                                            spreadsheetId: "",
+                                                            sheetName: "",
+                                                            action: "read",
+                                                            range: "A1:Z1000",
+                                                            credentials: "",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Google Sheets</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Lit ou écrit dans une feuille Google</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="ID de la feuille">
+                                                                  <StyledInput
+                                                                    value={sheetsCfg.spreadsheetId}
+                                                                    onChange={(e) => updateCfg({ ...sheetsCfg, spreadsheetId: e.target.value })}
+                                                                    placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
+                                                                  />
+                                                                </FormField>
+
+                                                                <FormField label="Nom de l'onglet">
+                                                                  <StyledInput
+                                                                    value={sheetsCfg.sheetName}
+                                                                    onChange={(e) => updateCfg({ ...sheetsCfg, sheetName: e.target.value })}
+                                                                    placeholder="Feuille1"
+                                                                  />
+                                                                </FormField>
+
+                                                                <FormField label="Action">
+                                                                  <StyledSelect
+                                                                    value={sheetsCfg.action}
+                                                                    onChange={(e) => updateCfg({ ...sheetsCfg, action: e.target.value })}
+                                                                    options={[
+                                                                      { value: "read", label: "Lire" },
+                                                                      { value: "write", label: "Écrire" },
+                                                                      { value: "append", label: "Ajouter" },
+                                                                      { value: "update", label: "Mettre à jour" }
+                                                                    ]}
+                                                                  />
+                                                                </FormField>
+
+                                                                <FormField label="Plage (Range)">
+                                                                  <StyledInput
+                                                                    value={sheetsCfg.range}
+                                                                    onChange={(e) => updateCfg({ ...sheetsCfg, range: e.target.value })}
+                                                                    placeholder="A1:Z1000"
+                                                                  />
+                                                                </FormField>
+
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-sm text-white/80 font-medium">Credentials JSON</label>
+                                                                  </div>
+                                                                  <textarea
+                                                                    value={sheetsCfg.credentials}
+                                                                    onChange={(e) => updateCfg({ ...sheetsCfg, credentials: e.target.value })}
+                                                                    className="w-full min-h-[100px] bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none font-mono text-xs"
+                                                                    placeholder='{"type": "service_account", "project_id": "..."}'
+                                                                  />
+                                                                  <p className="text-[8px] text-muted-foreground/60">
+                                                                    JSON des credentials Google Service Account
+                                                                  </p>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "database_query":
+                                                          const dbCfg = cfg({
+                                                            query: "",
+                                                            databaseType: "postgresql",
+                                                            connectionString: "",
+                                                            timeout: 30,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Base de données</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Requête SQL personnalisée</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="Type de base de données">
+                                                                  <StyledSelect
+                                                                    value={dbCfg.databaseType}
+                                                                    onChange={(e) => updateCfg({ ...dbCfg, databaseType: e.target.value })}
+                                                                    options={[
+                                                                      { value: "postgresql", label: "PostgreSQL" },
+                                                                      { value: "mysql", label: "MySQL" },
+                                                                      { value: "sqlite", label: "SQLite" },
+                                                                      { value: "mongodb", label: "MongoDB" }
+                                                                    ]}
+                                                                  />
+                                                                </FormField>
+
+                                                                <FormField label="Chaîne de connexion">
+                                                                  <StyledInput
+                                                                    value={dbCfg.connectionString}
+                                                                    onChange={(e) => updateCfg({ ...dbCfg, connectionString: e.target.value })}
+                                                                    placeholder="postgresql://user:password@host:5432/database"
+                                                                  />
+                                                                </FormField>
+
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-sm text-white/80 font-medium">Requête SQL</label>
+                                                                    <OutputSelector
+                                                                      currentNodeId={node.id}
+                                                                      onInsert={(value) => {
+                                                                        const currentQuery = dbCfg.query || "";
+                                                                        const cursorPos = (document.activeElement as HTMLTextAreaElement)?.selectionStart || currentQuery.length;
+                                                                        const newQuery = currentQuery.slice(0, cursorPos) + value + currentQuery.slice(cursorPos);
+                                                                        updateCfg({ ...dbCfg, query: newQuery });
+                                                                      }}
+                                                                    />
+                                                                  </div>
+                                                                  <textarea
+                                                                    value={dbCfg.query}
+                                                                    onChange={(e) => updateCfg({ ...dbCfg, query: e.target.value })}
+                                                                    className="w-full min-h-[150px] bg-black/40 border border-white/10 rounded-lg p-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors resize-none font-mono text-xs"
+                                                                    placeholder="SELECT * FROM users WHERE id = $1;"
+                                                                  />
+                                                                </div>
+
+                                                                <FormField label="Timeout (secondes)">
+                                                                  <StyledInput
+                                                                    type="number"
+                                                                    value={String(dbCfg.timeout)}
+                                                                    onChange={(e) => updateCfg({ ...dbCfg, timeout: parseInt(e.target.value) || 30 })}
+                                                                    placeholder="30"
+                                                                  />
+                                                                </FormField>
+
+                                                                <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/10">
+                                                                  <p className="text-[9px] text-muted-foreground leading-relaxed">
+                                                                    ⚠️ <b>Attention:</b> Utilisez des requêtes paramétrées pour éviter les injections SQL. Utilisez $1, $2, etc. pour les paramètres.
+                                                                  </p>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "get_group_members":
+                                                        case "chat_list_collector":
+                                                          const ext = cfg({
+                                                            exportFormat: "csv",
+                                                            autoSync: false,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-4 rounded-xl bg-black/20 border border-white/5 space-y-4">
+                                                                <div className="space-y-1.5">
+                                                                  <label className="text-[9px] font-bold uppercase text-muted-foreground/60">
+                                                                    Format
+                                                                    d'exportation
+                                                                  </label>
+                                                                  <div className="flex gap-2">
+                                                                    {[
+                                                                      "csv",
+                                                                      "xlsx",
+                                                                      "json",
+                                                                    ].map((f) => (
+                                                                      <button
+                                                                        key={f}
+                                                                        onClick={() =>
+                                                                          updateCfg(
+                                                                            {
+                                                                              ...ext,
+                                                                              exportFormat:
+                                                                                f,
+                                                                            },
+                                                                          )
+                                                                        }
+                                                                        className={`flex-1 py-1.5 rounded-md text-[9px] font-black uppercase border transition-all ${ext.exportFormat === f ? "bg-primary/20 border-primary text-primary" : "bg-white/5 border-white/10 text-white/30"}`}
                                                                       >
-                                                                        <div className="flex items-center gap-2 flex-1">
-                                                                          <Input
-                                                                            value={key}
-                                                                            onChange={(e) => {
-                                                                              const newKey = e.target.value || "";
-                                                                              const newObj: Record<string, any> = {};
-                                                                              entries.forEach(([k, v], i) => {
-                                                                                if (i === idx) {
-                                                                                  if (newKey) newObj[newKey] = v;
-                                                                                } else {
-                                                                                  newObj[k] = v;
-                                                                                }
-                                                                              });
-                                                                              updateConfigObject(newObj);
-                                                                            }}
-                                                                            placeholder="Nom du paramètre (ex: enabled)"
-                                                                            className="h-8 bg-black/40 border-white/10 text-[10px] flex-1"
-                                                                          />
-                                                                          <span className="text-[9px] text-muted-foreground/60 font-bold uppercase">Booléen</span>
-                                                                        </div>
-                                                                        <button
-                                                                          onClick={() => {
-                                                                            const newObj: Record<string, any> = {};
-                                                                            entries.forEach(([k, v], i) => {
-                                                                              if (i === idx) {
-                                                                                newObj[k] = !v;
-                                                                              } else {
-                                                                                newObj[k] = v;
-                                                                              }
-                                                                            });
-                                                                            updateConfigObject(newObj);
-                                                                          }}
-                                                                          className={`relative w-12 h-6 rounded-full transition-all ml-3 ${value ? "bg-primary" : "bg-white/20"}`}
-                                                                        >
-                                                                          <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${value ? "right-1" : "left-1"}`} />
-                                                                        </button>
-                                                                        <Button
-                                                                          variant="ghost"
-                                                                          size="icon"
-                                                                          className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10 ml-2"
-                                                                          onClick={() => {
-                                                                            const newObj: Record<string, any> = {};
-                                                                            entries.forEach(([k, v], i) => {
-                                                                              if (i !== idx) {
-                                                                                newObj[k] = v;
-                                                                              }
-                                                                            });
-                                                                            updateConfigObject(newObj);
-                                                                          }}
-                                                                        >
-                                                                          <X className="h-3 w-3" />
-                                                                        </Button>
-                                                                      </div>
-                                                                    );
-                                                                  }
-
-                                                                  // Pour les autres types, afficher avec sélecteur de type
-                                                                  return (
+                                                                        {f}
+                                                                      </button>
+                                                                    ))}
+                                                                  </div>
+                                                                </div>
+                                                                <div className="flex items-center justify-between">
+                                                                  <span className="text-[10px] font-bold text-white/80">
+                                                                    Sync auto vers
+                                                                    CRM
+                                                                  </span>
+                                                                  <button
+                                                                    onClick={() =>
+                                                                      updateCfg({
+                                                                        ...ext,
+                                                                        autoSync:
+                                                                          !ext.autoSync,
+                                                                      })
+                                                                    }
+                                                                    className={`w-8 h-4 rounded-full transition-all relative ${ext.autoSync ? "bg-primary" : "bg-white/10"}`}
+                                                                  >
                                                                     <div
-                                                                      key={key || idx}
-                                                                      className="space-y-2 p-3 rounded-lg bg-white/5 border border-white/10 hover:border-white/20 transition-all"
-                                                                    >
-                                                                      <div className="grid grid-cols-[1fr,auto] gap-2 items-center">
-                                                                        <Input
-                                                                          value={key}
-                                                                          onChange={(e) => {
-                                                                            const newKey = e.target.value || "";
-                                                                            const newObj: Record<string, any> = {};
-                                                                            entries.forEach(([k, v], i) => {
-                                                                              if (i === idx) {
-                                                                                if (newKey) newObj[newKey] = v;
-                                                                              } else {
-                                                                                newObj[k] = v;
-                                                                              }
-                                                                            });
-                                                                            updateConfigObject(newObj);
-                                                                          }}
-                                                                          placeholder="Nom du paramètre (ex: apiUrl, timeout, mode)"
-                                                                          className="h-8 bg-black/40 border-white/10 text-[10px]"
-                                                                        />
-                                                                        <select
-                                                                          value={valueType}
-                                                                          onChange={(e) => {
-                                                                            const newType = e.target.value;
-                                                                            const newObj: Record<string, any> = {};
-                                                                            let newValue: any = value;
+                                                                      className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${ext.autoSync ? "right-0.5" : "left-0.5"}`}
+                                                                    />
+                                                                  </button>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
 
-                                                                            if (newType === 'boolean') {
-                                                                              newValue = true;
-                                                                            } else if (newType === 'number') {
-                                                                              newValue = 0;
-                                                                            } else if (newType === 'select') {
-                                                                              newValue = ['option1', 'option2'];
-                                                                            } else {
-                                                                              newValue = '';
-                                                                            }
+                                                        case "anti_ban":
+                                                          const ab = cfg({
+                                                            min: 2,
+                                                            max: 10,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-8 rounded-3xl bg-gradient-to-br from-indigo-500/10 to-transparent border border-indigo-500/20 flex flex-col items-center justify-center text-center space-y-4 shadow-inner relative overflow-hidden group">
+                                                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(99,102,241,0.05)_0%,_transparent_70%)]" />
+                                                                <div className="h-20 w-20 rounded-[2.5rem] bg-indigo-500/10 flex items-center justify-center border-2 border-indigo-500/30 shadow-[0_20px_40px_-10px_rgba(99,102,241,0.3)] group-hover:scale-105 transition-transform duration-500">
+                                                                  <ShieldCheck className="h-10 w-10 text-indigo-400" />
+                                                                </div>
+                                                                <div className="space-y-1 relative">
+                                                                  <h4 className="text-[13px] font-black uppercase text-white tracking-[0.3em] font-sans italic">
+                                                                    Protection
+                                                                  </h4>
+                                                                  <p className="text-[9px] text-indigo-400/60 font-black uppercase tracking-widest px-1">
+                                                                    Simulation
+                                                                    Humaine
+                                                                  </p>
+                                                                </div>
+                                                                <div className="grid grid-cols-2 gap-4 w-full pt-4 relative">
+                                                                  <div className="space-y-1.5">
+                                                                    <label className="text-[8px] font-black text-muted-foreground uppercase tracking-widest px-1">
+                                                                      Min (sec)
+                                                                    </label>
+                                                                    <Input
+                                                                      type="number"
+                                                                      value={ab.min}
+                                                                      onChange={(
+                                                                        e,
+                                                                      ) =>
+                                                                        updateCfg({
+                                                                          ...ab,
+                                                                          min:
+                                                                            parseInt(
+                                                                              e
+                                                                                .target
+                                                                                .value,
+                                                                            ) || 0,
+                                                                        })
+                                                                      }
+                                                                      className="bg-black/60 border-white/10 text-center h-12 text-lg text-indigo-400 font-bold rounded-xl focus:border-indigo-500/50"
+                                                                    />
+                                                                  </div>
+                                                                  <div className="space-y-1.5">
+                                                                    <label className="text-[8px] font-black text-muted-foreground uppercase tracking-widest px-1">
+                                                                      Max (sec)
+                                                                    </label>
+                                                                    <Input
+                                                                      type="number"
+                                                                      value={ab.max}
+                                                                      onChange={(
+                                                                        e,
+                                                                      ) =>
+                                                                        updateCfg({
+                                                                          ...ab,
+                                                                          max:
+                                                                            parseInt(
+                                                                              e
+                                                                                .target
+                                                                                .value,
+                                                                            ) || 0,
+                                                                        })
+                                                                      }
+                                                                      className="bg-black/60 border-white/10 text-center h-12 text-lg text-indigo-400 font-bold rounded-xl focus:border-indigo-500/50"
+                                                                    />
+                                                                  </div>
+                                                                </div>
+                                                              </div>
+                                                              <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10 flex gap-3 shadow-inner">
+                                                                <Activity className="h-4 w-4 text-indigo-400 shrink-0 opacity-40" />
+                                                                <p className="text-[9px] text-muted-foreground leading-relaxed font-medium italic">
+                                                                  Ce bloc ajoute un
+                                                                  délai aléatoire
+                                                                  entre{" "}
+                                                                  <b>{ab.min}s</b>{" "}
+                                                                  et{" "}
+                                                                  <b>{ab.max}s</b>{" "}
+                                                                  pour simuler un
+                                                                  comportement
+                                                                  humain et éviter
+                                                                  le bannissement.
+                                                                </p>
+                                                              </div>
+                                                            </div>
+                                                          );
 
-                                                                            entries.forEach(([k, v], i) => {
-                                                                              if (i === idx) {
-                                                                                newObj[k] = newValue;
-                                                                              } else {
-                                                                                newObj[k] = v;
-                                                                              }
-                                                                            });
-                                                                            updateConfigObject(newObj);
-                                                                          }}
-                                                                          className="h-8 bg-black/60 border border-white/10 rounded-lg text-[9px] text-white px-2 cursor-pointer"
-                                                                        >
-                                                                          <option value="text">Texte</option>
-                                                                          <option value="number">Nombre</option>
-                                                                          <option value="boolean">Oui/Non</option>
-                                                                          <option value="select">Liste</option>
-                                                                        </select>
-                                                                        <Button
-                                                                          variant="ghost"
-                                                                          size="icon"
-                                                                          className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                                                                          onClick={() => {
-                                                                            const newObj: Record<string, any> = {};
-                                                                            entries.forEach(([k, v], i) => {
-                                                                              if (i !== idx) {
-                                                                                newObj[k] = v;
-                                                                              }
-                                                                            });
-                                                                            updateConfigObject(newObj);
-                                                                          }}
-                                                                        >
-                                                                          <X className="h-3 w-3" />
-                                                                        </Button>
+                                                        default: {
+                                                          // 🔧 Interface générique simple pour les blocs sans UI dédiée
+                                                          let parsedConfig: Record<string, any> = {};
+                                                          try {
+                                                            parsedConfig = node.config
+                                                              ? JSON.parse(node.config)
+                                                              : {};
+                                                          } catch {
+                                                            parsedConfig = {};
+                                                          }
+
+                                                          const entries = Object.entries(
+                                                            parsedConfig,
+                                                          ) as [string, any][];
+
+                                                          const updateConfigObject = (
+                                                            newObj: Record<string, any>,
+                                                          ) => {
+                                                            setNodes(
+                                                              nodes.map((n) =>
+                                                                n.id === node.id
+                                                                  ? {
+                                                                    ...n,
+                                                                    config: JSON.stringify(
+                                                                      newObj,
+                                                                      null,
+                                                                      2,
+                                                                    ),
+                                                                  }
+                                                                  : n,
+                                                              ),
+                                                            );
+                                                          };
+
+                                                          return (
+                                                            <div className="space-y-4">
+                                                              <div className="p-5 rounded-2xl bg-black/40 border border-white/10 space-y-4 shadow-inner group transition-all hover:border-white/20">
+                                                                <div className="flex items-center justify-between px-1">
+                                                                  <div className="flex items-center gap-2">
+                                                                    <Terminal className="h-3 w-3 text-muted-foreground" />
+                                                                    <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-widest">
+                                                                      Paramètres
+                                                                      avancés
+                                                                    </label>
+                                                                  </div>
+                                                                  <Badge
+                                                                    variant="outline"
+                                                                    className="text-[7px] border-white/10 text-muted-foreground/40 font-black uppercase px-2"
+                                                                  >
+                                                                    Optionnel
+                                                                  </Badge>
+                                                                </div>
+
+                                                                <div className="space-y-3">
+                                                                  {entries.length ===
+                                                                    0 && (
+                                                                      <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 space-y-2">
+                                                                        <div className="flex items-center gap-2">
+                                                                          <Sparkles className="h-4 w-4 text-primary" />
+                                                                          <p className="text-[10px] font-bold text-primary">
+                                                                            Aucun paramètre défini
+                                                                          </p>
+                                                                        </div>
+                                                                        <p className="text-[9px] text-muted-foreground/70 leading-relaxed">
+                                                                          Ajoutez des paramètres personnalisés pour ce bloc. Choisissez le type de champ (Texte, Nombre, Oui/Non, Liste) selon vos besoins.
+                                                                        </p>
                                                                       </div>
+                                                                    )}
 
-                                                                      {valueType === 'text' && (
-                                                                        <Input
-                                                                          value={value ?? ""}
-                                                                          onChange={(e) => {
-                                                                            const newVal = e.target.value;
-                                                                            const newObj: Record<string, any> = {};
-                                                                            entries.forEach(([k, v], i) => {
-                                                                              if (i === idx) {
-                                                                                newObj[k] = newVal;
-                                                                              } else {
-                                                                                newObj[k] = v;
-                                                                              }
-                                                                            });
-                                                                            updateConfigObject(newObj);
-                                                                          }}
-                                                                          placeholder="Valeur (ex: https://api.example.com)"
-                                                                          className="h-8 bg-black/40 border-white/10 text-[10px]"
-                                                                        />
-                                                                      )}
+                                                                  {entries.map(
+                                                                    (
+                                                                      [key, value],
+                                                                      idx,
+                                                                    ) => {
+                                                                      // Déterminer le type de valeur
+                                                                      const valueType = typeof value === 'boolean' ? 'boolean'
+                                                                        : typeof value === 'number' ? 'number'
+                                                                          : Array.isArray(value) ? 'select'
+                                                                            : 'text';
 
-                                                                      {valueType === 'number' && (
-                                                                        <Input
-                                                                          type="number"
-                                                                          value={value ?? 0}
-                                                                          onChange={(e) => {
-                                                                            const newVal = parseFloat(e.target.value) || 0;
-                                                                            const newObj: Record<string, any> = {};
-                                                                            entries.forEach(([k, v], i) => {
-                                                                              if (i === idx) {
-                                                                                newObj[k] = newVal;
-                                                                              } else {
-                                                                                newObj[k] = v;
-                                                                              }
-                                                                            });
-                                                                            updateConfigObject(newObj);
-                                                                          }}
-                                                                          placeholder="Nombre (ex: 100, 3.14)"
-                                                                          className="h-8 bg-black/40 border-white/10 text-[10px]"
-                                                                        />
-                                                                      )}
-
-                                                                      {valueType === 'select' && (
-                                                                        <div className="space-y-2">
-                                                                          <div className="text-[8px] text-muted-foreground/60 uppercase font-bold px-1">
-                                                                            Options (une par ligne)
-                                                                          </div>
-                                                                          <textarea
-                                                                            value={Array.isArray(value) ? value.join('\n') : ''}
-                                                                            onChange={(e) => {
-                                                                              const options = e.target.value.split('\n').filter(o => o.trim());
-                                                                              const newObj: Record<string, any> = {};
-                                                                              entries.forEach(([k, v], i) => {
-                                                                                if (i === idx) {
-                                                                                  newObj[k] = options;
-                                                                                } else {
-                                                                                  newObj[k] = v;
-                                                                                }
-                                                                              });
-                                                                              updateConfigObject(newObj);
-                                                                            }}
-                                                                            className="w-full h-20 bg-black/40 border border-white/10 rounded-lg p-2 text-[10px] text-white/90"
-                                                                            placeholder="option1&#10;option2&#10;option3"
-                                                                          />
-                                                                          {Array.isArray(value) && value.length > 0 && (
-                                                                            <select
-                                                                              className="w-full h-8 bg-black/60 border border-white/10 rounded-lg text-[10px] text-white px-2"
-                                                                              value={value[0]}
-                                                                              onChange={(e) => {
+                                                                      // Si c'est un booléen, utiliser un toggle
+                                                                      if (valueType === 'boolean') {
+                                                                        return (
+                                                                          <div
+                                                                            key={key || idx}
+                                                                            className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10 hover:border-white/20 transition-all"
+                                                                          >
+                                                                            <div className="flex items-center gap-2 flex-1">
+                                                                              <Input
+                                                                                value={key}
+                                                                                onChange={(e) => {
+                                                                                  const newKey = e.target.value || "";
+                                                                                  const newObj: Record<string, any> = {};
+                                                                                  entries.forEach(([k, v], i) => {
+                                                                                    if (i === idx) {
+                                                                                      if (newKey) newObj[newKey] = v;
+                                                                                    } else {
+                                                                                      newObj[k] = v;
+                                                                                    }
+                                                                                  });
+                                                                                  updateConfigObject(newObj);
+                                                                                }}
+                                                                                placeholder="Nom du paramètre (ex: enabled)"
+                                                                                className="h-8 bg-black/40 border-white/10 text-[10px] flex-1"
+                                                                              />
+                                                                              <span className="text-[9px] text-muted-foreground/60 font-bold uppercase">Booléen</span>
+                                                                            </div>
+                                                                            <button
+                                                                              onClick={() => {
                                                                                 const newObj: Record<string, any> = {};
                                                                                 entries.forEach(([k, v], i) => {
                                                                                   if (i === idx) {
-                                                                                    newObj[k] = e.target.value;
+                                                                                    newObj[k] = !v;
                                                                                   } else {
                                                                                     newObj[k] = v;
                                                                                   }
                                                                                 });
                                                                                 updateConfigObject(newObj);
                                                                               }}
+                                                                              className={`relative w-12 h-6 rounded-full transition-all ml-3 ${value ? "bg-primary" : "bg-white/20"}`}
                                                                             >
-                                                                              {value.map((opt: string, optIdx: number) => (
-                                                                                <option key={optIdx} value={opt}>{opt}</option>
-                                                                              ))}
+                                                                              <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${value ? "right-1" : "left-1"}`} />
+                                                                            </button>
+                                                                            <Button
+                                                                              variant="ghost"
+                                                                              size="icon"
+                                                                              className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10 ml-2"
+                                                                              onClick={() => {
+                                                                                const newObj: Record<string, any> = {};
+                                                                                entries.forEach(([k, v], i) => {
+                                                                                  if (i !== idx) {
+                                                                                    newObj[k] = v;
+                                                                                  }
+                                                                                });
+                                                                                updateConfigObject(newObj);
+                                                                              }}
+                                                                            >
+                                                                              <X className="h-3 w-3" />
+                                                                            </Button>
+                                                                          </div>
+                                                                        );
+                                                                      }
+
+                                                                      // Pour les autres types, afficher avec sélecteur de type
+                                                                      return (
+                                                                        <div
+                                                                          key={key || idx}
+                                                                          className="space-y-2 p-3 rounded-lg bg-white/5 border border-white/10 hover:border-white/20 transition-all"
+                                                                        >
+                                                                          <div className="grid grid-cols-[1fr,auto] gap-2 items-center">
+                                                                            <Input
+                                                                              value={key}
+                                                                              onChange={(e) => {
+                                                                                const newKey = e.target.value || "";
+                                                                                const newObj: Record<string, any> = {};
+                                                                                entries.forEach(([k, v], i) => {
+                                                                                  if (i === idx) {
+                                                                                    if (newKey) newObj[newKey] = v;
+                                                                                  } else {
+                                                                                    newObj[k] = v;
+                                                                                  }
+                                                                                });
+                                                                                updateConfigObject(newObj);
+                                                                              }}
+                                                                              placeholder="Nom du paramètre (ex: apiUrl, timeout, mode)"
+                                                                              className="h-8 bg-black/40 border-white/10 text-[10px]"
+                                                                            />
+                                                                            <select
+                                                                              value={valueType}
+                                                                              onChange={(e) => {
+                                                                                const newType = e.target.value;
+                                                                                const newObj: Record<string, any> = {};
+                                                                                let newValue: any = value;
+
+                                                                                if (newType === 'boolean') {
+                                                                                  newValue = true;
+                                                                                } else if (newType === 'number') {
+                                                                                  newValue = 0;
+                                                                                } else if (newType === 'select') {
+                                                                                  newValue = ['option1', 'option2'];
+                                                                                } else {
+                                                                                  newValue = '';
+                                                                                }
+
+                                                                                entries.forEach(([k, v], i) => {
+                                                                                  if (i === idx) {
+                                                                                    newObj[k] = newValue;
+                                                                                  } else {
+                                                                                    newObj[k] = v;
+                                                                                  }
+                                                                                });
+                                                                                updateConfigObject(newObj);
+                                                                              }}
+                                                                              className="h-8 bg-black/60 border border-white/10 rounded-lg text-[9px] text-white px-2 cursor-pointer"
+                                                                            >
+                                                                              <option value="text">Texte</option>
+                                                                              <option value="number">Nombre</option>
+                                                                              <option value="boolean">Oui/Non</option>
+                                                                              <option value="select">Liste</option>
                                                                             </select>
+                                                                            <Button
+                                                                              variant="ghost"
+                                                                              size="icon"
+                                                                              className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                                                              onClick={() => {
+                                                                                const newObj: Record<string, any> = {};
+                                                                                entries.forEach(([k, v], i) => {
+                                                                                  if (i !== idx) {
+                                                                                    newObj[k] = v;
+                                                                                  }
+                                                                                });
+                                                                                updateConfigObject(newObj);
+                                                                              }}
+                                                                            >
+                                                                              <X className="h-3 w-3" />
+                                                                            </Button>
+                                                                          </div>
+
+                                                                          {valueType === 'text' && (
+                                                                            <Input
+                                                                              value={value ?? ""}
+                                                                              onChange={(e) => {
+                                                                                const newVal = e.target.value;
+                                                                                const newObj: Record<string, any> = {};
+                                                                                entries.forEach(([k, v], i) => {
+                                                                                  if (i === idx) {
+                                                                                    newObj[k] = newVal;
+                                                                                  } else {
+                                                                                    newObj[k] = v;
+                                                                                  }
+                                                                                });
+                                                                                updateConfigObject(newObj);
+                                                                              }}
+                                                                              placeholder="Valeur (ex: https://api.example.com)"
+                                                                              className="h-8 bg-black/40 border-white/10 text-[10px]"
+                                                                            />
+                                                                          )}
+
+                                                                          {valueType === 'number' && (
+                                                                            <Input
+                                                                              type="number"
+                                                                              value={value ?? 0}
+                                                                              onChange={(e) => {
+                                                                                const newVal = parseFloat(e.target.value) || 0;
+                                                                                const newObj: Record<string, any> = {};
+                                                                                entries.forEach(([k, v], i) => {
+                                                                                  if (i === idx) {
+                                                                                    newObj[k] = newVal;
+                                                                                  } else {
+                                                                                    newObj[k] = v;
+                                                                                  }
+                                                                                });
+                                                                                updateConfigObject(newObj);
+                                                                              }}
+                                                                              placeholder="Nombre (ex: 100, 3.14)"
+                                                                              className="h-8 bg-black/40 border-white/10 text-[10px]"
+                                                                            />
+                                                                          )}
+
+                                                                          {valueType === 'select' && (
+                                                                            <div className="space-y-2">
+                                                                              <div className="text-[8px] text-muted-foreground/60 uppercase font-bold px-1">
+                                                                                Options (une par ligne)
+                                                                              </div>
+                                                                              <textarea
+                                                                                value={Array.isArray(value) ? value.join('\n') : ''}
+                                                                                onChange={(e) => {
+                                                                                  const options = e.target.value.split('\n').filter(o => o.trim());
+                                                                                  const newObj: Record<string, any> = {};
+                                                                                  entries.forEach(([k, v], i) => {
+                                                                                    if (i === idx) {
+                                                                                      newObj[k] = options;
+                                                                                    } else {
+                                                                                      newObj[k] = v;
+                                                                                    }
+                                                                                  });
+                                                                                  updateConfigObject(newObj);
+                                                                                }}
+                                                                                className="w-full h-20 bg-black/40 border border-white/10 rounded-lg p-2 text-[10px] text-white/90"
+                                                                                placeholder="option1&#10;option2&#10;option3"
+                                                                              />
+                                                                              {Array.isArray(value) && value.length > 0 && (
+                                                                                <select
+                                                                                  className="w-full h-8 bg-black/60 border border-white/10 rounded-lg text-[10px] text-white px-2"
+                                                                                  value={value[0]}
+                                                                                  onChange={(e) => {
+                                                                                    const newObj: Record<string, any> = {};
+                                                                                    entries.forEach(([k, v], i) => {
+                                                                                      if (i === idx) {
+                                                                                        newObj[k] = e.target.value;
+                                                                                      } else {
+                                                                                        newObj[k] = v;
+                                                                                      }
+                                                                                    });
+                                                                                    updateConfigObject(newObj);
+                                                                                  }}
+                                                                                >
+                                                                                  {value.map((opt: string, optIdx: number) => (
+                                                                                    <option key={optIdx} value={opt}>{opt}</option>
+                                                                                  ))}
+                                                                                </select>
+                                                                              )}
+                                                                            </div>
                                                                           )}
                                                                         </div>
-                                                                      )}
-                                                                    </div>
-                                                                  );
-                                                                }
-                                                              )}
+                                                                      );
+                                                                    }
+                                                                  )}
 
-                                                              <div className="flex items-center justify-between pt-2 gap-2">
-                                                                <div className="flex gap-2 flex-1">
-                                                                  <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="h-8 text-[10px] px-2 border-dashed border-white/20 flex-1"
-                                                                    onClick={() => {
-                                                                      const newObj: Record<string, any> = { ...parsedConfig };
-                                                                      let idx = 1;
-                                                                      let newKey = "param_1";
-                                                                      while (newKey in newObj) {
-                                                                        idx += 1;
-                                                                        newKey = `param_${idx}`;
-                                                                      }
-                                                                      newObj[newKey] = "";
-                                                                      updateConfigObject(newObj);
-                                                                    }}
-                                                                  >
-                                                                    <Plus className="h-3 w-3 mr-1" />
-                                                                    <span className="text-[11px]">Texte</span>
-                                                                  </Button>
-                                                                  <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="h-8 text-[10px] px-2 border-dashed border-white/20"
-                                                                    onClick={() => {
-                                                                      const newObj: Record<string, any> = { ...parsedConfig };
-                                                                      let idx = 1;
-                                                                      let newKey = "param_1";
-                                                                      while (newKey in newObj) {
-                                                                        idx += 1;
-                                                                        newKey = `param_${idx}`;
-                                                                      }
-                                                                      newObj[newKey] = 0;
-                                                                      updateConfigObject(newObj);
-                                                                    }}
-                                                                    title="Ajouter un paramètre numérique"
-                                                                  >
-                                                                    <span className="text-[11px]">123</span>
-                                                                  </Button>
-                                                                  <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="h-8 text-[10px] px-2 border-dashed border-white/20"
-                                                                    onClick={() => {
-                                                                      const newObj: Record<string, any> = { ...parsedConfig };
-                                                                      let idx = 1;
-                                                                      let newKey = "param_1";
-                                                                      while (newKey in newObj) {
-                                                                        idx += 1;
-                                                                        newKey = `param_${idx}`;
-                                                                      }
-                                                                      newObj[newKey] = true;
-                                                                      updateConfigObject(newObj);
-                                                                    }}
-                                                                    title="Ajouter un paramètre booléen (Oui/Non)"
-                                                                  >
-                                                                    <Check className="h-3 w-3" />
-                                                                  </Button>
-                                                                  <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="h-8 text-[10px] px-2 border-dashed border-white/20"
-                                                                    onClick={() => {
-                                                                      const newObj: Record<string, any> = { ...parsedConfig };
-                                                                      let idx = 1;
-                                                                      let newKey = "param_1";
-                                                                      while (newKey in newObj) {
-                                                                        idx += 1;
-                                                                        newKey = `param_${idx}`;
-                                                                      }
-                                                                      newObj[newKey] = ['option1', 'option2'];
-                                                                      updateConfigObject(newObj);
-                                                                    }}
-                                                                    title="Ajouter une liste de choix"
-                                                                  >
-                                                                    <ListChecks className="h-3 w-3" />
-                                                                  </Button>
+                                                                  <div className="flex items-center justify-between pt-2 gap-2">
+                                                                    <div className="flex gap-2 flex-1">
+                                                                      <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        className="h-8 text-[10px] px-2 border-dashed border-white/20 flex-1"
+                                                                        onClick={() => {
+                                                                          const newObj: Record<string, any> = { ...parsedConfig };
+                                                                          let idx = 1;
+                                                                          let newKey = "param_1";
+                                                                          while (newKey in newObj) {
+                                                                            idx += 1;
+                                                                            newKey = `param_${idx}`;
+                                                                          }
+                                                                          newObj[newKey] = "";
+                                                                          updateConfigObject(newObj);
+                                                                        }}
+                                                                      >
+                                                                        <Plus className="h-3 w-3 mr-1" />
+                                                                        <span className="text-[11px]">Texte</span>
+                                                                      </Button>
+                                                                      <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        className="h-8 text-[10px] px-2 border-dashed border-white/20"
+                                                                        onClick={() => {
+                                                                          const newObj: Record<string, any> = { ...parsedConfig };
+                                                                          let idx = 1;
+                                                                          let newKey = "param_1";
+                                                                          while (newKey in newObj) {
+                                                                            idx += 1;
+                                                                            newKey = `param_${idx}`;
+                                                                          }
+                                                                          newObj[newKey] = 0;
+                                                                          updateConfigObject(newObj);
+                                                                        }}
+                                                                        title="Ajouter un paramètre numérique"
+                                                                      >
+                                                                        <span className="text-[11px]">123</span>
+                                                                      </Button>
+                                                                      <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        className="h-8 text-[10px] px-2 border-dashed border-white/20"
+                                                                        onClick={() => {
+                                                                          const newObj: Record<string, any> = { ...parsedConfig };
+                                                                          let idx = 1;
+                                                                          let newKey = "param_1";
+                                                                          while (newKey in newObj) {
+                                                                            idx += 1;
+                                                                            newKey = `param_${idx}`;
+                                                                          }
+                                                                          newObj[newKey] = true;
+                                                                          updateConfigObject(newObj);
+                                                                        }}
+                                                                        title="Ajouter un paramètre booléen (Oui/Non)"
+                                                                      >
+                                                                        <Check className="h-3 w-3" />
+                                                                      </Button>
+                                                                      <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        className="h-8 text-[10px] px-2 border-dashed border-white/20"
+                                                                        onClick={() => {
+                                                                          const newObj: Record<string, any> = { ...parsedConfig };
+                                                                          let idx = 1;
+                                                                          let newKey = "param_1";
+                                                                          while (newKey in newObj) {
+                                                                            idx += 1;
+                                                                            newKey = `param_${idx}`;
+                                                                          }
+                                                                          newObj[newKey] = ['option1', 'option2'];
+                                                                          updateConfigObject(newObj);
+                                                                        }}
+                                                                        title="Ajouter une liste de choix"
+                                                                      >
+                                                                        <ListChecks className="h-3 w-3" />
+                                                                      </Button>
+                                                                    </div>
+
+                                                                    {entries.length >
+                                                                      0 && (
+                                                                        <Button
+                                                                          type="button"
+                                                                          variant="ghost"
+                                                                          size="sm"
+                                                                          className="h-8 text-[9px] text-muted-foreground hover:text-red-400"
+                                                                          onClick={() =>
+                                                                            updateConfigObject(
+                                                                              {},
+                                                                            )
+                                                                          }
+                                                                        >
+                                                                          Réinitialiser
+                                                                        </Button>
+                                                                      )}
+                                                                  </div>
                                                                 </div>
 
-                                                                {entries.length >
-                                                                  0 && (
-                                                                    <Button
-                                                                      type="button"
-                                                                      variant="ghost"
-                                                                      size="sm"
-                                                                      className="h-8 text-[9px] text-muted-foreground hover:text-red-400"
-                                                                      onClick={() =>
-                                                                        updateConfigObject(
-                                                                          {},
-                                                                        )
-                                                                      }
-                                                                    >
-                                                                      Réinitialiser
-                                                                    </Button>
-                                                                  )}
+                                                                {/* Aperçu JSON en lecture seule pour les utilisateurs avancés */}
+                                                                {Object.keys(parsedConfig).length > 0 && (
+                                                                  <details className="mt-4 rounded-xl bg-black/40 border border-white/5 overflow-hidden">
+                                                                    <summary className="px-3 py-2.5 cursor-pointer text-muted-foreground/70 hover:text-white/80 transition-colors flex items-center justify-between group">
+                                                                      <div className="flex items-center gap-2">
+                                                                        <Code className="h-3.5 w-3.5 text-emerald-400/60 group-hover:text-emerald-400 transition-colors" />
+                                                                        <span className="text-[9px] font-bold uppercase tracking-wider">
+                                                                          Aperçu JSON (Avancé)
+                                                                        </span>
+                                                                      </div>
+                                                                      <ChevronDown className="h-3 w-3 text-muted-foreground/40 group-hover:text-white/60 transition-transform duration-200" />
+                                                                    </summary>
+                                                                    <div className="px-3 pb-3 pt-2 space-y-2">
+                                                                      <p className="text-[8px] text-muted-foreground/50 italic">
+                                                                        Ce JSON est généré automatiquement à partir de vos paramètres ci-dessus. Vous n'avez pas besoin de le modifier manuellement.
+                                                                      </p>
+                                                                      <pre className="text-[10px] text-emerald-400 font-mono whitespace-pre-wrap break-all bg-black/60 p-3 rounded-lg border border-emerald-500/10 overflow-x-auto">
+                                                                        {JSON.stringify(
+                                                                          parsedConfig,
+                                                                          null,
+                                                                          2,
+                                                                        )}
+                                                                      </pre>
+                                                                    </div>
+                                                                  </details>
+                                                                )}
                                                               </div>
                                                             </div>
+                                                          );
+                                                        }
+                                                      }
+                                                    })()}
+                                                    {instructionsUI}
+                                                  </>
+                                                );
+                                              })()}
+                                            </div>
+                                          </div>
+                                        </div>
 
-                                                            {/* Aperçu JSON en lecture seule pour les utilisateurs avancés */}
-                                                            {Object.keys(parsedConfig).length > 0 && (
-                                                              <details className="mt-4 rounded-xl bg-black/40 border border-white/5 overflow-hidden">
-                                                                <summary className="px-3 py-2.5 cursor-pointer text-muted-foreground/70 hover:text-white/80 transition-colors flex items-center justify-between group">
-                                                                  <div className="flex items-center gap-2">
-                                                                    <Code className="h-3.5 w-3.5 text-emerald-400/60 group-hover:text-emerald-400 transition-colors" />
-                                                                    <span className="text-[9px] font-bold uppercase tracking-wider">
-                                                                      Aperçu JSON (Avancé)
-                                                                    </span>
-                                                                  </div>
-                                                                  <ChevronDown className="h-3 w-3 text-muted-foreground/40 group-hover:text-white/60 transition-transform duration-200" />
-                                                                </summary>
-                                                                <div className="px-3 pb-3 pt-2 space-y-2">
-                                                                  <p className="text-[8px] text-muted-foreground/50 italic">
-                                                                    Ce JSON est généré automatiquement à partir de vos paramètres ci-dessus. Vous n'avez pas besoin de le modifier manuellement.
-                                                                  </p>
-                                                                  <pre className="text-[10px] text-emerald-400 font-mono whitespace-pre-wrap break-all bg-black/60 p-3 rounded-lg border border-emerald-500/10 overflow-x-auto">
-                                                                    {JSON.stringify(
-                                                                      parsedConfig,
-                                                                      null,
-                                                                      2,
-                                                                    )}
-                                                                  </pre>
-                                                                </div>
-                                                              </details>
-                                                            )}
-                                                          </div>
-                                                        </div>
-                                                      );
-                                                    }
-                                                  }
-                                                })()}
-                                                {instructionsUI}
-                                              </>
-                                            );
-                                          })()}
+                                        <div className="pt-6 border-t border-white/5">
+                                          <Button
+                                            variant="ghost"
+                                            className="w-full justify-start text-xs text-red-500/60 hover:text-red-500 hover:bg-red-500/5 gap-2"
+                                            onClick={() => {
+                                              setNodes(
+                                                nodes.filter(
+                                                  (n) => n.id !== node.id,
+                                                ),
+                                              );
+                                              setIsRightPanelOpen(false);
+                                            }}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />{" "}
+                                            Supprimer ce bloc
+                                          </Button>
                                         </div>
                                       </div>
-                                    </div>
-
-                                    <div className="pt-6 border-t border-white/5">
-                                      <Button
-                                        variant="ghost"
-                                        className="w-full justify-start text-xs text-red-500/60 hover:text-red-500 hover:bg-red-500/5 gap-2"
-                                        onClick={() => {
-                                          setNodes(
-                                            nodes.filter(
-                                              (n) => n.id !== node.id,
-                                            ),
-                                          );
-                                          setIsRightPanelOpen(false);
-                                        }}
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />{" "}
-                                        Supprimer ce bloc
-                                      </Button>
+                                    );
+                                  })()}
+                                </div>
+                              ) : (
+                                <div className="p-4 space-y-4">
+                                  <div className="space-y-3">
+                                    <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">
+                                      Always Output Data
+                                    </label>
+                                    <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
+                                      <span className="text-xs text-white/80">Always Output Data</span>
+                                      <div className="relative w-10 h-5 rounded-full bg-white/10 border border-white/20 cursor-pointer">
+                                        <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white/40 transition-transform" />
+                                      </div>
                                     </div>
                                   </div>
-                                );
-                              })()}
+                                  <div className="space-y-3">
+                                    <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">
+                                      Execute Once
+                                    </label>
+                                    <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
+                                      <span className="text-xs text-white/80">Execute Once</span>
+                                      <div className="relative w-10 h-5 rounded-full bg-white/10 border border-white/20 cursor-pointer">
+                                        <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white/40 transition-transform" />
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-3">
+                                    <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">
+                                      Retry On Fail
+                                    </label>
+                                    <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
+                                      <span className="text-xs text-white/80">Retry On Fail</span>
+                                      <div className="relative w-10 h-5 rounded-full bg-white/10 border border-white/20 cursor-pointer">
+                                        <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white/40 transition-transform" />
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-3">
+                                    <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">
+                                      On Error
+                                    </label>
+                                    <select className="w-full bg-white/5 border border-white/10 rounded-lg h-9 px-3 text-xs text-white focus:border-primary/50 focus:outline-none">
+                                      <option value="stop">Stop and Error</option>
+                                      <option value="continue">Continue</option>
+                                    </select>
+                                  </div>
+                                  <div className="space-y-3">
+                                    <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">
+                                      Notes
+                                    </label>
+                                    <textarea
+                                      className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-xs text-white placeholder:text-white/30 focus:border-primary/50 focus:outline-none resize-none min-h-[80px]"
+                                      placeholder="Add notes about this node..."
+                                    />
+                                  </div>
+                                  <div className="space-y-3">
+                                    <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">
+                                      Display Note in Flow?
+                                    </label>
+                                    <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
+                                      <span className="text-xs text-white/80">Display Note in Flow?</span>
+                                      <div className="relative w-10 h-5 rounded-full bg-white/10 border border-white/20 cursor-pointer">
+                                        <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white/40 transition-transform" />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -12857,7 +13944,7 @@ Ton but est de transformer chaque message en vente.
                                 <button className="px-2 py-1 text-[10px] rounded text-white/40 hover:text-white/60">JSON</button>
                               </div>
                             </div>
-                            
+
                             {/* Search bar */}
                             <div className="px-4 py-2 border-b border-white/10 shrink-0">
                               <div className="relative">
@@ -12874,7 +13961,7 @@ Ton but est de transformer chaque message en vente.
                               {(() => {
                                 // Si on a des données d'exécution, les afficher
                                 const executionOutput = nodeExecutionData[node.id]?.output;
-                                
+
                                 if (executionOutput) {
                                   return (
                                     <div className="p-2 space-y-1">
@@ -12889,7 +13976,7 @@ Ton but est de transformer chaque message en vente.
                                     </div>
                                   );
                                 }
-                                
+
                                 // Sinon, afficher les outputs disponibles basés sur le type de nœud
                                 if (Object.keys(availableOutputs).length === 0) {
                                   return (
@@ -12904,7 +13991,7 @@ Ton but est de transformer chaque message en vente.
                                     </div>
                                   );
                                 }
-                                
+
                                 // Afficher les outputs disponibles
                                 return (
                                   <div className="p-2 space-y-1">
@@ -12918,7 +14005,7 @@ Ton but est de transformer chaque message en vente.
                                         const desc = String(description);
                                         const typeMatch = desc.match(/^(\w+)\s*-/);
                                         const type = typeMatch ? typeMatch[1] : 'any';
-                                        
+
                                         return (
                                           <SchemaItem
                                             key={key}
@@ -13060,7 +14147,7 @@ Ton but est de transformer chaque message en vente.
                             <div className="flex justify-center flex-1">
                               <WhatsAppSimulator
                                 isProduction={false}
-                                userId={automationId}
+                                userId={automationWhatsAppId || automationId}
                                 template={
                                   (selectedTemplate as
                                     | "support"

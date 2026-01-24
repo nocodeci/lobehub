@@ -36,7 +36,7 @@ export default function AdminInstancesPage() {
 
     const fetchSessions = async () => {
         try {
-            const response = await fetch(`http://localhost:8080/api/sessions`);
+            const response = await fetch(`/api/bridge/sessions`);
             const data = await response.json();
             if (data.success) {
                 // Map bridge sessions to display format
@@ -53,7 +53,18 @@ export default function AdminInstancesPage() {
                     .map((s: any) => ({
                         id: s.userId,
                         name: s.pushName || (s.userId === "admin" ? "Master SIM" : `Node-${s.userId.slice(-4)}`),
-                        number: s.jid ? `+${s.jid.split(':')[0].split('@')[0]}` : (s.userId === "admin" ? "MASTER" : `+${s.userId}`),
+                        number: (() => {
+                            let raw = s.jid ? s.jid.split(':')[0].split('@')[0] : (s.userId === "admin" ? "" : s.userId);
+                            if (s.userId === "admin" && !s.jid) return "MASTER";
+
+                            // Format CI numbers: 225XXXXXXXXX -> +225 XX XX XX XX
+                            if (raw.startsWith("225") && (raw.length === 12 || raw.length === 13)) {
+                                const carrier = raw.startsWith("2250") ? raw.slice(3) : raw.slice(3);
+                                // Just simple spacing for now
+                                return `+225 ${raw.slice(3, 5)} ${raw.slice(5, 7)} ${raw.slice(7, 9)} ${raw.slice(9, 11)} ${raw.slice(11)}`;
+                            }
+                            return raw ? `+${raw}` : "INC_DEVICE";
+                        })(),
                         status: s.status === "CONNECTED" ? "online" : "offline",
                         battery: s.status === "CONNECTED" ? (s.batteryPercentage > 0 ? `${s.batteryPercentage}%` : "92%") : "0%",
                         signal: s.status === "CONNECTED" ? (s.signalStrength || 5) : 0,
@@ -82,15 +93,20 @@ export default function AdminInstancesPage() {
         setIsGeneratingQR(true);
 
         // Sanitize phone number to use as userId
-        const userId = phoneNumber.replace(/[^0-9]/g, "");
+        let userId = phoneNumber.replace(/[^0-9]/g, "");
+
+        // Auto-prefix for Ivory Coast numbers if 10 digits starting with 0
+        if (userId.length === 10 && userId.startsWith("0")) {
+            userId = "225" + userId;
+        }
 
         try {
             // First call to initialize session
-            await fetch(`http://localhost:8080/api/qr?userId=${userId}`);
+            await fetch(`/api/bridge?userId=${userId}`);
 
             // Poll for QR code
             const pollInterval = setInterval(async () => {
-                const response = await fetch(`http://localhost:8080/api/qr?userId=${userId}`);
+                const response = await fetch(`/api/bridge?userId=${userId}`);
                 const data = await response.json();
 
                 if (data.success && data.qr) {
@@ -125,7 +141,7 @@ export default function AdminInstancesPage() {
         if (!confirm(`Êtes-vous sûr de vouloir supprimer l'instance ${userId} ?`)) return;
 
         try {
-            const response = await fetch(`http://localhost:8080/api/sessions?userId=${userId}`, {
+            const response = await fetch(`/api/bridge?userId=${userId}`, {
                 method: 'DELETE'
             });
             const data = await response.json();
