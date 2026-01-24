@@ -2247,6 +2247,7 @@ export default function NewWorkflowPage() {
     Record<number, { input?: any; output?: any; context?: any }>
   >({});
   const [connectingFrom, setConnectingFrom] = useState<number | null>(null);
+  const [executingNodeId, setExecutingNodeId] = useState<number | null>(null);
   const [connectingBranch, setConnectingBranch] = useState<"true" | "false" | null>(null); // Node ID we're connecting FROM
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 }); // For drawing temp connection line
   const [isSaving, setIsSaving] = useState(false);
@@ -3596,12 +3597,14 @@ export default function NewWorkflowPage() {
             ...(enabledFields.includes('urgency') && { urgency: 'number - Urgence (1-5)' }),
             ...(enabledFields.includes('type') && { type: 'string - Type de problème' }),
             ...(enabledFields.includes('keywords') && { keywords: 'array - Mots-clés extraits' }),
+            temperature: 'number - Température utilisée pour la génération (0-1)',
           };
 
         case 'gpt_respond':
           return {
             response: 'string - Réponse générée par l\'IA',
-            tokens: 'number - Nombre de tokens utilisés'
+            tokens: 'number - Nombre de tokens utilisés',
+            temperature: 'number - Température utilisée pour la génération (0-1)'
           };
 
         case 'ai_agent':
@@ -9176,32 +9179,68 @@ Ton but est de transformer chaque message en vente.
                               </div>
                               <button
                                 onClick={async () => {
-                                  if (!node) return;
-                                  // Execute the node
+                                  if (!node || executingNodeId === node.id) return;
+
+                                  setExecutingNodeId(node.id);
+
                                   try {
+                                    // 1. Build initial context with global settings
                                     const context: ExecutionContext = {
-                                      lastUserMessage: "Test message",
-                                      products: [],
-                                      currency: "EUR",
-                                      contact: {
-                                        phone: "+33612345678",
-                                        name: "Test User",
-                                        id: "test-123",
-                                      },
-                                      message: {
-                                        from: "+33612345678",
-                                        text: "Test message",
-                                        type: "text",
-                                      },
+                                      lastUserMessage: "Bonjour",
+                                      products: products,
+                                      currency: "FCFA",
                                       variables: {},
                                       previous: {},
                                       messages: [],
                                       cart: [],
+                                      userId: clientUserId || undefined,
+                                      isManualExecution: true,
+                                      userPhone: clientWhatsAppNumber,
                                       addMessage: () => { },
                                     };
+
+                                    // 2. Find ALL incoming nodes (predecessors)
+                                    const incomingNodes = nodes.filter(n =>
+                                      n.connectedTo === node.id ||
+                                      n.connectedToTrue === node.id ||
+                                      n.connectedToFalse === node.id
+                                    );
+
+                                    // Use the first predecessor that has execution data (the most recent/valid one)
+                                    const activePrevNode = incomingNodes.find(n => nodeExecutionData[n.id]?.output);
+
+                                    if (activePrevNode) {
+                                      const pData = nodeExecutionData[activePrevNode.id];
+                                      if (pData.context) Object.assign(context, pData.context);
+                                      // IMPORTANT: Map the output of the predecessor to context.previous.output
+                                      context.previous = { output: pData.output };
+                                    }
+
+                                    // 3. Find global trigger data (very important for contact info and original message)
+                                    const triggerNode = nodes.find(n =>
+                                      ["whatsapp_message", "telegram_message", "keyword", "new_contact", "webhook_trigger"].includes(n.type)
+                                    );
+
+                                    if (triggerNode && nodeExecutionData[triggerNode.id]) {
+                                      const tData = nodeExecutionData[triggerNode.id];
+                                      if (tData.output) {
+                                        // Merge contact and message info from trigger if not already provided by predecessor
+                                        context.contact = context.contact || tData.output.contact;
+                                        context.message = context.message || tData.output.message;
+                                        context.from = context.from || tData.output.from;
+                                        if (tData.output.message) {
+                                          context.lastUserMessage = typeof tData.output.message === 'string'
+                                            ? tData.output.message
+                                            : (tData.output.message.text || "Bonjour");
+                                        }
+                                      }
+                                    }
+
+                                    // 4. Run the node
                                     const result = await executeNode(node, context);
-                                    console.log("Node execution result:", result);
-                                    // Update execution data
+                                    console.log("Manual execution result:", result);
+
+                                    // 5. Update execution data with BOTH input and output
                                     setNodeExecutionData((prev) => ({
                                       ...prev,
                                       [node.id]: {
@@ -9211,14 +9250,24 @@ Ton but est de transformer chaque message en vente.
                                       },
                                     }));
                                   } catch (error) {
-                                    console.error("Execution error:", error);
+                                    console.error("Manual execution error:", error);
+                                  } finally {
+                                    setExecutingNodeId(null);
                                   }
                                 }}
-                                className="ml-2 px-3 py-1.5 bg-primary/20 hover:bg-primary/30 border border-primary/30 rounded-lg flex items-center gap-1.5 text-[10px] font-medium text-primary transition-colors"
+                                className={`ml-2 px-3 py-1.5 border rounded-lg flex items-center gap-1.5 text-[10px] font-medium transition-all ${executingNodeId === node.id
+                                  ? "bg-primary/10 border-primary/20 text-primary/50 cursor-wait"
+                                  : "bg-primary/20 hover:bg-primary/30 border-primary/30 text-primary"
+                                  }`}
                                 title="Exécuter ce nœud"
+                                disabled={executingNodeId === node.id}
                               >
-                                <FlaskConical className="h-3 w-3" />
-                                <span>Execute step</span>
+                                {executingNodeId === node.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <FlaskConical className="h-3 w-3" />
+                                )}
+                                <span>{executingNodeId === node.id ? "Executing..." : "Execute step"}</span>
                               </button>
                             </div>
                             <div className="flex-1 overflow-y-auto custom-scrollbar">

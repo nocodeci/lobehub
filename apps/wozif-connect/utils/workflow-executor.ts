@@ -17,6 +17,8 @@ export interface ExecutionContext {
     userName?: string;
     userFirstName?: string;
     userEmail?: string;
+    userId?: string;
+    isManualExecution?: boolean;
     messages?: Array<{ sender: 'user' | 'bot'; text?: string; content?: string }>;
     addMessage: (msg: Omit<Message, "id" | "time">) => void;
     [key: string]: any;
@@ -84,6 +86,33 @@ function generateFallbackResponse(intent: string | undefined, message: string): 
     }
 }
 
+// Helper to send real WhatsApp message during manual execution
+async function sendRealWhatsAppMessage(userId: string | undefined, recipient: string | undefined, payload: any) {
+    if (!userId || !recipient) {
+        console.warn('Cannot send real message: userId or recipient missing', { userId, recipient });
+        return;
+    }
+
+    try {
+        console.log(`🚀 Sending REAL message to ${recipient} via bridge...`);
+        const response = await fetch('/api/whatsapp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId,
+                recipient,
+                ...payload
+            })
+        });
+
+        if (!response.ok) {
+            console.error('Failed to send real message:', await response.text());
+        }
+    } catch (error) {
+        console.error('Error in sendRealWhatsAppMessage:', error);
+    }
+}
+
 export async function executeNode(
     node: WorkflowNode,
     context: ExecutionContext
@@ -129,6 +158,11 @@ export async function executeNode(
                 text: finalText,
             });
 
+            // If manual execution, send to real WhatsApp
+            if (context.isManualExecution && context.userId && context.userPhone) {
+                await sendRealWhatsAppMessage(context.userId, context.userPhone, { message: finalText });
+            }
+
             return {
                 success: true,
                 waitDelay: 1500,
@@ -168,7 +202,12 @@ export async function executeNode(
             // Use custom system prompt if provided, otherwise use default
             const finalSystemPrompt = systemPrompt || (() => {
                 const fieldsDesc = Object.entries(jsonSchema).map(([key, desc]) => `- ${key}: ${desc}`).join('\n');
-                return `Tu es un expert en analyse d'intention client. Analyse le message et retourne UNIQUEMENT un JSON avec les champs suivants:\n${fieldsDesc}\n\nRÈGLES STRICTES:\n1. Réponds UNIQUEMENT en JSON valide\n2. NE JAMAIS répondre au message du client\n3. Utilise exactement les champs demandés`;
+                let p = `Tu es un expert en analyse d'intention client. Analyse le message et retourne UNIQUEMENT un JSON avec les champs suivants:\n${fieldsDesc}\n\n`;
+                if (customCategories) {
+                    p += `Voici les catégories d'intention à considérer en priorité:\n${customCategories}\n\n`;
+                }
+                p += `RÈGLES STRICTES:\n1. Réponds UNIQUEMENT en JSON valide\n2. NE JAMAIS répondre au message du client\n3. Utilise exactement les champs demandés`;
+                return p;
             })();
 
             const analysisPrompt = prompt || `Analyse le message suivant et retourne un JSON avec les champs configurés: "${userMessage}"`;
@@ -184,7 +223,8 @@ export async function executeNode(
                         message: resolvedAnalysisPrompt,
                         systemPrompt: resolvedSystemPrompt,
                         model: config.model || 'gpt-4o-mini',
-                        maxTokens: config.maxTokens || 500
+                        maxTokens: config.maxTokens || 500,
+                        temperature: config.temperature !== undefined ? config.temperature : 0.7
                     })
                 });
 
@@ -252,12 +292,15 @@ export async function executeNode(
                             context[key] = finalData[key];
                         });
 
+                        // Ensure 'intent' is set for subsequent nodes (using type or custom intent field)
+                        context.intent = finalData.intent || finalData.type || "autre";
+
                         // Also store in data for condition nodes
                         return {
                             success: true,
                             waitDelay: 1000,
                             message: `Analyse: ${JSON.stringify(finalData)}`,
-                            data: finalData
+                            data: { ...finalData, intent: context.intent, temperature: config.temperature !== undefined ? config.temperature : 0.7 }
                         };
                     }
                 } catch (e) {
@@ -316,7 +359,8 @@ export async function executeNode(
                     body: JSON.stringify({
                         message: resolvedUserMessage,
                         systemPrompt: resolvedSystemPrompt,
-                        model: model || 'gpt-4o'
+                        model: model || 'gpt-4o',
+                        temperature: config.temperature !== undefined ? config.temperature : 0.7
                     })
                 });
 
@@ -355,7 +399,7 @@ export async function executeNode(
                     success: true,
                     waitDelay: 2000,
                     message: `IA a répondu: ${aiResponse.slice(0, 50)}...`,
-                    data: { aiResponse }
+                    data: { aiResponse, temperature: config.temperature !== undefined ? config.temperature : 0.7 }
                 };
             } catch (error: any) {
                 return {
@@ -458,8 +502,8 @@ export async function executeNode(
                     // Modèles o1 : utiliser reasoning_effort, pas de température
                     requestPayload.reasoningEffort = requestBody.reasoning_effort;
                 } else {
-                    // Autres modèles GPT : utiliser température
-                    requestPayload.temperature = requestBody.temperature;
+                    // Autres modèles GPT : utiliser température custom ou déduite
+                    requestPayload.temperature = config.temperature !== undefined ? config.temperature : requestBody.temperature;
                 }
 
                 const response = await fetch('/api/chat', {
@@ -904,6 +948,15 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
                 imageUrl: url || 'https://images.unsplash.com/photo-1579353977828-2a4eab540b9a?w=400',
             });
 
+            // If manual execution, send to real WhatsApp
+            if (context.isManualExecution && context.userId && context.userPhone) {
+                await sendRealWhatsAppMessage(context.userId, context.userPhone, {
+                    recipient: context.userPhone,
+                    message: caption || '',
+                    mediaPath: url
+                });
+            }
+
             return {
                 success: true,
                 waitDelay: 1200,
@@ -931,13 +984,41 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
         }
 
         case 'http_request': {
-            const { url } = config;
-            return {
-                success: true,
-                waitDelay: 1000,
-                message: `API ${url || 'externe'} appelée (Succès simulé)`,
-                data: { apiResponse: { status: 'ok' } }
-            };
+            const { url, method = 'GET', headers, body, outputKey = 'apiResponse' } = config;
+
+            if (!url) return { success: false, waitDelay: 0, message: "URL manquante" };
+
+            const resolvedUrl = replaceVariables(url, context);
+            const resolvedBody = body ? replaceVariables(typeof body === 'string' ? body : JSON.stringify(body), context) : undefined;
+
+            console.log(`🌐 Appel API: ${method} ${resolvedUrl}`);
+
+            try {
+                const response = await fetch(resolvedUrl, {
+                    method: method,
+                    headers: headers ? JSON.parse(replaceVariables(JSON.stringify(headers), context)) : { 'Content-Type': 'application/json' },
+                    body: method !== 'GET' ? resolvedBody : undefined,
+                });
+
+                const data = await response.json();
+
+                // Store result in context
+                context[outputKey] = data;
+
+                return {
+                    success: response.ok,
+                    waitDelay: 1000,
+                    message: `API ${method} appelée: ${response.status} ${response.statusText}`,
+                    data: data
+                };
+            } catch (error: any) {
+                console.error('HTTP Request Error:', error);
+                return {
+                    success: false,
+                    waitDelay: 0,
+                    message: `Erreur HTTP: ${error.message}`
+                };
+            }
         }
 
         case 'save_contact':
@@ -984,6 +1065,14 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
                 sender: 'bot',
                 text: `📄 Document: ${filename || 'fichier'}\n${caption || ''}\n${url || ''}`,
             });
+
+            // If manual execution, send to real WhatsApp
+            if (context.isManualExecution && context.userId && context.userPhone) {
+                await sendRealWhatsAppMessage(context.userId, context.userPhone, {
+                    message: `${caption || ''} ${url || ''}`.trim(),
+                    mediaPath: url
+                });
+            }
             return {
                 success: true,
                 waitDelay: 1200,
@@ -997,6 +1086,15 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
                 sender: 'bot',
                 text: `📍 *${name || 'Localisation'}*\n${address || ''}\nCoordonnées: ${latitude}, ${longitude}`,
             });
+
+            // If manual execution, send to real WhatsApp
+            if (context.isManualExecution && context.userId && context.userPhone) {
+                await sendRealWhatsAppMessage(context.userId, context.userPhone, {
+                    latitude,
+                    longitude,
+                    address: address || name
+                });
+            }
             return {
                 success: true,
                 waitDelay: 1000,
@@ -1010,6 +1108,13 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
                 sender: 'bot',
                 text: `👤 *Contact partagé*\n${name}\n📞 ${phone}${email ? `\n📧 ${email}` : ''}${organization ? `\n🏢 ${organization}` : ''}`,
             });
+
+            // If manual execution, send to real WhatsApp
+            if (context.isManualExecution && context.userId && context.userPhone) {
+                await sendRealWhatsAppMessage(context.userId, context.userPhone, {
+                    vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:${name}\nTEL;type=CELL;type=VOICE;waid=${phone.replace(/\+/g, '')}:${phone}\nEND:VCARD`
+                });
+            }
             return {
                 success: true,
                 waitDelay: 1000,
@@ -1023,6 +1128,13 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
                 sender: 'bot',
                 text: `🎵 ${asVoiceNote ? 'Note vocale' : 'Audio'}: ${url || 'audio.mp3'}`,
             });
+
+            // If manual execution, send to real WhatsApp
+            if (context.isManualExecution && context.userId && context.userPhone) {
+                await sendRealWhatsAppMessage(context.userId, context.userPhone, {
+                    mediaPath: url
+                });
+            }
             return {
                 success: true,
                 waitDelay: 1500,
@@ -1127,12 +1239,29 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
         }
 
         case 'notify_slack': {
-            const { channel, message } = config;
-            return {
-                success: true,
-                waitDelay: 800,
-                message: `Slack: message envoyé${channel ? ` sur ${channel}` : ''}`
-            };
+            const { webhookUrl, channel, text } = config;
+            if (!webhookUrl) return { success: false, waitDelay: 0, message: "Webhook Slack manquant" };
+
+            const resolvedText = replaceVariables(text || "Notification depuis Wozif Connect", context);
+
+            try {
+                await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: resolvedText,
+                        channel: channel || undefined
+                    })
+                });
+
+                return {
+                    success: true,
+                    waitDelay: 800,
+                    message: `Slack: message envoyé${channel ? ` sur ${channel}` : ''}`
+                };
+            } catch (error: any) {
+                return { success: false, waitDelay: 0, message: `Slack Error: ${error.message}` };
+            }
         }
 
         case 'notify_internal': {
@@ -2065,6 +2194,38 @@ Score: 0 = sûr, 100 = très problématique. Réponds UNIQUEMENT en JSON.`,
             };
         }
 
+        case 'run_javascript': {
+            const code = config.code || config.javascript || "";
+            if (!code) return { success: true, waitDelay: 0, message: "Code JavaScript vide" };
+
+            try {
+                // Créer une fonction avec le contexte et le message en paramètres
+                const fn = new Function('context', 'message', `
+                    try {
+                        ${code}
+                    } catch(e) {
+                        return { error: e.message };
+                    }
+                `);
+
+                const result = fn(context, context.lastUserMessage);
+
+                // Si le résultat est un objet, on peut le fusionner dans le contexte
+                if (result && typeof result === 'object' && !Array.isArray(result)) {
+                    Object.assign(context, result);
+                }
+
+                return {
+                    success: !result?.error,
+                    waitDelay: 500,
+                    message: result?.error ? `Erreur JS: ${result.error}` : "Code JavaScript exécuté",
+                    data: result
+                };
+            } catch (e: any) {
+                return { success: false, waitDelay: 0, message: `Erreur compilation JS: ${e.message}` };
+            }
+        }
+
         case 'ai_update_conversation': {
             // Mise à jour d'une conversation
             const { conversationId, name } = config;
@@ -2138,11 +2299,17 @@ function replaceVariables(text: string, context: ExecutionContext): string {
             }
         }
 
-        // If not found in dynamic path, try direct key in context (backward compatibility)
         if (value === undefined) {
             value = context[path];
         }
 
-        return value !== undefined ? String(value) : match;
+        if (value === undefined) return match;
+
+        // Handle object/array stringification
+        if (typeof value === 'object' && value !== null) {
+            return JSON.stringify(value);
+        }
+
+        return String(value);
     });
 }
