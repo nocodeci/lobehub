@@ -146,7 +146,7 @@ export async function executeNode(
 
             const customCategories = categories || "";
             const enabledFields = outputFields || ['type', 'urgency', 'autoResolvable', 'keywords'];
-            
+
             // Build JSON schema based on enabled outputs
             const jsonSchema: any = {};
             if (enabledFields.includes('type')) {
@@ -220,11 +220,11 @@ export async function executeNode(
                     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
                         const parsed = JSON.parse(jsonMatch[0]);
-                        
+
                         // Ensure all enabled output fields are present
                         const enabledFields = outputFields || ['type', 'urgency', 'autoResolvable', 'keywords'];
                         const finalData: any = {};
-                        
+
                         enabledFields.forEach((field: string) => {
                             if (parsed[field] !== undefined) {
                                 finalData[field] = parsed[field];
@@ -243,12 +243,12 @@ export async function executeNode(
                                 }
                             }
                         });
-                        
+
                         // Store all JSON fields in context
                         Object.keys(finalData).forEach(key => {
                             context[key] = finalData[key];
                         });
-                        
+
                         // Also store in data for condition nodes
                         return {
                             success: true,
@@ -383,7 +383,7 @@ export async function executeNode(
             try {
                 // Construire l'historique de conversation si activé
                 let conversationHistory: Array<{ role: string; content: string }> = [];
-                
+
                 if (includeChatHistory && context.messages && Array.isArray(context.messages)) {
                     // Convertir l'historique des messages en format OpenAI
                     conversationHistory = context.messages
@@ -544,7 +544,7 @@ export async function executeNode(
                     success: true,
                     waitDelay: 2000,
                     message: `Agent "${agentName}" a répondu: ${aiResponse.slice(0, 50)}...`,
-                    data: { 
+                    data: {
                         aiResponse,
                         agentName,
                         outputFormat,
@@ -623,13 +623,13 @@ export async function executeNode(
 
         case 'condition': {
             const { field, operator, value, condition } = config;
-            
+
             // Support both 'field' and 'condition' for backward compatibility
             const fieldName = field || condition;
-            
+
             // Try to get value from context, supporting nested paths like "previous.output.autoResolvable"
             let testValue: any = undefined;
-            
+
             if (fieldName) {
                 // Direct field access
                 if (context[fieldName] !== undefined) {
@@ -649,7 +649,7 @@ export async function executeNode(
                     testValue = current;
                 }
             }
-            
+
             // Fallback to last user message if no field found
             if (testValue === undefined) {
                 testValue = context.lastUserMessage || "";
@@ -823,17 +823,55 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
             }
         }
 
+        case 'whatsapp_message':
+        case 'telegram_message':
         case 'keyword': {
             const kwString = config.keywords || "";
             const keywords = kwString.split('\n').map((k: string) => k.trim()).filter(Boolean);
             const userMsg = context.lastUserMessage?.toLowerCase() || '';
-            const triggered = keywords.length === 0 || keywords.some((kw: string) => userMsg.includes(kw.toLowerCase()));
+
+            // Check if triggered (always true for non-keyword message triggers)
+            const triggered = type !== 'keyword' || keywords.length === 0 || keywords.some((kw: string) => userMsg.includes(kw.toLowerCase()));
+
+            // Populate message and contact data
+            const messageData = {
+                message: {
+                    text: context.lastUserMessage,
+                    id: `msg_${Date.now()}`,
+                    type: context.lastAudioUrl ? 'audio' : context.lastImageUrl ? 'image' : 'text'
+                },
+                from: context.userPhone || context.userId || 'unknown',
+                timestamp: new Date().toISOString(),
+                contact: {
+                    phone: context.userPhone || '',
+                    name: context.userName || 'Client',
+                    id: context.userId || ''
+                },
+                // Add flat versions for the UI to show them plainly in the sidebar
+                'contact.phone': context.userPhone || '',
+                'contact.name': context.userName || 'Client',
+                'contact.id': context.userId || '',
+                'message.text': context.lastUserMessage,
+                messageId: `msg_${Date.now()}`,
+                messageType: context.lastAudioUrl ? 'audio' : context.lastImageUrl ? 'image' : 'text'
+            };
+
+            // Support both hierarchical and flat keys for maximum compatibility
+            context.message = context.lastUserMessage;
+            context.from = messageData.from;
+            context.timestamp = messageData.timestamp;
+            context.contact = messageData.contact;
+            context['contact.phone'] = messageData.contact.phone;
+            context['contact.name'] = messageData.contact.name;
+            context['contact.id'] = messageData.contact.id;
+            context.messageId = messageData.message.id;
+            context.messageType = messageData.message.type;
 
             return {
                 success: triggered,
                 waitDelay: 300,
-                message: triggered ? `Mot-clé détecté ✅` : `Aucun mot-clé trouvé ❌`,
-                data: { keywordTriggered: triggered }
+                message: triggered ? `Trigger ${type} activé ✅` : `Filtre mot-clé non passé ❌`,
+                data: messageData
             };
         }
 
@@ -1159,13 +1197,13 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
             // Détecte et ajoute un produit au panier
             const { productId, quantity = 1, productName, price } = config;
             const userMessage = context.lastUserMessage.toLowerCase();
-            
+
             // Si productId n'est pas fourni, essayer de détecter depuis le message
             let detectedProductId = productId;
             if (!detectedProductId) {
                 // Chercher dans les produits disponibles
-                const matchingProduct = context.products?.find((p: any) => 
-                    userMessage.includes(p.name.toLowerCase()) || 
+                const matchingProduct = context.products?.find((p: any) =>
+                    userMessage.includes(p.name.toLowerCase()) ||
                     userMessage.includes(p.id.toString())
                 );
                 if (matchingProduct) {
@@ -1180,7 +1218,7 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
 
             // Trouver le produit dans la liste
             const product = context.products?.find((p: any) => p.id === detectedProductId);
-            
+
             if (!product && !detectedProductId) {
                 context.addMessage({
                     sender: 'bot',
@@ -1193,10 +1231,10 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
                 };
             }
 
-            const productToAdd = product || { 
-                id: detectedProductId, 
-                name: productName || `Produit ${detectedProductId}`, 
-                price: price || 0 
+            const productToAdd = product || {
+                id: detectedProductId,
+                name: productName || `Produit ${detectedProductId}`,
+                price: price || 0
             };
 
             // Vérifier si le produit est déjà dans le panier
@@ -1230,7 +1268,7 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
             // Finalise la commande et envoie le paiement
             const { gateway, currency, paymentUrl, successUrl, failureUrl, apiKey, testMode } = config;
             const cart = context.cart || [];
-            
+
             if (cart.length === 0) {
                 context.addMessage({
                     sender: 'bot',
@@ -1325,7 +1363,7 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
                     cartText += `   ${itemTotal} ${context.currency}\n\n`;
                 });
                 cartText += `━━━━━━━━━━━━━━━━\n*Total: ${total} ${context.currency}*`;
-                
+
                 context.addMessage({
                     sender: 'bot',
                     text: cartText,
@@ -1356,7 +1394,7 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
             // Applique un code promo au panier
             const { promoCode, discountType, discountValue } = config;
             const cart = context.cart || [];
-            
+
             if (cart.length === 0) {
                 context.addMessage({
                     sender: 'bot',

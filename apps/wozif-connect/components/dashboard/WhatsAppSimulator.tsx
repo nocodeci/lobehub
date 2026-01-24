@@ -436,6 +436,9 @@ export function WhatsAppSimulator({
             lastAudioUrl, // Audio reçu via WhatsApp/Telegram
             products,
             currency,
+            userPhone: targetClient?.jid || '22500000000',
+            userId: targetClient?.bridgeUserId || 'guest',
+            userName: targetClient?.name || 'Client',
             cart: [], // Panier d'achat (sera mis à jour par les nœuds add_to_cart)
             // Ajouter l'historique des messages pour les agents IA
             messages: messages.map((msg: Message) => ({
