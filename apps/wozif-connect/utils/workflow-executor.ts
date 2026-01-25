@@ -134,6 +134,34 @@ export async function executeNode(
 
     const type = node.type;
 
+    // Redirection vers le backend Python pour les blocs LangChain/Expert
+    const pythonNodes = ['rag_knowledge', 'python_script', 'long_term_memory', 'web_search_agent', 'ai_flow_logic', 'ai_agent', 'gpt_analyze', 'sentiment'];
+    if (pythonNodes.includes(type)) {
+        try {
+            const response = await fetch('http://localhost:8000/execute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nodes: [node],
+                    context: context
+                })
+            });
+            if (!response.ok) throw new Error(`Backend Python non disponible (${response.status})`);
+            const data = await response.json();
+            // Mettre à jour le contexte global avec les résultats du script Python
+            if (data.final_context) {
+                Object.assign(context, data.final_context);
+            }
+            return data.results[0];
+        } catch (error: any) {
+            return {
+                success: false,
+                waitDelay: 0,
+                message: `Erreur Backend Python : Veuillez vérifier que le serveur est lancé.`
+            };
+        }
+    }
+
     switch (type) {
         case 'anti_ban':
         case 'delay': {
@@ -915,8 +943,40 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
         case 'whatsapp_message':
         case 'telegram_message':
         case 'keyword': {
-            const kwString = config.keywords || "";
-            const keywords = kwString.split('\n').map((k: string) => k.trim()).filter(Boolean);
+            const rawKeywords = config.keywords ?? config.keyword ?? config.words ?? "";
+
+            let keywords: string[] = [];
+            if (Array.isArray(rawKeywords)) {
+                keywords = rawKeywords.map((k: any) => String(k).trim()).filter(Boolean);
+            } else if (typeof rawKeywords === 'string') {
+                const trimmed = rawKeywords.trim();
+
+                // Accept JSON-encoded arrays
+                if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                    try {
+                        const parsed = JSON.parse(trimmed);
+                        if (Array.isArray(parsed)) {
+                            keywords = parsed.map((k: any) => String(k).trim()).filter(Boolean);
+                        }
+                    } catch {
+                        // ignore JSON parse errors
+                    }
+                }
+
+                // Fallback: newline or comma-separated string
+                if (keywords.length === 0) {
+                    keywords = trimmed
+                        .split(/\r?\n|,/)
+                        .map((k: string) => k.trim())
+                        .filter(Boolean);
+                }
+            } else if (rawKeywords && typeof rawKeywords === 'object') {
+                // Accept { list: [...] } or { keywords: [...] }
+                const maybeList = (rawKeywords as any).list ?? (rawKeywords as any).keywords;
+                if (Array.isArray(maybeList)) {
+                    keywords = maybeList.map((k: any) => String(k).trim()).filter(Boolean);
+                }
+            }
             const userMsg = context.lastUserMessage?.toLowerCase() || '';
 
             // Check if triggered (always true for non-keyword message triggers)
@@ -1259,7 +1319,71 @@ Réponds UNIQUEMENT le JSON, rien d'autre.`,
             };
         }
 
+        case 'switch_router': {
+            const { field, cases } = config;
+            const testValue = String(context[field || 'intent'] || context.lastUserMessage || "").toLowerCase();
+
+            console.log(`🔀 Switch sur ${field || 'intent'}: "${testValue}"`);
+
+            let matchedIdx = -1;
+            if (Array.isArray(cases)) {
+                matchedIdx = cases.findIndex(c => String(c.value).toLowerCase() === testValue);
+            }
+
+            return {
+                success: true,
+                waitDelay: 500,
+                message: matchedIdx >= 0 ? `Branché sur "${cases[matchedIdx].label || cases[matchedIdx].value}"` : "Routing par défaut",
+                data: { matchedIndex: matchedIdx, isDefault: matchedIdx === -1 }
+            };
+        }
+
+        case 'check_availability': {
+            const { duration = 30 } = config;
+            console.log(`📅 Recherche de créneaux (${duration} min)...`);
+
+            // Simulation
+            const slots = [
+                "Lundi 14:00", "Lundi 15:30",
+                "Mardi 09:00", "Mardi 10:30",
+                "Mercredi 11:00", "Vendredi 16:00"
+            ];
+
+            context.available_slots = slots;
+            context.formatted_slots = slots.map(s => `- ${s}`).join('\n');
+
+            return {
+                success: true,
+                waitDelay: 1200,
+                message: `Trouvé ${slots.length} créneaux pour ${duration} min`,
+                data: { slots, count: slots.length }
+            };
+        }
+
+        case 'book_appointment': {
+            const { title = "Rendez-vous" } = config;
+            const selectedDate = context.selected_date || "Demain à 10h00";
+
+            console.log(`✅ Réservation de: ${title} pour ${selectedDate}`);
+
+            return {
+                success: true,
+                waitDelay: 1500,
+                message: `RDV "${title}" confirmé pour ${selectedDate}`,
+                data: { bookingId: "SIM-" + Math.floor(Math.random() * 9000 + 1000), date: selectedDate }
+            };
+        }
+
+        case 'cancel_appointment': {
+            return {
+                success: true,
+                waitDelay: 1000,
+                message: "Rendez-vous annulé avec succès"
+            };
+        }
+
         case 'notify_email': {
+
             const { to, subject } = config;
             return {
                 success: true,

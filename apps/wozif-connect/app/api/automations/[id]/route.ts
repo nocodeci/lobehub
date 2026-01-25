@@ -6,9 +6,10 @@ import { prisma } from "@/lib/prisma";
 // GET - Get a single automation by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
@@ -16,7 +17,6 @@ export async function GET(
     }
 
     const userId = (session.user as any).id;
-    const { id } = params;
 
     const automation = await prisma.automation.findFirst({
       where: {
@@ -48,9 +48,10 @@ export async function GET(
 // PUT - Update an automation
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
@@ -58,7 +59,6 @@ export async function PUT(
     }
 
     const userId = (session.user as any).id;
-    const { id } = params;
     const body = await request.json();
 
     // Check if automation exists and belongs to user
@@ -132,9 +132,10 @@ export async function PUT(
 // DELETE - Delete an automation
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
@@ -142,7 +143,6 @@ export async function DELETE(
     }
 
     const userId = (session.user as any).id;
-    const { id } = params;
 
     // Check if automation exists and belongs to user
     const existingAutomation = await prisma.automation.findFirst({
@@ -179,9 +179,10 @@ export async function DELETE(
 // PATCH - Toggle automation active state or update specific fields
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
@@ -189,7 +190,6 @@ export async function PATCH(
     }
 
     const userId = (session.user as any).id;
-    const { id } = params;
     const body = await request.json();
 
     // Check if automation exists and belongs to user

@@ -93,6 +93,8 @@ import {
   MoreVertical,
   FlaskConical,
   PanelRight,
+  Settings2,
+  Brain,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
@@ -405,193 +407,46 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 );
 
 // Templates prédéfinis pour les débutants
-// Templates prédéfinis pour les débutants
 const workflowTemplates = [
   {
-    id: "ecommerce",
-    name: "Boutique Express",
-    description:
-      "Vendez vos produits avec catalogue, panier et paiement automatisé.",
-    icon: Store,
+    id: "chatbot_intelligent",
+    name: "Chatbot IA Intelligent",
+    description: "Répondez aux clients en utilisant votre propre base de connaissances (PDF, Texte).",
+    icon: Bot,
     color: "text-emerald-400",
     bg: "bg-emerald-400/10",
     popular: true,
-    features: ["Catalogue AI", "Chariow Panier", "Paiement Auto"],
+    features: ["RAG Knowledge", "IA LangChain", "Réponse Auto"],
   },
   {
-    id: "support",
-    name: "Support Client IA",
-    description: "Répondez instantanément aux questions fréquentes 24h/7j.",
-    icon: HeartHandshake,
-    color: "text-blue-400",
-    bg: "bg-blue-400/10",
-    popular: true,
-    features: ["FAQ IA", "Tickets Support", "Escalade Humain"],
-  },
-  {
-    id: "appointment",
-    name: "Prise de RDV",
-    description: "Laissez vos clients réserver des créneaux sans intervention.",
-    icon: Calendar,
+    id: "agent_expert_pro",
+    name: "Agent IA Expert 360°",
+    description: "Agent autonome capable de lire votre site web, vos PDF et d'utiliser des outils MCP.",
+    icon: Rocket,
     color: "text-purple-400",
     bg: "bg-purple-400/10",
     popular: true,
-    features: ["Sync Calendrier", "Rappels Auto", "Confirmation"],
+    features: ["Web Scraping", "Analyse PDF", "Connecteurs MCP"],
   },
   {
-    id: "lead",
-    name: "Capture de Leads",
-    description: "Qualifiez vos prospects et collectez leurs informations.",
-    icon: Target,
-    color: "text-orange-400",
-    bg: "bg-orange-400/10",
+    id: "python_workflow",
+    name: "Moteur Python Custom",
+    description: "Workflow avancé utilisant des scripts Python pour des calculs ou APIs complexes.",
+    icon: Code,
+    color: "text-blue-400",
+    bg: "bg-blue-400/10",
     popular: false,
-    features: ["Questionnaire", "Scoring Leads", "Export CRM"],
+    features: ["Script Python", "Context Mapping", "Logic Avancée"],
   },
   {
-    id: "marketing",
-    name: "Flash Promo",
-    description: "Envoyez des offres irrésistibles à vos segments de clients.",
-    icon: Megaphone,
-    color: "text-pink-400",
-    bg: "bg-pink-400/10",
-    popular: false,
-    features: ["Broadcasting", "Promo Codes", "Urgence IA"],
-  },
-  {
-    id: "survey",
-    name: "Avis & Satisfaction",
-    description: "Collectez des avis clients automatiquement après un achat.",
-    icon: Star,
-    color: "text-yellow-400",
-    bg: "bg-yellow-400/10",
-    popular: false,
-    features: ["Notation 1-5", "Commentaires", "Analyse Sentiment"],
-  },
-  {
-    id: "abandon_cart",
-    name: "Relance Panier",
-    description:
-      "Récupérez les ventes perdues en relançant les paniers oubliés.",
-    icon: ShoppingBag,
-    color: "text-red-400",
-    bg: "bg-red-400/10",
-    popular: false,
-    features: ["Détection Abandon", "Relance Douce", "Coupon Promo"],
-  },
-  {
-    id: "tracking",
-    name: "Suivi de Commande",
-    description: "Informez vos clients sur l'état de livraison de leurs colis.",
-    icon: Truck,
-    color: "text-indigo-400",
-    bg: "bg-indigo-400/10",
-    popular: false,
-    features: ["Statut Réel", "Lien Tracking", "Notifications"],
-  },
-  {
-    id: "vip",
-    name: "Club VIP / News",
-    description:
-      "Créez une liste de diffusion exclusive pour vos meilleurs clients.",
-    icon: Mail,
-    color: "text-cyan-400",
-    bg: "bg-cyan-400/10",
-    popular: false,
-    features: ["Abonnement", "Contenu Exclusif", "Désinscription"],
-  },
-  {
-    id: "quote",
-    name: "Devis Rapide",
-    description:
-      "Générez des devis personnalisés en posant les bonnes questions.",
-    icon: FileText,
-    color: "text-slate-400",
-    bg: "bg-slate-400/10",
-    popular: false,
-    features: ["Collecte Specs", "Calcul Prix", "Envoi PDF"],
-  },
-  {
-    id: "contest",
-    name: "Jeu Concours",
-    description: "Animez votre communauté avec un concours WhatsApp viral.",
-    icon: Trophy,
-    color: "text-amber-500",
-    bg: "bg-amber-500/10",
-    popular: false,
-    features: ["Inscription", "Tirage Sort", "Annonce Gagnant"],
-  },
-  {
-    id: "education",
-    name: "Micro-Formation",
-    description: "Délivrez du contenu éducatif étape par étape sur WhatsApp.",
-    icon: BookOpen,
-    color: "text-emerald-500",
-    bg: "bg-emerald-500/10",
-    popular: false,
-    features: ["Leçons Auto", "Quiz IA", "Certificat"],
-  },
-  {
-    id: "hr",
-    name: "Recrutement RH",
-    description: "Filtrez les candidatures et planifiez les entretiens.",
-    icon: Briefcase,
-    color: "text-blue-500",
-    bg: "bg-blue-500/10",
-    popular: false,
-    features: ["Dépôt CV", "Questions Filtres", "RDV RH"],
-  },
-  {
-    id: "restaurant",
-    name: "Menu & Résa Resto",
-    description: "Affichez votre carte et prenez des réservations de table.",
-    icon: Utensils,
-    color: "text-orange-500",
-    bg: "bg-orange-500/10",
-    popular: false,
-    features: ["Menu Digital", "Dispo Table", "Confirmation"],
-  },
-  {
-    id: "stock",
-    name: "Alerte Stock",
-    description:
-      "Prévenez les clients quand un produit est de retour en stock.",
-    icon: Box,
-    color: "text-zinc-400",
-    bg: "bg-zinc-400/10",
-    popular: false,
-    features: ["Waitlist", "Notif Retour", "Lien Achat"],
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise 360°",
-    description:
-      "Workflow complet avec routage intelligent, support et checkout.",
-    icon: Rocket,
-    color: "text-violet-400",
-    bg: "bg-violet-400/10",
-    popular: true,
-    features: ["Multi-Agents", "Support N3", "Full CRM"],
-  },
-  {
-    id: "agency",
-    name: "Agence Digital Pro",
-    description: "De la prise de brief à la signature du devis automatisée.",
-    icon: Cpu,
+    id: "service_client_intelligent",
+    name: "Service Client IA",
+    description: "Analyse automatiquement l'intention et le sentiment du client pour une réponse adaptée.",
+    icon: Brain,
     color: "text-amber-400",
     bg: "bg-amber-400/10",
-    popular: false,
-    features: ["Roadmap Auto", "Consulting IA", "Devis PDF"],
-  },
-  {
-    id: "hr_pro",
-    name: "RH Master Pipeline",
-    description: "Processus de recrutement complet : screening, tests et RDV.",
-    icon: ShieldCheck,
-    color: "text-emerald-400",
-    bg: "bg-emerald-400/10",
-    popular: false,
-    features: ["Tests Soft Skills", "Scoring IA", "Calendly Sync"],
+    popular: true,
+    features: ["Détection Intention", "Analyse Sentiment", "Routage Intelligent"],
   },
   {
     id: "custom",
@@ -603,7 +458,28 @@ const workflowTemplates = [
     popular: false,
     features: ["Sur Mesure", "Tous les Blocs", "Mode Expert"],
   },
+  {
+    id: "booking_pro",
+    name: "Système de RDV Automatique",
+    description: "Vérifie vos disponibilités et réserve des rendez-vous automatiquement sur WhatsApp.",
+    icon: Calendar,
+    color: "text-rose-400",
+    bg: "bg-rose-400/10",
+    popular: true,
+    features: ["Disponibilités Calendrier", "Booking Auto", "Rappels"],
+  },
+  {
+    id: "booking_mcp",
+    name: "RDV Expert (Google & Calendly)",
+    description: "Intégration avancée avec vos calendriers Google et Calendly via le protocole MCP.",
+    icon: Cpu,
+    color: "text-amber-400",
+    bg: "bg-amber-400/10",
+    popular: false,
+    features: ["Google Calendar", "Calendly", "Gmail Automation"],
+  },
 ];
+
 
 // Catégories de nœuds pour les automatisations
 const nodeCategories = [
@@ -661,7 +537,7 @@ const nodeCategories = [
         icon: Bot,
         description: "Agent IA autonome avec outils et mémoire",
         isWide: true, // Flag pour le rendu large
-        bottomInputs: ["Modèle de chat", "Mémoire", "Outil"], // Handles supplémentaires
+        bottomInputs: ["Modèle de chat", "Mémoire", "Outil", "Base de Connaissance"], // Handles supplémentaires
       },
       {
         id: "gpt_analyze",
@@ -786,6 +662,43 @@ const nodeCategories = [
     ],
   },
   {
+    id: "python_langchain",
+    name: "Python & LangChain",
+    icon: FlaskConical,
+    nodes: [
+      {
+        id: "rag_knowledge",
+        name: "Base de Connaissances",
+        icon: Database,
+        description: "Permet au bot de répondre en utilisant vos PDF et documents",
+      },
+      {
+        id: "python_script",
+        name: "Script Python",
+        icon: Code,
+        description: "Exécutez du code Python personnalisé pour des calculs complexes",
+      },
+      {
+        id: "long_term_memory",
+        name: "Mémoire Long Terme",
+        icon: Clock,
+        description: "Permet au bot de se souvenir du client sur plusieurs mois",
+      },
+      {
+        id: "web_search_agent",
+        name: "Recherche Web",
+        icon: Globe,
+        description: "L'IA cherche des informations en temps réel sur Internet",
+      },
+      {
+        id: "ai_flow_logic",
+        name: "Logique LangGraph",
+        icon: GitBranch,
+        description: "Créez des boucles de réflexion complexes pour l'IA",
+      },
+    ],
+  },
+  {
     id: "ecommerce",
     name: "E-Commerce",
     icon: ShoppingCart,
@@ -894,6 +807,13 @@ const nodeCategories = [
         icon: GitBranch,
         description: "Branche selon une condition",
       },
+      {
+        id: "switch_router",
+        name: "Aiguillage Multi-Chemins",
+        icon: Filter,
+        description: "Route vers plusieurs chemins selon la valeur",
+      },
+
       {
         id: "delay",
         name: "Attendre",
@@ -1244,52 +1164,6 @@ const currencySymbols: Record<string, string> = {
 
 type ViewMode = "templates" | "builder" | "ai-assist" | "products";
 
-type AIAgentInputPort = "ai_languageModel" | "ai_memory" | "ai_tool";
-
-const isNodeCompatibleWithAIAgentPort = (
-  nodeId: string,
-  port: AIAgentInputPort,
-): boolean => {
-  if (port === "ai_languageModel") {
-    return nodeId === "gpt_respond" || nodeId === "ai_agent";
-  }
-  if (port === "ai_memory") {
-    return nodeId === "database_query" || nodeId === "google_sheets";
-  }
-  if (port === "ai_tool") {
-    return (
-      nodeId === "http_request" ||
-      nodeId === "run_javascript" ||
-      nodeId === "google_sheets" ||
-      nodeId === "database_query" ||
-      nodeId === "send_text" ||
-      nodeId === "send_image" ||
-      nodeId === "send_document" ||
-      nodeId === "send_location" ||
-      nodeId === "send_contact" ||
-      nodeId === "send_audio" ||
-      nodeId === "show_catalog" ||
-      nodeId === "add_to_cart" ||
-      nodeId === "show_cart" ||
-      nodeId === "checkout" ||
-      nodeId === "order_status" ||
-      nodeId === "save_contact" ||
-      nodeId === "add_tag" ||
-      nodeId === "remove_tag" ||
-      nodeId === "update_contact" ||
-      nodeId === "assign_agent" ||
-      nodeId === "add_note" ||
-      nodeId === "condition" ||
-      nodeId === "delay" ||
-      nodeId === "loop" ||
-      nodeId === "set_variable" ||
-      nodeId === "random_choice" ||
-      nodeId === "end_flow"
-    );
-  }
-  return true;
-};
-
 type WorkflowNode = {
   id: number;
   type: string;
@@ -1304,7 +1178,7 @@ type WorkflowNode = {
     true?: number;
     false?: number;
   };
-  aiConnections?: Partial<Record<AIAgentInputPort, number>>;
+  [key: string]: any; // Pour supporter connectedTo_case_X et connectedTo_default
 };
 
 // Schema Header Component (n8n style)
@@ -1704,8 +1578,8 @@ function DraggableNode({
   onOpenSettings: () => void;
   zoom: number;
   onStartConnect?: (branch?: "true" | "false") => void;
-  onCompleteConnect?: (targetPort?: "main" | AIAgentInputPort) => void;
-  onAddNext?: (targetPort?: "main" | AIAgentInputPort) => void;
+  onCompleteConnect?: () => void;
+  onAddNext?: () => void;
   isConnecting?: boolean;
   isDisconnected?: boolean;
   isWhatsAppConnected?: boolean;
@@ -1798,11 +1672,7 @@ function DraggableNode({
       }
       if (type === "ai_agent") {
         // AI Agent is configured if it has a system prompt or model selected
-        const hasChatModel = !!node.aiConnections?.ai_languageModel;
-        const hasMemory = !!node.aiConnections?.ai_memory;
-        const hasTool = !!node.aiConnections?.ai_tool;
-        // Chat Model is optional (can use built-in model). Memory & Tool are required.
-        return (!config.systemPrompt && !config.model) || !hasMemory || !hasTool;
+        return !config.systemPrompt && !config.model;
       }
       if (type === "sentiment") {
         // Sentiment is configured by default (has sensible defaults)
@@ -1862,12 +1732,35 @@ function DraggableNode({
   const isAiAgentNode = node.type === "ai_agent";
   // Check if this is a condition node (needs 2 output ports)
   const isConditionNode = node.type === "condition";
-  const nodeWidth = isAiAgentNode ? 224 : 96;
-  const nodeHeight = isAiAgentNode ? 96 : 96;
+  // Check if this is a switch/router node (needs multiple output ports)
+  const isSwitchNode = node.type === "switch_router";
+
+  // Parse switch config (stored as JSON string)
+  const parsedSwitchConfig = (() => {
+    if (!isSwitchNode) return { cases: [], hasDefault: true };
+    try {
+      const parsed = typeof node.config === 'string' ? JSON.parse(node.config) : node.config;
+      return {
+        cases: parsed?.cases || [],
+        hasDefault: parsed?.hasDefault !== false
+      };
+    } catch {
+      return { cases: [], hasDefault: true };
+    }
+  })();
+
+  const switchCases = parsedSwitchConfig.cases;
+  const switchHasDefault = parsedSwitchConfig.hasDefault;
+  const switchOutputCount = switchCases.length + (switchHasDefault ? 1 : 0);
+
+
+  const nodeWidth = isAiAgentNode ? 224 : isSwitchNode ? 160 : 96;
+  const nodeHeight = isAiAgentNode ? 96 : isSwitchNode ? Math.max(120, 60 + switchOutputCount * 40) : 96;
   const bottomInputs = nodeInfo?.bottomInputs || [];
 
+
   // For AI Agent nodes, we need extra height for bottom handles
-  const totalHeight = isAiAgentNode ? nodeHeight + 120 : nodeHeight;
+  const totalHeight = isAiAgentNode ? nodeHeight + 80 : nodeHeight;
 
   return (
     <motion.div
@@ -1896,7 +1789,6 @@ function DraggableNode({
         left: node.x,
         top: node.y,
         width: nodeWidth,
-        height: totalHeight,
       }}
     >
       {/* Premium Focus Aura & Industrial Brackets */}
@@ -1996,17 +1888,21 @@ function DraggableNode({
       <div
         className={`
                     relative
-                    ${isAiAgentNode ? "w-[224px] h-24" : "w-24 h-24"}
                     ${nodeInfo?.category?.id === "triggers"
             ? "rounded-tl-[40px] rounded-br-[40px] rounded-tr-xl rounded-bl-xl"
             : "rounded-2xl"
           }
                     ${colors.bg} ${colors.border} border-2
-                    flex ${isAiAgentNode ? "flex-row items-center gap-3 px-4" : "items-center justify-center"}
+                    flex ${isAiAgentNode ? "flex-row items-center gap-3 px-4" : isSwitchNode ? "flex-col items-center pt-4" : "items-center justify-center"}
                     ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}
                     hover:shadow-lg transition-all duration-200
                 `}
+        style={{
+          width: nodeWidth,
+          height: isAiAgentNode ? totalHeight : nodeHeight
+        }}
       >
+
         {/* Alert Icon (if unconfigured or disconnected) */}
         {(isUnconfigured || isWhatsAppAlert) && (
           <motion.div
@@ -2042,20 +1938,17 @@ function DraggableNode({
         )}
 
         {/* Drag indicator */}
-        <div
-          className={`absolute ${isAiAgentNode ? "bottom-2 right-2" : "bottom-1 right-1"} opacity-30`}
-        >
+        <div className={`absolute ${isAiAgentNode ? "bottom-2 right-2" : "bottom-1 right-1"} opacity-30`}>
           <GripVertical className="h-3 w-3" />
         </div>
 
         {/* Connection Input Handle (left side) - clickable to receive connection */}
         <div
-          data-handle-key={`node:${node.id}:in:main`}
           className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer group/input"
           onClick={(e) => {
             e.stopPropagation();
             if (isConnecting && onCompleteConnect) {
-              onCompleteConnect("main");
+              onCompleteConnect();
             }
           }}
         >
@@ -2073,7 +1966,6 @@ function DraggableNode({
           <>
             {/* Output Handle VRAI (top right) */}
             <div
-              data-handle-key={`node:${node.id}:out:true`}
               className="absolute right-0 top-1/4 translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer group/output-true"
               onClick={(e) => {
                 e.stopPropagation();
@@ -2093,7 +1985,6 @@ function DraggableNode({
             </div>
             {/* Output Handle FAUX (bottom right) */}
             <div
-              data-handle-key={`node:${node.id}:out:false`}
               className="absolute right-0 top-3/4 translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer group/output-false"
               onClick={(e) => {
                 e.stopPropagation();
@@ -2112,9 +2003,107 @@ function DraggableNode({
               />
             </div>
           </>
+        ) : isSwitchNode ? (
+          <>
+            {/* Multiple Output Handles for Switch Router - n8n style */}
+            {switchCases.map((c: any, idx: number) => {
+              const yPercent = ((idx + 1) / (switchOutputCount + 1)) * 100;
+              const caseColors = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#ec4899", "#ef4444", "#06b6d4", "#84cc16"];
+              const color = c.color || caseColors[idx % caseColors.length];
+              return (
+                <div
+                  key={c.id || idx}
+                  className="absolute right-0 translate-x-[40px] -translate-y-1/2 z-20 flex items-center"
+                  style={{ top: `${yPercent}%` }}
+                >
+                  {/* Label */}
+                  <div
+                    className="absolute right-full mr-2 px-1.5 py-0.5 rounded text-[9px] font-bold whitespace-nowrap"
+                    style={{ backgroundColor: `${color}20`, color: color }}
+                  >
+                    {c.value || idx}
+                  </div>
+
+                  {/* Line + Dot + Plus button */}
+                  <div className="flex items-center">
+                    {/* Line */}
+                    <div className="w-8 h-0.5" style={{ backgroundColor: color + "60" }} />
+
+                    {/* Dot handle */}
+                    <div
+                      className="h-3 w-3 rounded-full cursor-pointer transition-all hover:scale-125"
+                      style={{ backgroundColor: color }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onStartConnect) {
+                          onStartConnect(`case_${idx}`);
+                        }
+                      }}
+                      title={`Sortie: ${c.value || `Cas ${idx}`}`}
+                    />
+
+                    {/* Plus button */}
+                    <div className="w-4 h-0.5" style={{ backgroundColor: color + "40" }} />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onAddNext) onAddNext();
+                      }}
+                      className="h-5 w-5 rounded border flex items-center justify-center transition-all hover:scale-110"
+                      style={{
+                        backgroundColor: "#1a1a1a",
+                        borderColor: color + "50",
+                        color: color
+                      }}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Default output */}
+            {switchHasDefault && (
+              <div
+                className="absolute right-0 translate-x-[40px] -translate-y-1/2 z-20 flex items-center"
+                style={{ top: `${((switchCases.length + 1) / (switchOutputCount + 1)) * 100}%` }}
+              >
+                {/* Label */}
+                <div className="absolute right-full mr-2 px-1.5 py-0.5 rounded text-[9px] font-bold bg-zinc-700/50 text-zinc-400 whitespace-nowrap">
+                  default
+                </div>
+
+                {/* Line + Dot + Plus button */}
+                <div className="flex items-center">
+                  <div className="w-8 h-0.5 bg-zinc-600" />
+                  <div
+                    className="h-3 w-3 rounded-full bg-zinc-500 cursor-pointer transition-all hover:scale-125"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onStartConnect) {
+                        onStartConnect("default");
+                      }
+                    }}
+                    title="Sortie par défaut"
+                  />
+                  <div className="w-4 h-0.5 bg-zinc-700" />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onAddNext) onAddNext();
+                    }}
+                    className="h-5 w-5 rounded bg-[#1a1a1a] border border-zinc-600 flex items-center justify-center text-zinc-500 hover:text-zinc-300 transition-all hover:scale-110"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+
         ) : (
           <div
-            data-handle-key={`node:${node.id}:out:main`}
             className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer group/output"
             onClick={(e) => {
               e.stopPropagation();
@@ -2133,6 +2122,7 @@ function DraggableNode({
           </div>
         )}
 
+
         {/* Plus Button (appears on hover) - shifted to avoid overlapping the handle */}
         <div
           className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 flex items-center transition-opacity duration-200 ${showToolbar || isSelected ? "opacity-100" : "opacity-0"}`}
@@ -2142,7 +2132,7 @@ function DraggableNode({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              if (onAddNext) onAddNext("main");
+              if (onAddNext) onAddNext();
             }}
             className="h-6 w-6 rounded-md bg-[#252525] border border-zinc-600 hover:border-[#87a9ff] hover:bg-[#87a9ff]/10 flex items-center justify-center text-zinc-500 hover:text-[#87a9ff] transition-all shadow-xl"
           >
@@ -2151,68 +2141,11 @@ function DraggableNode({
         </div>
       </div>
 
-      {/* AI Agent Bottom Input Handles (n8n inspired) */}
-      {isAiAgentNode && bottomInputs.length > 0 && (
-        <div className="absolute left-0 top-20 w-full pointer-events-none">
-          {bottomInputs.slice(0, 3).map((label: string, idx: number) => {
-            const leftPositions = [40, 136, 184];
-            const left = leftPositions[idx] ?? 40;
-            const ports: AIAgentInputPort[] = [
-              "ai_languageModel",
-              "ai_memory",
-              "ai_tool",
-            ];
-            const port = ports[idx] ?? "ai_languageModel";
-            return (
-              <div
-                key={`${node.id}-bottom-input-${idx}`}
-                className="absolute"
-                style={{ left }}
-              >
-                <div className="relative -translate-x-1/2 w-6 h-[56px]">
-                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 text-[10px] text-white/60 whitespace-nowrap pointer-events-none">
-                    {label}
-                  </div>
-
-                  {/* Clickable target handle */}
-                  <button
-                    type="button"
-                    className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-auto"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (isConnecting && onCompleteConnect) onCompleteConnect(port);
-                    }}
-                    title={label}
-                  >
-                    <div className="h-3 w-3 rotate-45 bg-[#252525] border-2 border-zinc-600" />
-                  </button>
-
-                  {/* Vertical line */}
-                  <div className="absolute top-6 left-1/2 -translate-x-1/2 w-0.5 h-7 bg-zinc-600" />
-
-                  {/* Plus */}
-                  <button
-                    type="button"
-                    className={`absolute bottom-0 left-1/2 -translate-x-1/2 pointer-events-auto h-6 w-6 rounded-md bg-[#252525] border border-zinc-600 hover:border-[#87a9ff] hover:bg-[#87a9ff]/10 flex items-center justify-center text-zinc-500 hover:text-[#87a9ff] transition-all shadow-xl ${showToolbar || isSelected ? "opacity-100" : "opacity-0"}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onAddNext) onAddNext(port);
-                    }}
-                    title="Ajouter"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       {/* Node Label - using fixed width to avoid shifting the box */}
       {!isAiAgentNode && (
-        <div className="mt-2 text-center w-[120px] -mx-[12px]">
+        <div className={`mt-2 text-center ${isSwitchNode ? "w-40 -mx-0" : "w-[120px] -mx-[12px]"}`}>
           <p className="text-[11px] font-black text-white truncate uppercase tracking-tight">
+
             {node.type === "whatsapp_message" && isWhatsAppConnected
               ? "WhatsApp Connecté"
               : node.name}
@@ -2315,7 +2248,6 @@ export default function NewWorkflowPage() {
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [parameterTab, setParameterTab] = useState<"parameters" | "settings">("parameters");
   const [parameterMode, setParameterMode] = useState<Record<string, "fixed" | "expression">>({});
-  const [newIntent, setNewIntent] = useState("");
   const [products, setProducts] = useState<Product[]>(sampleProducts);
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<number>>(
     new Set(),
@@ -2764,22 +2696,10 @@ export default function NewWorkflowPage() {
   };
 
   // Complete connection when clicking on target node
-  const handleNodeConnect = (targetNodeId: number, targetPort: "main" | AIAgentInputPort = "main") => {
+  const handleNodeConnect = (targetNodeId: number) => {
     if (connectingFrom !== null && connectingFrom !== targetNodeId) {
       setNodes((prevNodes) =>
         prevNodes.map((n) => {
-          // Port-typed connections INTO AI Agent inputs (target side)
-          if (n.id === targetNodeId && n.type === "ai_agent" && targetPort !== "main") {
-            return {
-              ...n,
-              aiConnections: {
-                ...(n.aiConnections || {}),
-                [targetPort]: connectingFrom,
-              },
-            };
-          }
-
-          // Default connections (source side)
           if (n.id === connectingFrom) {
             // If connecting from a condition node with a specific branch
             if (connectingBranch) {
@@ -2856,64 +2776,11 @@ export default function NewWorkflowPage() {
     x2: number;
     y2: number;
   } | null>(null);
-
-  const [handlePositions, setHandlePositions] = useState<
-    Record<string, { x: number; y: number }>
-  >({});
-
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const canvasContentRef = useRef<HTMLDivElement>(null);
-
-  const getHandlePos = useCallback(
-    (key: string) => handlePositions[key],
-    [handlePositions],
-  );
-
-  useEffect(() => {
-    // Measure handle DOM positions and map them into *unscaled* canvas coordinates.
-    // This makes edges line up perfectly regardless of node width, borders, or zoom.
-    if (typeof window === "undefined") return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const raf = window.requestAnimationFrame(() => {
-      const canvasRect = canvas.getBoundingClientRect();
-      const next: Record<string, { x: number; y: number }> = {};
-
-      for (const n of nodes) {
-        const keys = [
-          `node:${n.id}:in:main`,
-          `node:${n.id}:out:main`,
-          `node:${n.id}:out:true`,
-          `node:${n.id}:out:false`,
-        ];
-        for (const key of keys) {
-          const el = document.querySelector(`[data-handle-key="${key}"]`) as HTMLElement | null;
-          if (!el) continue;
-          const r = el.getBoundingClientRect();
-          const cx = r.left + r.width / 2;
-          const cy = r.top + r.height / 2;
-          next[key] = {
-            x: (cx - canvasRect.left + canvas.scrollLeft) / zoom,
-            y: (cy - canvasRect.top + canvas.scrollTop) / zoom,
-          };
-        }
-      }
-
-      setHandlePositions(next);
-    });
-
-    return () => window.cancelAnimationFrame(raf);
-  }, [nodes, zoom]);
   const [isSelecting, setIsSelecting] = useState(false);
   const [nodePickerPos, setNodePickerPos] = useState<{
     x: number;
     y: number;
     index: number;
-    agentTarget?: {
-      agentId: number;
-      port: AIAgentInputPort;
-    };
   } | null>(null);
 
   // Zoom controls
@@ -2957,6 +2824,7 @@ export default function NewWorkflowPage() {
   }, [selectedNodeIds, nodes, viewMode]);
 
   const [lastMousePos, setLastMousePos] = useState({ x: 0, y: 0 });
+  const canvasRef = React.useRef<HTMLDivElement>(null);
 
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return; // Only left click
@@ -3106,7 +2974,7 @@ export default function NewWorkflowPage() {
       return;
     }
 
-    const newNode: WorkflowNode = {
+    const newNode = {
       id: Date.now(),
       type: nodeType,
       name: nodeName,
@@ -3116,29 +2984,6 @@ export default function NewWorkflowPage() {
     };
     const newNodes = [...nodes];
     newNodes.splice(index, 0, newNode);
-
-    // If we inserted a node via AI Agent input '+', auto-wire it.
-    if (
-      nodePickerPos?.agentTarget &&
-      nodePickerPos.agentTarget.agentId &&
-      nodePickerPos.agentTarget.port
-    ) {
-      const { agentId, port } = nodePickerPos.agentTarget;
-      for (let i = 0; i < newNodes.length; i++) {
-        const n = newNodes[i];
-        if (n.id === agentId && n.type === "ai_agent") {
-          newNodes[i] = {
-            ...n,
-            aiConnections: {
-              ...(n.aiConnections || {}),
-              [port]: newNode.id,
-            },
-          };
-          break;
-        }
-      }
-    }
-
     setNodes(newNodes);
     setNodePickerPos(null);
     setSelectedNodeIds(new Set([newNode.id]));
@@ -3794,14 +3639,26 @@ export default function NewWorkflowPage() {
 
       switch (nodeType) {
         case 'gpt_analyze':
-          const enabledFields = config.outputFields || ['type', 'urgency', 'autoResolvable', 'keywords'];
+          // Outputs basés sur les intentions configurées par l'utilisateur
+          const configuredIntents = config.intents || [];
+          if (configuredIntents.length > 0) {
+            const intentNames = configuredIntents.map((i: any) => i.name).filter(Boolean);
+            const outputs: Record<string, any> = {
+              intent: `string - Intention détectée parmi: ${intentNames.join(', ')}`,
+              intent_confidence: 'number - Score de confiance (0-100)',
+            };
+            // Ajouter un booléen pour chaque intention
+            configuredIntents.forEach((intent: any) => {
+              if (intent.name) {
+                const safeKey = `is_${intent.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+                outputs[safeKey] = `boolean - Vrai si intention "${intent.name}"`;
+              }
+            });
+            return outputs;
+          }
+          // Aucune intention configurée - retourner un avertissement
           return {
-            intent: 'string - Intention détectée',
-            ...(enabledFields.includes('autoResolvable') && { autoResolvable: 'string - RÉSOLU: oui/non' }),
-            ...(enabledFields.includes('urgency') && { urgency: 'number - Urgence (1-5)' }),
-            ...(enabledFields.includes('type') && { type: 'string - Type de problème' }),
-            ...(enabledFields.includes('keywords') && { keywords: 'array - Mots-clés extraits' }),
-            temperature: 'number - Température utilisée pour la génération (0-1)',
+            _warning: '⚠️ Configurez des intentions dans le panneau de droite'
           };
 
         case 'gpt_respond':
@@ -3819,13 +3676,21 @@ export default function NewWorkflowPage() {
           };
 
         case 'sentiment':
-          return {
+          // Outputs basés sur les options cochées
+          const sentimentOutputs: Record<string, any> = {
+            sentiment: 'string - Sentiment (positif/négatif/neutre)',
             score: 'number - Score de sentiment (0-100)',
-            satisfaction: 'number - Niveau de satisfaction (0-100)',
-            emotion: 'string - Émotion détectée',
-            tone: 'string - Ton du message',
-            urgency: 'string - Niveau d\'urgence'
           };
+          if (config.detectEmotions !== false) {
+            sentimentOutputs.emotion = 'string - Émotion détectée (joie, colère, tristesse...)';
+          }
+          if (config.detectTone !== false) {
+            sentimentOutputs.tone = 'string - Ton du message (formel, informel, urgent...)';
+          }
+          if (config.detectUrgency !== false) {
+            sentimentOutputs.urgency = 'string - Niveau d\'urgence (faible, moyen, élevé)';
+          }
+          return sentimentOutputs;
 
         case 'condition':
           return {
@@ -4163,10 +4028,32 @@ export default function NewWorkflowPage() {
         // Définir les outputs selon le type de nœud
         switch (node.type) {
           case 'gpt_analyze':
-            nodeOutputs.push(
-              { key: '{intent}', label: 'Intention détectée', description: 'L\'intention classifiée du message' },
-              { key: '{intent_category}', label: 'Catégorie d\'intention', description: 'La catégorie d\'intention' }
-            );
+            // Générer les outputs basés sur les intentions configurées
+            const analyzeConfig = node.config ? JSON.parse(node.config) : {};
+            const configuredIntents = analyzeConfig.intents || [];
+
+            if (configuredIntents.length > 0) {
+              // Output principal : l'intention détectée parmi celles configurées
+              const intentNames = configuredIntents.map((i: any) => i.name).filter(Boolean).join(', ');
+              nodeOutputs.push(
+                { key: '{intent}', label: 'Intention détectée', description: `L'intention parmi: ${intentNames}` },
+                { key: '{intent_confidence}', label: 'Confiance', description: 'Score de confiance (0-100)' }
+              );
+              // Ajouter un output pour chaque intention configurée
+              configuredIntents.forEach((intent: any) => {
+                if (intent.name) {
+                  const safeKey = intent.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                  nodeOutputs.push(
+                    { key: `{is_${safeKey}}`, label: `Est "${intent.name}"`, description: `Vrai si l'intention est "${intent.name}"` }
+                  );
+                }
+              });
+            } else {
+              // Aucune intention configurée - afficher un avertissement
+              nodeOutputs.push(
+                { key: '{intent}', label: '⚠️ Non configuré', description: 'Configurez des intentions dans le panneau de droite' }
+              );
+            }
             break;
           case 'gpt_respond':
           case 'ai_agent':
@@ -4176,13 +4063,21 @@ export default function NewWorkflowPage() {
             );
             break;
           case 'sentiment':
+            // Outputs dynamiques basés sur la configuration
+            const sentCfg = node.config ? JSON.parse(node.config) : {};
             nodeOutputs.push(
-              { key: '{sentiment}', label: 'Sentiment', description: 'Le sentiment détecté (positif/négatif/neutre)' },
-              { key: '{sentiment_score}', label: 'Score sentiment', description: 'Le score de sentiment (0-100)' },
-              { key: '{emotion}', label: 'Émotion', description: 'L\'émotion détectée' },
-              { key: '{tone}', label: 'Ton', description: 'Le ton du message' },
-              { key: '{urgency}', label: 'Urgence', description: 'Le niveau d\'urgence' }
+              { key: '{sentiment}', label: 'Sentiment', description: 'Positif, négatif ou neutre' },
+              { key: '{score}', label: 'Score', description: 'Score de 0 à 100' }
             );
+            if (sentCfg.detectEmotions !== false) {
+              nodeOutputs.push({ key: '{emotion}', label: 'Émotion', description: 'Joie, colère, tristesse...' });
+            }
+            if (sentCfg.detectTone !== false) {
+              nodeOutputs.push({ key: '{tone}', label: 'Ton', description: 'Formel, informel, urgent...' });
+            }
+            if (sentCfg.detectUrgency !== false) {
+              nodeOutputs.push({ key: '{urgency}', label: 'Urgence', description: 'Faible, moyen, élevé' });
+            }
             break;
           case 'ai_translate':
             nodeOutputs.push(
@@ -4291,10 +4186,13 @@ export default function NewWorkflowPage() {
 
       // Continuer à chercher les nœuds précédents
       nodes.forEach(n => {
-        if (n.connectedTo === nodeId) {
+        const isTargetMatch = n.connectedTo === nodeId ||
+          (n.conditionalConnections && Object.values(n.conditionalConnections).includes(nodeId));
+        if (isTargetMatch) {
           findPrecedingNodes(n.id);
         }
       });
+
     };
 
     // Commencer depuis tous les nœuds déclencheurs
@@ -4559,7 +4457,25 @@ export default function NewWorkflowPage() {
         currency: "XOF",
         aiInstructions: "",
       });
+    } else if (nodeType === "switch_router") {
+      defaultConfig = JSON.stringify({
+        field: "intent",
+        cases: [
+          { id: Date.now(), value: "commande", label: "Commande", color: "#10b981" },
+          { id: Date.now() + 1, value: "question", label: "Question", color: "#3b82f6" },
+          { id: Date.now() + 2, value: "plainte", label: "Plainte", color: "#ef4444" },
+        ],
+        hasDefault: true
+      });
+    } else if (nodeType === "condition") {
+      defaultConfig = JSON.stringify({
+        field: "intent",
+        operator: "equals",
+        value: "",
+        templateType: "my_intent"
+      });
     }
+
 
     const newNode = {
       id: Date.now(),
@@ -4579,3340 +4495,236 @@ export default function NewWorkflowPage() {
   const handleSelectTemplate = (templateId: string) => {
     setSelectedTemplate(templateId);
 
-    // Configuration scripts pour l'IA plateforme CONNECT
-    const connectSupportPrompt = `Tu es l'assistant IA de CONNECT, la plateforme d'automatisation WhatsApp leader.
-Tes missions :
-1. Aider les entreprises à configurer leurs workflows.
-2. Expliquer comment connecter un compte WhatsApp.
-3. Guider sur l'utilisation du CRM intégré.
-Réponds de manière professionnelle, concise et utilise des emojis pour rendre la conversation agréable.`;
-
-    const connectSalesPrompt = `Tu es l'expert commercial de CONNECT.
-Ton but est de transformer chaque message en vente.
-1. Présente les avantages de CONNECT : gain de temps, 24/7, pas besoin de coder.
-2. Si le client hésite, propose de voir le catalogue.
-3. Toujours finir par une question pour engager le client.`;
-
-    // Configuration de workflows COMPLETS et FONCTIONNELS avec les vrais types de nœuds
-    if (templateId === "ecommerce") {
+    if (templateId === "chatbot_intelligent") {
+      setNodes([
+        { id: 1, type: "whatsapp_message", name: "WhatsApp Reçu", config: JSON.stringify({ autoReply: true }), x: 50, y: 250, connectedTo: 2 },
+        { id: 2, type: "rag_knowledge", name: "Base de Connaissances", config: JSON.stringify({ knowledgeBaseId: "manual", knowledgeContent: "Expert Wozif Connect." }), x: 300, y: 250, connectedTo: 3 },
+        { id: 3, type: "send_text", name: "Réponse IA", config: JSON.stringify({ text: "{{aiAnswer}}" }), x: 550, y: 250 },
+      ]);
+      setWorkflowName("Mon Chatbot IA");
+    } else if (templateId === "agent_expert_pro") {
+      setNodes([
+        { id: 1, type: "whatsapp_message", name: "Message Client", config: JSON.stringify({ autoReply: true }), x: 50, y: 250, connectedTo: 2 },
+        { id: 2, type: "ai_agent", name: "Agent IA Expert", config: JSON.stringify({ instructions: "Expert Agent", model: "gpt-4o", dataSources: { urls: ["https://wozif.com"], files: [], mcpProviders: [] } }), x: 300, y: 250, connectedTo: 3 },
+        { id: 3, type: "send_text", name: "Envoi", config: JSON.stringify({ text: "{{aiAnswer}}" }), x: 550, y: 250 },
+      ]);
+      setWorkflowName("Agent IA Complet");
+    } else if (templateId === "python_workflow") {
+      setNodes([
+        { id: 1, type: "whatsapp_message", name: "Entrée", config: JSON.stringify({}), x: 50, y: 250, connectedTo: 2 },
+        { id: 2, type: "python_script", name: "Script Python", config: JSON.stringify({ script: "results['message'] = 'Hello'" }), x: 300, y: 250, connectedTo: 3 },
+        { id: 3, type: "send_text", name: "Sortie", config: JSON.stringify({ text: "{{message}}" }), x: 550, y: 250 },
+      ]);
+      setWorkflowName("Workflow Python");
+    } else if (templateId === "service_client_intelligent") {
       setNodes([
         {
           id: 1,
-          type: "send_text",
-          name: "Accueil Boutique",
-          config: JSON.stringify({
-            text: "👋 Bienvenue dans notre boutique ! Tapez *CATALOGUE* pour voir nos produits ou *AIDE* pour de l'assistance.",
-          }),
+          type: "whatsapp_message",
+          name: "Message Client",
+          config: JSON.stringify({ autoReply: true }),
           x: 50,
           y: 300,
-          connectedTo: 2,
+          connectedTo: 2
+        },
+        {
+          id: 2,
+          type: "gpt_analyze",
+          name: "Analyse Intention & Sentiment",
+          config: JSON.stringify({
+            categories: "salutation,question_prix,demande_produit,plainte,remerciement,demande_aide,commande,annulation,autre",
+            aiInstructions: "Analyse le message du client pour détecter son intention et son sentiment."
+          }),
+          x: 300,
+          y: 300,
+          connectedTo: 3
+        },
+        {
+          id: 3,
+          type: "condition",
+          name: "Client Mécontent ?",
+          config: JSON.stringify({
+            field: "sentiment_score",
+            operator: "less_than",
+            value: "-0.3"
+          }),
+          x: 550,
+          y: 300,
+          connectedToTrue: 4,
+          connectedToFalse: 5
+        },
+        {
+          id: 4,
+          type: "gpt_respond",
+          name: "Réponse Empathique",
+          config: JSON.stringify({
+            system: "Tu es un conseiller empathique. Le client est mécontent (sentiment: {{sentiment}}, urgence: {{urgency}}/5). Excuse-toi et propose une solution rapide. Reste bref (2-3 phrases).",
+            model: "gpt-4o"
+          }),
+          x: 800,
+          y: 150
+        },
+        {
+          id: 5,
+          type: "gpt_respond",
+          name: "Réponse Standard",
+          config: JSON.stringify({
+            system: "Tu es un assistant amical. L'intention du client est: {{intent}}. Réponds de manière concise et utile (2-3 phrases).",
+            model: "gpt-4o"
+          }),
+          x: 800,
+          y: 450
+        },
+        {
+          id: 6,
+          type: "end_flow",
+          name: "Fin",
+          config: JSON.stringify({}),
+          x: 1050,
+          y: 300
+        }
+      ]);
+      setWorkflowName("Service Client IA");
+    } else if (templateId === "booking_pro") {
+      setNodes([
+        {
+          id: 1,
+          type: "whatsapp_message",
+          name: "Message Client",
+          config: JSON.stringify({ autoReply: true }),
+          x: 50,
+          y: 300,
+          connectedTo: 2
         },
         {
           id: 2,
           type: "gpt_analyze",
           name: "Analyse Intention",
           config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Analyse l'intention du client : veut-il voir le catalogue, acheter, ou besoin d'aide ? Réponds avec 'catalogue', 'achat', ou 'aide'.",
-            prompt: "{{message.text}}",
+            categories: "reservation,information,autre",
+            aiInstructions: "Détecte si le client veut prendre un rendez-vous (reservation)."
           }),
-          x: 250,
+          x: 300,
           y: 300,
-          connectedTo: 3,
+          connectedTo: 3
         },
         {
           id: 3,
-          type: "condition",
-          name: "Router Intention",
+          type: "switch_router",
+          name: "Routage RDV",
           config: JSON.stringify({
-            condition: "{{previous.output.intention}}",
-            operator: "equals",
-            value: "catalogue",
-            ifTrue: 4,
-            ifFalse: 5,
+            field: "intent",
+            cases: [
+              { id: 1, value: "reservation", label: "Réservation", color: "#f43f5e" }
+            ],
+            hasDefault: true
           }),
-          x: 450,
+          x: 550,
           y: 300,
-          connectedTo: 4,
+          conditionalConnections: {
+            case_0: 4,
+            default: 7
+          }
         },
         {
           id: 4,
-          type: "show_catalog",
-          name: "Afficher Catalogue",
+          type: "check_availability",
+          name: "Vérifier Disponibilités",
           config: JSON.stringify({
-            message: "Voici nos produits disponibles :",
-            showPrices: true,
-            showStock: true,
+            duration: 30,
+            dateRange: 7,
+            timezone: "Africa/Abidjan"
           }),
-          x: 650,
-          y: 200,
-          connectedTo: 6,
+          x: 900,
+          y: 150,
+          connectedTo: 5
         },
         {
           id: 5,
-          type: "gpt_respond",
-          name: "Assistant Vente IA",
+          type: "send_text",
+          name: "Proposer Créneaux",
           config: JSON.stringify({
-            model: "gpt-4o",
-            system: connectSalesPrompt,
-            prompt: "{{message.text}}",
+            text: "C'est noté ! Voici nos disponibilités pour les 7 prochains jours :\n\n{{formatted_slots}}\n\nLequel vous convient ?"
           }),
-          x: 650,
-          y: 400,
-          connectedTo: 6,
+          x: 1150,
+          y: 150,
+          connectedTo: 6
         },
         {
           id: 6,
-          type: "gpt_analyze",
-          name: "Détecter Ajout Panier",
+          type: "book_appointment",
+          name: "Réserver",
           config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Le client veut-il ajouter un produit au panier ? Réponds 'oui' ou 'non'.",
-            prompt: "{{message.text}}",
+            title: "RDV Client {{userName}}",
+            duration: 30
           }),
-          x: 850,
-          y: 300,
-          connectedTo: 7,
+          x: 1400,
+          y: 150
         },
         {
           id: 7,
-          type: "condition",
-          name: "Si Ajout Panier",
+          type: "gpt_respond",
+          name: "Réponse Aide",
           config: JSON.stringify({
-            condition: "{{previous.output.response}}",
-            operator: "contains",
-            value: "oui",
-            ifTrue: 8,
-            ifFalse: 9,
+            system: "Le client demande autre chose qu'un RDV. Réponds poliment et demande comment tu peux l'aider d'autre.",
+            model: "gpt-4o"
           }),
-          x: 1050,
-          y: 300,
-          connectedTo: 8,
-        },
-        {
-          id: 8,
-          type: "add_to_cart",
-          name: "Ajouter au Panier",
-          config: JSON.stringify({
-            productId: "{{previous.output.productId}}",
-            quantity: 1,
-          }),
-          x: 1250,
-          y: 200,
-          connectedTo: 10,
-        },
-        {
-          id: 9,
-          type: "show_cart",
-          name: "Afficher Panier",
-          config: JSON.stringify({}),
-          x: 1250,
-          y: 400,
-          connectedTo: 10,
-        },
-        {
-          id: 10,
-          type: "gpt_analyze",
-          name: "Prêt à Payer ?",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Le client veut-il passer commande ? Réponds 'oui' ou 'non'.",
-            prompt: "{{message.text}}",
-          }),
-          x: 1450,
-          y: 300,
-          connectedTo: 11,
-        },
-        {
-          id: 11,
-          type: "condition",
-          name: "Si Paiement",
-          config: JSON.stringify({
-            condition: "{{previous.output.response}}",
-            operator: "contains",
-            value: "oui",
-            ifTrue: 12,
-            ifFalse: 13,
-          }),
-          x: 1650,
-          y: 300,
-          connectedTo: 12,
-        },
-        {
-          id: 12,
-          type: "checkout",
-          name: "Paiement Moneroo",
-          config: JSON.stringify({
-            gateway: "moneroo",
-            apiKey: "",
-            successUrl: "{{contact.phone}}",
-            failureUrl: "{{contact.phone}}",
-            testMode: true,
-          }),
-          x: 1850,
-          y: 200,
-          connectedTo: 14,
-        },
-        {
-          id: 13,
-          type: "delay",
-          name: "Attente 15min",
-          config: JSON.stringify({
-            duration: 15,
-            unit: "minutes",
-          }),
-          x: 1850,
-          y: 400,
-          connectedTo: 15,
-        },
-        {
-          id: 14,
-          type: "send_text",
-          name: "Confirmation Commande",
-          config: JSON.stringify({
-            text: "✅ Commande confirmée ! Votre paiement a été reçu. Nous préparons votre commande. 🚚",
-          }),
-          x: 2050,
-          y: 200,
-        },
-        {
-          id: 15,
-          type: "send_text",
-          name: "Relance Panier",
-          config: JSON.stringify({
-            text: "💡 N'oubliez pas votre panier ! Tapez *PANIER* pour finaliser votre commande.",
-          }),
-          x: 2050,
-          y: 400,
-        },
+          x: 900,
+          y: 450
+        }
       ]);
-      setWorkflowName("Boutique Express - E-commerce Complet");
-    } else if (templateId === "support") {
+      setWorkflowName("Système de RDV Automatique");
+    } else if (templateId === "booking_mcp") {
       setNodes([
         {
           id: 1,
           type: "whatsapp_message",
-          name: "Message WhatsApp Reçu",
-          config: JSON.stringify({
-            autoReply: true,
-            keywords: [],
-          }),
+          name: "Message Client",
+          config: JSON.stringify({ autoReply: true }),
           x: 50,
           y: 300,
-          connectedTo: 2,
+          connectedTo: 2
         },
         {
           id: 2,
-          type: "gpt_analyze",
-          name: "Triage Support IA",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Analyse le message WhatsApp du client et identifie :\n- Type de problème : 'technique', 'facturation', 'compte', 'produit', 'autre'\n- Niveau d'urgence : 1-5 (5 = très urgent)\n- Peut être résolu automatiquement : 'oui' ou 'non'\nRéponds en JSON : {type, urgency, autoResolvable, keywords}",
-            prompt: "{{message.text}}",
-          }),
-          x: 250,
-          y: 300,
-          connectedTo: 3,
-        },
-        {
-          id: 3,
-          type: "save_contact",
-          name: "Sauvegarder Contact",
-          config: JSON.stringify({
-            phone: "{{contact.phone}}",
-            name: "{{contact.name}}",
-            tags: ["support", "client_actif"],
-            customFields: {
-              lastSupportDate: "{{date.now}}",
-              supportCount: 1,
-            },
-          }),
-          x: 450,
-          y: 300,
-          connectedTo: 4,
-        },
-        {
-          id: 4,
-          type: "condition",
-          name: "Peut Résoudre Auto ?",
-          config: JSON.stringify({
-            field: "autoResolvable",
-            operator: "equals",
-            value: "oui",
-          }),
-          x: 650,
-          y: 300,
-          connectedToTrue: 5,
-          connectedToFalse: 6,
-        },
-        {
-          id: 5,
           type: "ai_agent",
-          name: "Réponse Auto N1",
+          name: "Agent Réservations Expert",
           config: JSON.stringify({
-            agentName: "Support IA Niveau 1",
-            systemPrompt: "Tu es un assistant de support client expert sur WhatsApp. Ton rôle : 1. Répondre aux questions fréquentes (FAQ) de manière claire et concise. 2. Résoudre les problèmes simples (compte, facturation, produits). 3. Être empathique, professionnel et rassurant. 4. Utiliser des emojis avec modération pour rendre la conversation agréable. 5. Si tu ne peux pas résoudre, proposer l'escalade vers un humain. Règles : Réponds toujours en français. Sois concis (max 3-4 phrases). Propose des solutions concrètes. Demande des précisions si nécessaire.",
+            instructions: "Tu es un agent expert en réservations. Ton rôle est de vérifier les disponibilités sur Google Calendar ou Calendly et d'aider le client à réserver un créneau. Tu peux aussi envoyer des emails de confirmation via Gmail.",
             model: "gpt-4o",
-            includeChatHistory: true,
-            outputFormat: "text",
-            verbosity: "normal",
-            continueOnError: true,
+            dataSources: {
+              urls: [],
+              files: [],
+              mcpProviders: [
+                "http://localhost:3003",
+                "http://localhost:3004",
+                "http://localhost:3005"
+              ]
+            }
           }),
-          x: 850,
-          y: 200,
-          connectedTo: 7,
-        },
-        {
-          id: 6,
-          type: "condition",
-          name: "Urgence >= 4 ?",
-          config: JSON.stringify({
-            field: "urgency",
-            operator: "greater_than_or_equal",
-            value: 4,
-          }),
-          x: 850,
-          y: 400,
-          connectedToTrue: 8,
-          connectedToFalse: 9,
-        },
-        {
-          id: 7,
-          type: "send_text",
-          name: "Envoi Réponse Auto",
-          config: JSON.stringify({
-            text: "{{previous.output.response}}",
-          }),
-          x: 1050,
-          y: 200,
-          connectedTo: 10,
-        },
-        {
-          id: 8,
-          type: "assign_agent",
-          name: "Escalade Urgente",
-          config: JSON.stringify({
-            agentId: "support_urgent",
-            message: "🚨 URGENT - Client nécessite assistance immédiate\n\nClient: {{contact.name}} ({{contact.phone}})\nProblème: {{previous.output.type}}\nUrgence: {{previous.output.urgency}}/5\nMessage: {{message.text}}",
-          }),
-          x: 1050,
+          x: 350,
           y: 300,
-          connectedTo: 11,
-        },
-        {
-          id: 9,
-          type: "add_note",
-          name: "Créer Ticket Support",
-          config: JSON.stringify({
-            contactId: "{{contact.id}}",
-            note: "Ticket Support #{{date.timestamp}}\nType: {{previous.output.type}}\nUrgence: {{previous.output.urgency}}/5\nMessage: {{message.text}}\nStatut: En attente agent",
-          }),
-          x: 1050,
-          y: 500,
-          connectedTo: 12,
-        },
-        {
-          id: 10,
-          type: "delay",
-          name: "Attendre Réponse Client",
-          config: JSON.stringify({
-            duration: 2,
-            unit: "minutes",
-          }),
-          x: 1250,
-          y: 200,
-          connectedTo: 13,
-        },
-        {
-          id: 11,
-          type: "send_text",
-          name: "Message Escalade",
-          config: JSON.stringify({
-            text: "🔔 J'ai transféré votre demande à notre équipe de support prioritaire. Un agent va vous contacter sous peu. Merci de votre patience !",
-          }),
-          x: 1250,
-          y: 300,
-        },
-        {
-          id: 12,
-          type: "send_text",
-          name: "Message Ticket Créé",
-          config: JSON.stringify({
-            text: "📋 Votre demande a été enregistrée (Ticket #{{date.timestamp}}). Notre équipe va vous répondre dans les plus brefs délais. En attendant, pouvez-vous me donner plus de détails sur votre problème ?",
-          }),
-          x: 1250,
-          y: 500,
-          connectedTo: 5,
-        },
-        {
-          id: 13,
-          type: "sentiment",
-          name: "Vérifier Satisfaction",
-          config: JSON.stringify({
-            engine: "gpt-4o",
-            target: "last_message",
-            detectEmotions: true,
-            detectTone: true,
-            urgencyScale: true,
-          }),
-          x: 1450,
-          y: 200,
-          connectedTo: 14,
-        },
-        {
-          id: 14,
-          type: "condition",
-          name: "Client Satisfait ?",
-          config: JSON.stringify({
-            field: "satisfaction",
-            operator: "greater_than",
-            value: "7",
-          }),
-          x: 1650,
-          y: 200,
-          connectedToTrue: 15,
-          connectedToFalse: 16,
-        },
-        {
-          id: 15,
-          type: "send_text",
-          name: "Demande Avis",
-          config: JSON.stringify({
-            text: "Parfait ! Votre problème est résolu ? Si oui, pouvez-vous nous noter de 1 à 5 étoiles ? ⭐",
-          }),
-          x: 1850,
-          y: 100,
-          connectedTo: 17,
-        },
-        {
-          id: 16,
-          type: "assign_agent",
-          name: "Escalade Humain",
-          config: JSON.stringify({
-            agentId: "support_team",
-            message: "Client insatisfait de la réponse automatique\n\nClient: {{contact.name}} ({{contact.phone}})\nSatisfaction: {{previous.output.satisfaction}}/10\nDernier message: {{message.text}}\nContexte: {{previous.output.context}}",
-          }),
-          x: 1850,
-          y: 300,
-          connectedTo: 18,
-        },
-        {
-          id: 17,
-          type: "add_tag",
-          name: "Tag Résolu",
-          config: JSON.stringify({
-            contactId: "{{contact.id}}",
-            tag: "support_resolu",
-          }),
-          x: 2050,
-          y: 100,
-        },
-        {
-          id: 18,
-          type: "send_text",
-          name: "Message Transfert",
-          config: JSON.stringify({
-            text: "Je comprends que ma réponse n'a pas résolu votre problème. Je transfère votre demande à un agent humain qui va vous aider personnellement. Merci de votre patience ! 👤",
-          }),
-          x: 2050,
-          y: 300,
-        },
-      ]);
-      setWorkflowName("Support Client IA - Bot WhatsApp Auto");
-    } else if (templateId === "appointment") {
-      setNodes([
-        {
-          id: 1,
-          type: "send_text",
-          name: "Accueil Réservation",
-          config: JSON.stringify({
-            text: "📅 Bonjour ! Pour réserver un rendez-vous, dites-moi la date et l'heure souhaitées, ou tapez *DISPONIBLE* pour voir nos créneaux libres.",
-          }),
-          x: 50,
-          y: 300,
-          connectedTo: 2,
-        },
-        {
-          id: 2,
-          type: "gpt_analyze",
-          name: "Extraire Date/Heure",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Extrais la date et l'heure de la demande du client. Réponds au format JSON : {date: 'YYYY-MM-DD', time: 'HH:MM', duration: 30}",
-            prompt: "{{message.text}}",
-          }),
-          x: 250,
-          y: 300,
-          connectedTo: 3,
+          connectedTo: 3
         },
         {
           id: 3,
-          type: "check_availability",
-          name: "Vérifier Disponibilité",
-          config: JSON.stringify({
-            calendarId: "primary",
-            periodDays: 7,
-            durationMinutes: 30,
-            timeZone: "auto",
-            showWeekends: false,
-          }),
-          x: 450,
-          y: 300,
-          connectedTo: 4,
-        },
-        {
-          id: 4,
-          type: "condition",
-          name: "Créneau Disponible ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.available}}",
-            operator: "equals",
-            value: "true",
-            ifTrue: 5,
-            ifFalse: 6,
-          }),
-          x: 650,
-          y: 300,
-          connectedTo: 5,
-        },
-        {
-          id: 5,
-          type: "book_appointment",
-          name: "Réserver RDV",
-          config: JSON.stringify({
-            calendarId: "primary",
-            date: "{{previous.output.date}}",
-            time: "{{previous.output.time}}",
-            duration: 30,
-            title: "RDV avec {{contact.name}}",
-            description: "Contact: {{contact.phone}}",
-          }),
-          x: 850,
-          y: 200,
-          connectedTo: 7,
-        },
-        {
-          id: 6,
-          type: "gpt_respond",
-          name: "Proposer Alternatives",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Le créneau demandé n'est pas disponible. Propose poliment des alternatives disponibles en utilisant les créneaux libres du calendrier.",
-            prompt: "Créneaux libres : {{previous.output.availableSlots}}",
-          }),
-          x: 850,
-          y: 400,
-          connectedTo: 2,
-        },
-        {
-          id: 7,
           type: "send_text",
-          name: "Confirmation RDV",
-          config: JSON.stringify({
-            text: "✅ Rendez-vous confirmé le {{previous.output.date}} à {{previous.output.time}} ! Vous recevrez un rappel 24h avant.",
-          }),
-          x: 1050,
-          y: 200,
-          connectedTo: 8,
-        },
-        {
-          id: 8,
-          type: "save_contact",
-          name: "Sauvegarder Contact",
-          config: JSON.stringify({
-            phone: "{{contact.phone}}",
-            name: "{{contact.name}}",
-            tags: ["rdv", "{{previous.output.date}}"],
-          }),
-          x: 1250,
-          y: 200,
-          connectedTo: 9,
-        },
-        {
-          id: 9,
-          type: "delay",
-          name: "Attendre J-1",
-          config: JSON.stringify({
-            duration: 24,
-            unit: "hours",
-          }),
-          x: 1450,
-          y: 200,
-          connectedTo: 10,
-        },
-        {
-          id: 10,
-          type: "send_reminder",
-          name: "Rappel RDV",
-          config: JSON.stringify({
-            calendarId: "primary",
-            appointmentId: "{{previous.output.appointmentId}}",
-            reminderTime: "24h",
-            message: "🔔 Rappel : Votre rendez-vous est demain à {{previous.output.time}}. À bientôt !",
-          }),
-          x: 1650,
-          y: 200,
-        },
+          name: "Réponse Agent",
+          config: JSON.stringify({ text: "{{aiAnswer}}" }),
+          x: 650,
+          y: 300
+        }
       ]);
-      setWorkflowName("Prise de RDV - Automatique");
-    } else if (templateId === "lead") {
-      setNodes([
-        {
-          id: 1,
-          type: "send_text",
-          name: "Accueil Prospect",
-          config: JSON.stringify({
-            text: "👋 Bonjour ! Merci de votre intérêt. Pour mieux vous aider, j'aimerais en savoir plus sur votre projet.",
-          }),
-          x: 50,
-          y: 300,
-          connectedTo: 2,
-        },
-        {
-          id: 2,
-          type: "gpt_respond",
-          name: "Question Budget",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Demande poliment le budget du prospect pour le projet. Sois naturel et conversationnel.",
-            prompt: "{{message.text}}",
-          }),
-          x: 250,
-          y: 300,
-          connectedTo: 3,
-        },
-        {
-          id: 3,
-          type: "gpt_analyze",
-          name: "Extraire Budget",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Extrais le budget mentionné par le prospect. Réponds avec un nombre (montant en euros) ou 'non_disponible'.",
-            prompt: "{{message.text}}",
-          }),
-          x: 450,
-          y: 300,
-          connectedTo: 4,
-        },
-        {
-          id: 4,
-          type: "gpt_respond",
-          name: "Question Besoin",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Demande quel est le besoin principal du prospect. Sois curieux et professionnel.",
-            prompt: "{{message.text}}",
-          }),
-          x: 650,
-          y: 300,
-          connectedTo: 5,
-        },
-        {
-          id: 5,
-          type: "gpt_analyze",
-          name: "Analyse Besoin",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Analyse le besoin exprimé et catégorise-le : 'urgent', 'important', 'envisagé'. Réponds avec la catégorie.",
-            prompt: "{{message.text}}",
-          }),
-          x: 850,
-          y: 300,
-          connectedTo: 6,
-        },
-        {
-          id: 6,
-          type: "set_variable",
-          name: "Calcul Score Lead",
-          config: JSON.stringify({
-            variableName: "leadScore",
-            value: "{{previous.output.budget}} > 5000 ? 8 : {{previous.output.budget}} > 1000 ? 6 : 4",
-          }),
-          x: 1050,
-          y: 300,
-          connectedTo: 7,
-        },
-        {
-          id: 7,
-          type: "condition",
-          name: "Score > 7 ?",
-          config: JSON.stringify({
-            condition: "{{variables.leadScore}}",
-            operator: "greater_than",
-            value: 7,
-            ifTrue: 8,
-            ifFalse: 9,
-          }),
-          x: 1250,
-          y: 300,
-          connectedTo: 8,
-        },
-        {
-          id: 8,
-          type: "add_tag",
-          name: "Tag VIP",
-          config: JSON.stringify({
-            contactId: "{{contact.id}}",
-            tag: "lead_vip",
-          }),
-          x: 1450,
-          y: 200,
-          connectedTo: 10,
-        },
-        {
-          id: 9,
-          type: "add_tag",
-          name: "Tag Standard",
-          config: JSON.stringify({
-            contactId: "{{contact.id}}",
-            tag: "lead_standard",
-          }),
-          x: 1450,
-          y: 400,
-          connectedTo: 11,
-        },
-        {
-          id: 10,
-          type: "assign_agent",
-          name: "Transfert Commercial",
-          config: JSON.stringify({
-            agentId: "sales_team",
-            message: "Lead VIP détecté ! Budget: {{previous.output.budget}}€, Besoin: {{previous.output.need}}",
-          }),
-          x: 1650,
-          y: 200,
-          connectedTo: 12,
-        },
-        {
-          id: 11,
-          type: "send_text",
-          name: "Info & Suivi",
-          config: JSON.stringify({
-            text: "Merci pour ces informations ! Notre équipe va vous contacter prochainement. En attendant, voici notre catalogue : [lien]",
-          }),
-          x: 1650,
-          y: 400,
-        },
-        {
-          id: 12,
-          type: "send_text",
-          name: "Lien Calendly VIP",
-          config: JSON.stringify({
-            text: "🎯 Excellent ! Réservez un appel avec notre expert dès maintenant : [lien calendly]",
-          }),
-          x: 1850,
-          y: 200,
-        },
-        {
-          id: 13,
-          type: "save_contact",
-          name: "Sauvegarder Lead",
-          config: JSON.stringify({
-            phone: "{{contact.phone}}",
-            name: "{{contact.name}}",
-            tags: ["lead", "score_{{variables.leadScore}}"],
-            customFields: {
-              budget: "{{previous.output.budget}}",
-              need: "{{previous.output.need}}",
-            },
-          }),
-          x: 1850,
-          y: 400,
-        },
-      ]);
-      setWorkflowName("Capture de Leads - Qualification Auto");
-    } else if (templateId === "marketing") {
-      setNodes([
-        {
-          id: 1,
-          type: "send_text",
-          name: "Message Promo Initial",
-          config: JSON.stringify({
-            text: "🔥 OFFRE FLASH ! -50% sur tous nos produits aujourd'hui seulement ! Tapez *OFFRE* pour en profiter.",
-          }),
-          x: 50,
-          y: 300,
-          connectedTo: 2,
-        },
-        {
-          id: 2,
-          type: "gpt_analyze",
-          name: "Détecter Intérêt",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Le client est-il intéressé par l'offre ? Réponds 'oui' ou 'non'.",
-            prompt: "{{message.text}}",
-          }),
-          x: 250,
-          y: 300,
-          connectedTo: 3,
-        },
-        {
-          id: 3,
-          type: "condition",
-          name: "Si Intéressé",
-          config: JSON.stringify({
-            condition: "{{previous.output.response}}",
-            operator: "contains",
-            value: "oui",
-            ifTrue: 4,
-            ifFalse: 5,
-          }),
-          x: 450,
-          y: 300,
-          connectedTo: 4,
-        },
-        {
-          id: 4,
-          type: "gpt_respond",
-          name: "Créer Urgence IA",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Crée un sentiment d'urgence. Mentionne le temps limité, les stocks limités, et les avantages exclusifs. Sois persuasif mais pas agressif.",
-            prompt: "{{message.text}}",
-          }),
-          x: 650,
-          y: 200,
-          connectedTo: 6,
-        },
-        {
-          id: 5,
-          type: "delay",
-          name: "Attendre 2h",
-          config: JSON.stringify({
-            duration: 2,
-            unit: "hours",
-          }),
-          x: 650,
-          y: 400,
-          connectedTo: 7,
-        },
-        {
-          id: 6,
-          type: "send_image",
-          name: "Visuel Promo",
-          config: JSON.stringify({
-            url: "https://example.com/promo.jpg",
-            caption: "🎁 Voici ce que vous pouvez obtenir avec -50% !",
-          }),
-          x: 850,
-          y: 200,
-          connectedTo: 8,
-        },
-        {
-          id: 7,
-          type: "gpt_respond",
-          name: "Relance Douce",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Relance poliment en créant l'urgence. Mentionne que l'offre se termine bientôt.",
-            prompt: "{{message.text}}",
-          }),
-          x: 850,
-          y: 400,
-          connectedTo: 8,
-        },
-        {
-          id: 8,
-          type: "apply_promo",
-          name: "Appliquer Code Promo",
-          config: JSON.stringify({
-            code: "FLASH50",
-            discount: 50,
-            type: "percentage",
-          }),
-          x: 1050,
-          y: 300,
-          connectedTo: 9,
-        },
-        {
-          id: 9,
-          type: "show_catalog",
-          name: "Afficher Produits",
-          config: JSON.stringify({
-            message: "Découvrez nos produits avec -50% :",
-            showPrices: true,
-            showStock: true,
-          }),
-          x: 1250,
-          y: 300,
-          connectedTo: 10,
-        },
-        {
-          id: 10,
-          type: "delay",
-          name: "Attendre 1h",
-          config: JSON.stringify({
-            duration: 1,
-            unit: "hours",
-          }),
-          x: 1450,
-          y: 300,
-          connectedTo: 11,
-        },
-        {
-          id: 11,
-          type: "send_text",
-          name: "Dernière Chance",
-          config: JSON.stringify({
-            text: "⏰ Dernière chance ! L'offre se termine dans 1 heure. Profitez-en maintenant : [lien checkout]",
-          }),
-          x: 1650,
-          y: 300,
-        },
-      ]);
-      setWorkflowName("Flash Promo - Marketing Viral");
-    } else if (templateId === "survey") {
-      setNodes([
-        {
-          id: 1,
-          type: "delay",
-          name: "Attendre 24h Post-Achat",
-          config: JSON.stringify({
-            duration: 24,
-            unit: "hours",
-          }),
-          x: 50,
-          y: 300,
-          connectedTo: 2,
-        },
-        {
-          id: 2,
-          type: "send_text",
-          name: "Demande Avis",
-          config: JSON.stringify({
-            text: "⭐ Bonjour {{contact.name}} ! Votre commande a été livrée. Pourriez-vous nous noter de 1 à 5 étoiles ? (Répondez 1, 2, 3, 4 ou 5)",
-          }),
-          x: 250,
-          y: 300,
-          connectedTo: 3,
-        },
-        {
-          id: 3,
-          type: "gpt_analyze",
-          name: "Extraire Note",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Extrais la note donnée par le client (1-5). Réponds avec juste le chiffre.",
-            prompt: "{{message.text}}",
-          }),
-          x: 450,
-          y: 300,
-          connectedTo: 4,
-        },
-        {
-          id: 4,
-          type: "condition",
-          name: "Note >= 4 ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.rating}}",
-            operator: "greater_than_or_equal",
-            value: 4,
-            ifTrue: 5,
-            ifFalse: 6,
-          }),
-          x: 650,
-          y: 300,
-          connectedTo: 5,
-        },
-        {
-          id: 5,
-          type: "send_text",
-          name: "Demande Commentaire",
-          config: JSON.stringify({
-            text: "🌟 Merci pour cette excellente note ! Pourriez-vous nous laisser un commentaire ? Cela nous aide énormément !",
-          }),
-          x: 850,
-          y: 200,
-          connectedTo: 7,
-        },
-        {
-          id: 6,
-          type: "send_text",
-          name: "Demande Feedback",
-          config: JSON.stringify({
-            text: "Merci pour votre retour. Nous sommes désolés que votre expérience n'ait pas été à la hauteur. Que pouvons-nous améliorer ?",
-          }),
-          x: 850,
-          y: 400,
-          connectedTo: 8,
-        },
-        {
-          id: 7,
-          type: "sentiment",
-          name: "Analyse Sentiment Positif",
-          config: JSON.stringify({
-            engine: "gpt-4o",
-            target: "last_message",
-            detectEmotions: true,
-            detectTone: true,
-          }),
-          x: 1050,
-          y: 200,
-          connectedTo: 9,
-        },
-        {
-          id: 8,
-          type: "sentiment",
-          name: "Analyse Sentiment Négatif",
-          config: JSON.stringify({
-            engine: "gpt-4o",
-            target: "last_message",
-            detectEmotions: true,
-            detectTone: true,
-            urgencyScale: true,
-          }),
-          x: 1050,
-          y: 400,
-          connectedTo: 10,
-        },
-        {
-          id: 9,
-          type: "condition",
-          name: "Note = 5 ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.rating}}",
-            operator: "equals",
-            value: 5,
-            ifTrue: 11,
-            ifFalse: 12,
-          }),
-          x: 1250,
-          y: 200,
-          connectedTo: 11,
-        },
-        {
-          id: 10,
-          type: "assign_agent",
-          name: "Escalade Service Client",
-          config: JSON.stringify({
-            agentId: "support_team",
-            message: "Client insatisfait (Note: {{previous.output.rating}}). Feedback: {{message.text}}",
-          }),
-          x: 1250,
-          y: 400,
-        },
-        {
-          id: 11,
-          type: "add_tag",
-          name: "Tag Ambassadeur",
-          config: JSON.stringify({
-            contactId: "{{contact.id}}",
-            tag: "ambassadeur",
-          }),
-          x: 1450,
-          y: 100,
-          connectedTo: 13,
-        },
-        {
-          id: 12,
-          type: "add_note",
-          name: "Note Avis",
-          config: JSON.stringify({
-            contactId: "{{contact.id}}",
-            note: "Avis client : Note {{previous.output.rating}}/5. Commentaire : {{message.text}}",
-          }),
-          x: 1450,
-          y: 300,
-        },
-        {
-          id: 13,
-          type: "send_text",
-          name: "Remerciement VIP",
-          config: JSON.stringify({
-            text: "🎉 Merci ! Vous êtes maintenant membre de notre programme Ambassadeur. Vous recevrez des offres exclusives !",
-          }),
-          x: 1650,
-          y: 100,
-        },
-      ]);
-      setWorkflowName("Avis & Satisfaction - Collecte Auto");
-    } else if (templateId === "abandon_cart") {
-      setNodes([
-        {
-          id: 1,
-          type: "show_cart",
-          name: "Détecter Panier",
-          config: JSON.stringify({}),
-          x: 50,
-          y: 300,
-          connectedTo: 2,
-        },
-        {
-          id: 2,
-          type: "condition",
-          name: "Panier Non Vide ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.itemsCount}}",
-            operator: "greater_than",
-            value: 0,
-            ifTrue: 3,
-            ifFalse: 4,
-          }),
-          x: 250,
-          y: 300,
-          connectedTo: 3,
-        },
-        {
-          id: 3,
-          type: "delay",
-          name: "Attendre 30min",
-          config: JSON.stringify({
-            duration: 30,
-            unit: "minutes",
-          }),
-          x: 450,
-          y: 200,
-          connectedTo: 5,
-        },
-        {
-          id: 4,
-          type: "end_flow",
-          name: "Fin",
-          config: JSON.stringify({}),
-          x: 450,
-          y: 400,
-        },
-        {
-          id: 5,
-          type: "show_cart",
-          name: "Vérifier Panier Toujours Actif",
-          config: JSON.stringify({}),
-          x: 650,
-          y: 200,
-          connectedTo: 6,
-        },
-        {
-          id: 6,
-          type: "condition",
-          name: "Panier Toujours Là ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.itemsCount}}",
-            operator: "greater_than",
-            value: 0,
-            ifTrue: 7,
-            ifFalse: 4,
-          }),
-          x: 850,
-          y: 200,
-          connectedTo: 7,
-        },
-        {
-          id: 7,
-          type: "gpt_respond",
-          name: "Relance Douce 1",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Relance poliment le client sur son panier. Demande s'il y a un problème ou une question. Sois bienveillant.",
-            prompt: "Panier : {{previous.output.items}}",
-          }),
-          x: 1050,
-          y: 200,
-          connectedTo: 8,
-        },
-        {
-          id: 8,
-          type: "delay",
-          name: "Attendre 24h",
-          config: JSON.stringify({
-            duration: 24,
-            unit: "hours",
-          }),
-          x: 1250,
-          y: 200,
-          connectedTo: 9,
-        },
-        {
-          id: 9,
-          type: "show_cart",
-          name: "Vérifier Encore",
-          config: JSON.stringify({}),
-          x: 1450,
-          y: 200,
-          connectedTo: 10,
-        },
-        {
-          id: 10,
-          type: "condition",
-          name: "Toujours Abandonné ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.itemsCount}}",
-            operator: "greater_than",
-            value: 0,
-            ifTrue: 11,
-            ifFalse: 4,
-          }),
-          x: 1650,
-          y: 200,
-          connectedTo: 11,
-        },
-        {
-          id: 11,
-          type: "apply_promo",
-          name: "Offrir Coupon -10%",
-          config: JSON.stringify({
-            code: "RELANCE10",
-            discount: 10,
-            type: "percentage",
-          }),
-          x: 1850,
-          y: 200,
-          connectedTo: 12,
-        },
-        {
-          id: 12,
-          type: "send_text",
-          name: "Relance avec Coupon",
-          config: JSON.stringify({
-            text: "💡 N'oubliez pas votre panier ! Utilisez le code *RELANCE10* pour -10% de réduction. Offre valable 48h !",
-          }),
-          x: 2050,
-          y: 200,
-          connectedTo: 13,
-        },
-        {
-          id: 13,
-          type: "show_cart",
-          name: "Afficher Panier avec Réduction",
-          config: JSON.stringify({
-            message: "Votre panier avec la réduction :",
-          }),
-          x: 2250,
-          y: 200,
-          connectedTo: 14,
-        },
-        {
-          id: 14,
-          type: "delay",
-          name: "Attendre 48h",
-          config: JSON.stringify({
-            duration: 48,
-            unit: "hours",
-          }),
-          x: 2450,
-          y: 200,
-          connectedTo: 15,
-        },
-        {
-          id: 15,
-          type: "send_text",
-          name: "Dernière Relance",
-          config: JSON.stringify({
-            text: "⏰ Dernière chance ! Votre panier sera vidé dans 24h. Finalisez votre commande maintenant : [lien checkout]",
-          }),
-          x: 2650,
-          y: 200,
-        },
-      ]);
-      setWorkflowName("Relance Panier - Récupération Auto");
-    } else if (templateId === "tracking") {
-      setNodes([
-        {
-          id: 1,
-          type: "send_text",
-          name: "Accueil Suivi",
-          config: JSON.stringify({
-            text: "📦 Bonjour ! Pour suivre votre commande, envoyez-moi votre numéro de commande ou tapez *SUIVI*.",
-          }),
-          x: 50,
-          y: 300,
-          connectedTo: 2,
-        },
-        {
-          id: 2,
-          type: "gpt_analyze",
-          name: "Extraire Numéro Commande",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Extrais le numéro de commande du message du client. Réponds avec juste le numéro ou 'non_trouve'.",
-            prompt: "{{message.text}}",
-          }),
-          x: 250,
-          y: 300,
-          connectedTo: 3,
-        },
-        {
-          id: 3,
-          type: "condition",
-          name: "Commande Trouvée ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.orderId}}",
-            operator: "not_equals",
-            value: "non_trouve",
-            ifTrue: 4,
-            ifFalse: 5,
-          }),
-          x: 450,
-          y: 300,
-          connectedTo: 4,
-        },
-        {
-          id: 4,
-          type: "order_status",
-          name: "Vérifier Statut Commande",
-          config: JSON.stringify({
-            orderId: "{{previous.output.orderId}}",
-            autoDetect: true,
-          }),
-          x: 650,
-          y: 200,
-          connectedTo: 6,
-        },
-        {
-          id: 5,
-          type: "send_text",
-          name: "Demander Numéro",
-          config: JSON.stringify({
-            text: "Je n'ai pas trouvé votre numéro de commande. Pouvez-vous me le renvoyer ?",
-          }),
-          x: 650,
-          y: 400,
-          connectedTo: 2,
-        },
-        {
-          id: 6,
-          type: "gpt_respond",
-          name: "Message Statut Personnalisé",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Informe le client du statut de sa commande de manière claire et rassurante. Utilise les informations de statut disponibles.",
-            prompt: "Statut: {{previous.output.status}}, Détails: {{previous.output.details}}",
-          }),
-          x: 850,
-          y: 200,
-          connectedTo: 7,
-        },
-        {
-          id: 7,
-          type: "condition",
-          name: "En Livraison ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.status}}",
-            operator: "contains",
-            value: "livraison",
-            ifTrue: 8,
-            ifFalse: 9,
-          }),
-          x: 1050,
-          y: 200,
-          connectedTo: 8,
-        },
-        {
-          id: 8,
-          type: "send_text",
-          name: "Lien Tracking",
-          config: JSON.stringify({
-            text: "🚚 Votre colis est en route ! Suivez-le ici : {{previous.output.trackingUrl}}",
-          }),
-          x: 1250,
-          y: 100,
-          connectedTo: 10,
-        },
-        {
-          id: 9,
-          type: "send_text",
-          name: "Statut Général",
-          config: JSON.stringify({
-            text: "📋 Statut de votre commande : {{previous.output.status}}",
-          }),
-          x: 1250,
-          y: 300,
-        },
-        {
-          id: 10,
-          type: "delay",
-          name: "Attendre 24h",
-          config: JSON.stringify({
-            duration: 24,
-            unit: "hours",
-          }),
-          x: 1450,
-          y: 100,
-          connectedTo: 11,
-        },
-        {
-          id: 11,
-          type: "order_status",
-          name: "Vérifier Statut Mise à Jour",
-          config: JSON.stringify({
-            orderId: "{{previous.output.orderId}}",
-            autoDetect: false,
-          }),
-          x: 1650,
-          y: 100,
-          connectedTo: 12,
-        },
-        {
-          id: 12,
-          type: "send_text",
-          name: "Notification Mise à Jour",
-          config: JSON.stringify({
-            text: "🔔 Mise à jour : {{previous.output.status}}. {{previous.output.message}}",
-          }),
-          x: 1850,
-          y: 100,
-        },
-      ]);
-      setWorkflowName("Suivi de Commande - Tracking Auto");
-    } else if (templateId === "vip") {
-      setNodes([
-        {
-          id: 1,
-          type: "send_text",
-          name: "Accueil VIP",
-          config: JSON.stringify({
-            text: "👑 Bienvenue dans le Club VIP ! Tapez *VIP* pour rejoindre ou *INFO* pour plus d'informations.",
-          }),
-          x: 50,
-          y: 300,
-          connectedTo: 2,
-        },
-        {
-          id: 2,
-          type: "gpt_analyze",
-          name: "Vérifier Éligibilité",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Vérifie si le client est éligible au Club VIP (achats > 500€, client régulier, etc.). Réponds 'eligible' ou 'non_eligible' avec la raison.",
-            prompt: "Historique client: {{contact.totalSpent}}, Commandes: {{contact.ordersCount}}",
-          }),
-          x: 250,
-          y: 300,
-          connectedTo: 3,
-        },
-        {
-          id: 3,
-          type: "condition",
-          name: "Éligible VIP ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.eligibility}}",
-            operator: "equals",
-            value: "eligible",
-            ifTrue: 4,
-            ifFalse: 5,
-          }),
-          x: 450,
-          y: 300,
-          connectedTo: 4,
-        },
-        {
-          id: 4,
-          type: "add_tag",
-          name: "Tag VIP",
-          config: JSON.stringify({
-            contactId: "{{contact.id}}",
-            tag: "vip",
-          }),
-          x: 650,
-          y: 200,
-          connectedTo: 6,
-        },
-        {
-          id: 5,
-          type: "send_text",
-          name: "Message Non Éligible",
-          config: JSON.stringify({
-            text: "Merci pour votre intérêt ! Pour rejoindre le Club VIP, vous devez {{previous.output.reason}}. Continuez vos achats !",
-          }),
-          x: 650,
-          y: 400,
-        },
-        {
-          id: 6,
-          type: "gpt_respond",
-          name: "Message Bienvenue VIP",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Rédige un message de bienvenue prestigieux pour le Club VIP. Mentionne les avantages exclusifs, les offres spéciales, et le statut privilégié.",
-            prompt: "Client: {{contact.name}}",
-          }),
-          x: 850,
-          y: 200,
-          connectedTo: 7,
-        },
-        {
-          id: 7,
-          type: "save_contact",
-          name: "Sauvegarder Membre VIP",
-          config: JSON.stringify({
-            phone: "{{contact.phone}}",
-            name: "{{contact.name}}",
-            tags: ["vip", "club_exclusif"],
-            customFields: {
-              vipSince: "{{date.now}}",
-              vipLevel: "gold",
-            },
-          }),
-          x: 1050,
-          y: 200,
-          connectedTo: 8,
-        },
-        {
-          id: 8,
-          type: "delay",
-          name: "Attendre 7 jours",
-          config: JSON.stringify({
-            duration: 7,
-            unit: "days",
-          }),
-          x: 1250,
-          y: 200,
-          connectedTo: 9,
-        },
-        {
-          id: 9,
-          type: "gpt_respond",
-          name: "Offre Exclusive Hebdo",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Crée une offre exclusive pour les membres VIP. Sois créatif et propose quelque chose de spécial.",
-            prompt: "Membre VIP depuis: {{contact.vipSince}}",
-          }),
-          x: 1450,
-          y: 200,
-          connectedTo: 10,
-        },
-        {
-          id: 10,
-          type: "send_image",
-          name: "Visuel Offre VIP",
-          config: JSON.stringify({
-            url: "https://example.com/vip-offer.jpg",
-            caption: "🎁 Offre exclusive réservée aux membres VIP !",
-          }),
-          x: 1650,
-          y: 200,
-          connectedTo: 11,
-        },
-        {
-          id: 11,
-          type: "apply_promo",
-          name: "Code Promo VIP",
-          config: JSON.stringify({
-            code: "VIP2024",
-            discount: 20,
-            type: "percentage",
-          }),
-          x: 1850,
-          y: 200,
-        },
-      ]);
-      setWorkflowName("Club VIP / News - Fidélité Premium");
-    } else if (templateId === "quote") {
-      setNodes([
-        {
-          id: 1,
-          type: "send_text",
-          name: "Accueil Devis",
-          config: JSON.stringify({
-            text: "📋 Bonjour ! Je vais vous créer un devis personnalisé. Décrivez-moi votre projet ou vos besoins.",
-          }),
-          x: 50,
-          y: 300,
-          connectedTo: 2,
-        },
-        {
-          id: 2,
-          type: "gpt_respond",
-          name: "Collecte Spécifications",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Pose des questions pertinentes pour comprendre le projet du client : budget, délais, fonctionnalités, contraintes. Sois professionnel et méthodique.",
-            prompt: "{{message.text}}",
-          }),
-          x: 250,
-          y: 300,
-          connectedTo: 3,
-        },
-        {
-          id: 3,
-          type: "gpt_analyze",
-          name: "Analyse Besoins",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Analyse les besoins exprimés et extrait les informations clés : type de projet, complexité, budget estimé, délais. Réponds en JSON structuré.",
-            prompt: "{{message.text}}",
-          }),
-          x: 450,
-          y: 300,
-          connectedTo: 4,
-        },
-        {
-          id: 4,
-          type: "set_variable",
-          name: "Calculer Prix",
-          config: JSON.stringify({
-            variableName: "quotePrice",
-            value: "{{previous.output.complexity}} === 'high' ? 5000 : {{previous.output.complexity}} === 'medium' ? 2500 : 1000",
-          }),
-          x: 650,
-          y: 300,
-          connectedTo: 5,
-        },
-        {
-          id: 5,
-          type: "gpt_respond",
-          name: "Générer Devis Détaillé",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Génère un devis professionnel et détaillé avec : description du projet, prestations incluses, prix, délais, conditions. Sois précis et transparent.",
-            prompt: "Projet: {{previous.output.project}}, Budget: {{variables.quotePrice}}€",
-          }),
-          x: 850,
-          y: 300,
-          connectedTo: 6,
-        },
-        {
-          id: 6,
-          type: "send_text",
-          name: "Présenter Devis",
-          config: JSON.stringify({
-            text: "📄 Voici votre devis personnalisé :\n\n{{previous.output.quote}}\n\nPrix total : {{variables.quotePrice}}€\n\nAcceptez-vous ce devis ? (Répondez OUI ou NON)",
-          }),
-          x: 1050,
-          y: 300,
-          connectedTo: 7,
-        },
-        {
-          id: 7,
-          type: "gpt_analyze",
-          name: "Détecter Acceptation",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Le client accepte-t-il le devis ? Réponds 'accepte' ou 'refuse'.",
-            prompt: "{{message.text}}",
-          }),
-          x: 1250,
-          y: 300,
-          connectedTo: 8,
-        },
-        {
-          id: 8,
-          type: "condition",
-          name: "Devis Accepté ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.response}}",
-            operator: "contains",
-            value: "accepte",
-            ifTrue: 9,
-            ifFalse: 10,
-          }),
-          x: 1450,
-          y: 300,
-          connectedTo: 9,
-        },
-        {
-          id: 9,
-          type: "assign_agent",
-          name: "Notifier Équipe",
-          config: JSON.stringify({
-            agentId: "sales_team",
-            message: "🎉 Nouveau devis accepté !\nClient: {{contact.name}}\nProjet: {{previous.output.project}}\nMontant: {{variables.quotePrice}}€",
-          }),
-          x: 1650,
-          y: 200,
-          connectedTo: 11,
-        },
-        {
-          id: 10,
-          type: "send_text",
-          name: "Proposer Négociation",
-          config: JSON.stringify({
-            text: "Je comprends. Souhaitez-vous discuter du prix ou des prestations ? Je peux adapter le devis selon vos besoins.",
-          }),
-          x: 1650,
-          y: 400,
-          connectedTo: 2,
-        },
-        {
-          id: 11,
-          type: "save_contact",
-          name: "Sauvegarder Client",
-          config: JSON.stringify({
-            phone: "{{contact.phone}}",
-            name: "{{contact.name}}",
-            tags: ["devis_accepte", "client_potentiel"],
-            customFields: {
-              quoteAmount: "{{variables.quotePrice}}",
-              quoteDate: "{{date.now}}",
-            },
-          }),
-          x: 1850,
-          y: 200,
-          connectedTo: 12,
-        },
-        {
-          id: 12,
-          type: "send_text",
-          name: "Confirmation Acceptation",
-          config: JSON.stringify({
-            text: "✅ Parfait ! Votre devis a été accepté. Notre équipe va vous contacter sous peu pour finaliser le projet. Merci de votre confiance !",
-          }),
-          x: 2050,
-          y: 200,
-        },
-      ]);
-      setWorkflowName("Devis Rapide - Générateur Auto");
-    } else if (templateId === "enterprise") {
-      setNodes([
-        {
-          id: 1,
-          type: "send_text",
-          name: "Accueil Multicanal",
-          config: JSON.stringify({
-            text: "👋 Bonjour ! Bienvenue sur notre support multicanal. Comment puis-je vous aider aujourd'hui ?",
-          }),
-          x: 50,
-          y: 300,
-          connectedTo: 2,
-        },
-        {
-          id: 2,
-          type: "gpt_analyze",
-          name: "Routage Intelligent",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Analyse la demande et détermine le département approprié : 'vente' (questions commerciales), 'tech' (support technique), 'rh' (ressources humaines), 'autre'. Réponds avec le département.",
-            prompt: "{{message.text}}",
-          }),
-          x: 250,
-          y: 300,
-          connectedTo: 3,
-        },
-        {
-          id: 3,
-          type: "condition",
-          name: "Router Département",
-          config: JSON.stringify({
-            condition: "{{previous.output.department}}",
-            operator: "equals",
-            value: "vente",
-            ifTrue: 4,
-            ifFalse: 5,
-          }),
-          x: 450,
-          y: 300,
-          connectedTo: 4,
-        },
-        {
-          id: 4,
-          type: "ai_agent",
-          name: "Agent IA Vente",
-          config: JSON.stringify({
-            agentName: "Expert Vente",
-            systemPrompt: connectSalesPrompt,
-            model: "gpt-4o",
-            includeChatHistory: true,
-            outputFormat: "text",
-            verbosity: "normal",
-          }),
-          x: 650,
-          y: 100,
-          connectedTo: 7,
-        },
-        {
-          id: 5,
-          type: "condition",
-          name: "Tech ou RH ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.department}}",
-            operator: "equals",
-            value: "tech",
-            ifTrue: 6,
-            ifFalse: 8,
-          }),
-          x: 650,
-          y: 400,
-          connectedTo: 6,
-        },
-        {
-          id: 6,
-          type: "ai_agent",
-          name: "Agent IA Support Tech",
-          config: JSON.stringify({
-            agentName: "Support Technique",
-            systemPrompt: connectSupportPrompt,
-            model: "gpt-4o",
-            includeChatHistory: true,
-            outputFormat: "text",
-            verbosity: "normal",
-          }),
-          x: 850,
-          y: 300,
-          connectedTo: 7,
-        },
-        {
-          id: 7,
-          type: "sentiment",
-          name: "Analyse Satisfaction",
-          config: JSON.stringify({
-            engine: "gpt-4o",
-            target: "last_message",
-            detectEmotions: true,
-            detectTone: true,
-            urgencyScale: true,
-          }),
-          x: 1050,
-          y: 200,
-          connectedTo: 9,
-        },
-        {
-          id: 8,
-          type: "assign_agent",
-          name: "Transfert RH",
-          config: JSON.stringify({
-            agentId: "hr_team",
-            message: "Demande RH : {{message.text}}",
-          }),
-          x: 850,
-          y: 500,
-        },
-        {
-          id: 9,
-          type: "condition",
-          name: "Satisfaction OK ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.satisfaction}}",
-            operator: "greater_than",
-            value: 7,
-            ifTrue: 10,
-            ifFalse: 11,
-          }),
-          x: 1250,
-          y: 200,
-          connectedTo: 10,
-        },
-        {
-          id: 10,
-          type: "condition",
-          name: "Intérêt Achat ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.department}}",
-            operator: "equals",
-            value: "vente",
-            ifTrue: 12,
-            ifFalse: 13,
-          }),
-          x: 1450,
-          y: 100,
-          connectedTo: 12,
-        },
-        {
-          id: 11,
-          type: "assign_agent",
-          name: "Escalade Humain",
-          config: JSON.stringify({
-            agentId: "support_team",
-            message: "Client nécessite assistance humaine. Satisfaction: {{previous.output.satisfaction}}, Départment: {{previous.output.department}}",
-          }),
-          x: 1450,
-          y: 300,
-        },
-        {
-          id: 12,
-          type: "show_catalog",
-          name: "Afficher Produits",
-          config: JSON.stringify({
-            message: "Découvrez nos solutions :",
-            showPrices: true,
-            showStock: true,
-          }),
-          x: 1650,
-          y: 50,
-          connectedTo: 14,
-        },
-        {
-          id: 13,
-          type: "add_note",
-          name: "Note Interaction",
-          config: JSON.stringify({
-            contactId: "{{contact.id}}",
-            note: "Interaction {{previous.output.department}}. Satisfaction: {{previous.output.satisfaction}}",
-          }),
-          x: 1650,
-          y: 200,
-        },
-        {
-          id: 14,
-          type: "gpt_analyze",
-          name: "Détecter Intention Achat",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Le client veut-il passer commande ? Réponds 'oui' ou 'non'.",
-            prompt: "{{message.text}}",
-          }),
-          x: 1850,
-          y: 50,
-          connectedTo: 15,
-        },
-        {
-          id: 15,
-          type: "condition",
-          name: "Si Achat",
-          config: JSON.stringify({
-            condition: "{{previous.output.response}}",
-            operator: "contains",
-            value: "oui",
-            ifTrue: 16,
-            ifFalse: 17,
-          }),
-          x: 2050,
-          y: 50,
-          connectedTo: 16,
-        },
-        {
-          id: 16,
-          type: "checkout",
-          name: "Paiement Enterprise",
-          config: JSON.stringify({
-            gateway: "moneroo",
-            currency: "XOF",
-            successUrl: "{{contact.phone}}",
-            failureUrl: "{{contact.phone}}",
-            testMode: true,
-          }),
-          x: 2250,
-          y: 50,
-          connectedTo: 18,
-        },
-        {
-          id: 17,
-          type: "send_text",
-          name: "Suivi Commercial",
-          config: JSON.stringify({
-            text: "Merci pour votre intérêt ! Notre équipe commerciale va vous contacter prochainement.",
-          }),
-          x: 2250,
-          y: 150,
-        },
-        {
-          id: 18,
-          type: "delay",
-          name: "Attendre 24h Post-Achat",
-          config: JSON.stringify({
-            duration: 24,
-            unit: "hours",
-          }),
-          x: 2450,
-          y: 50,
-          connectedTo: 19,
-        },
-        {
-          id: 19,
-          type: "gpt_respond",
-          name: "Check Satisfaction Post-Achat",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Vérifie la satisfaction du client après l'achat. Pose des questions bienveillantes.",
-            prompt: "{{message.text}}",
-          }),
-          x: 2650,
-          y: 50,
-          connectedTo: 20,
-        },
-        {
-          id: 20,
-          type: "sentiment",
-          name: "Analyse Feedback",
-          config: JSON.stringify({
-            engine: "gpt-4o",
-            target: "last_message",
-            detectEmotions: true,
-            detectTone: true,
-          }),
-          x: 2850,
-          y: 50,
-          connectedTo: 21,
-        },
-        {
-          id: 21,
-          type: "add_note",
-          name: "Note Feedback",
-          config: JSON.stringify({
-            contactId: "{{contact.id}}",
-            note: "Feedback post-achat : Satisfaction {{previous.output.satisfaction}}, Feedback: {{message.text}}",
-          }),
-          x: 3050,
-          y: 50,
-        },
-      ]);
-      setWorkflowName("Enterprise 360° - Workflow Complet");
-    } else if (templateId === "agency") {
-      setNodes([
-        {
-          id: 1,
-          type: "send_text",
-          name: "Accueil Agence",
-          config: JSON.stringify({
-            text: "🚀 Bonjour ! Bienvenue chez notre agence digitale. Décrivez votre projet et je vais créer un brief personnalisé pour vous.\n\nTapez *BRIEF* pour commencer.",
-          }),
-          x: 50,
-          y: 300,
-          connectedTo: 2,
-        },
-        {
-          id: 2,
-          type: "gpt_respond",
-          name: "Consultant Stratégique IA",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Tu es un consultant stratégique expert en digital. Pose des questions pertinentes pour comprendre le projet du client : objectifs, budget, délais, cible, fonctionnalités souhaitées. Sois professionnel et méthodique.",
-            prompt: "{{message.text}}",
-          }),
-          x: 250,
-          y: 300,
-          connectedTo: 3,
-        },
-        {
-          id: 3,
-          type: "gpt_analyze",
-          name: "Analyser Brief Complet",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Analyse toutes les informations collectées et extrait : type de projet, complexité, budget estimé, délais, fonctionnalités clés. Réponds en JSON structuré.",
-            prompt: "{{message.text}}",
-          }),
-          x: 450,
-          y: 300,
-          connectedTo: 4,
-        },
-        {
-          id: 4,
-          type: "gpt_respond",
-          name: "Générer Roadmap",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Crée une roadmap détaillée du projet avec les phases, les livrables, les délais et les ressources nécessaires. Sois précis et réaliste.",
-            prompt: "Projet: {{previous.output.project}}, Budget: {{previous.output.budget}}, Délais: {{previous.output.timeline}}",
-          }),
-          x: 650,
-          y: 300,
-          connectedTo: 5,
-        },
-        {
-          id: 5,
-          type: "set_variable",
-          name: "Calculer Prix Devis",
-          config: JSON.stringify({
-            variableName: "quotePrice",
-            value: "{{previous.output.complexity}} === 'high' ? 15000 : {{previous.output.complexity}} === 'medium' ? 8000 : 3000",
-          }),
-          x: 850,
-          y: 300,
-          connectedTo: 6,
-        },
-        {
-          id: 6,
-          type: "send_text",
-          name: "Présenter Roadmap",
-          config: JSON.stringify({
-            text: "📋 Voici votre roadmap personnalisée :\n\n{{previous.output.roadmap}}\n\n💰 Investissement estimé : {{variables.quotePrice}}€\n\nSouhaitez-vous planifier un appel de kick-off ? (Répondez OUI ou NON)",
-          }),
-          x: 1050,
-          y: 300,
-          connectedTo: 7,
-        },
-        {
-          id: 7,
-          type: "gpt_analyze",
-          name: "Détecter Acceptation",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Le client accepte-t-il la roadmap et veut-il planifier l'appel ? Réponds 'accepte' ou 'refuse'.",
-            prompt: "{{message.text}}",
-          }),
-          x: 1250,
-          y: 300,
-          connectedTo: 8,
-        },
-        {
-          id: 8,
-          type: "condition",
-          name: "Roadmap Acceptée ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.response}}",
-            operator: "contains",
-            value: "accepte",
-            ifTrue: 9,
-            ifFalse: 10,
-          }),
-          x: 1450,
-          y: 300,
-          connectedTo: 9,
-        },
-        {
-          id: 9,
-          type: "check_availability",
-          name: "Vérifier Disponibilité",
-          config: JSON.stringify({
-            calendarId: "sales",
-            periodDays: 14,
-            durationMinutes: 60,
-            timeZone: "auto",
-            showWeekends: false,
-          }),
-          x: 1650,
-          y: 200,
-          connectedTo: 11,
-        },
-        {
-          id: 10,
-          type: "send_text",
-          name: "Proposer Négociation",
-          config: JSON.stringify({
-            text: "Je comprends. Souhaitez-vous discuter de certains points de la roadmap ? Je peux l'adapter selon vos besoins.",
-          }),
-          x: 1650,
-          y: 400,
-          connectedTo: 2,
-        },
-        {
-          id: 11,
-          type: "book_appointment",
-          name: "Réserver Kick-off Call",
-          config: JSON.stringify({
-            calendarId: "sales",
-            date: "{{previous.output.availableDate}}",
-            time: "{{previous.output.availableTime}}",
-            duration: 60,
-            title: "Kick-off {{contact.name}}",
-            description: "Projet: {{previous.output.project}}, Budget: {{variables.quotePrice}}€",
-          }),
-          x: 1850,
-          y: 200,
-          connectedTo: 12,
-        },
-        {
-          id: 12,
-          type: "save_contact",
-          name: "Sauvegarder Prospect",
-          config: JSON.stringify({
-            phone: "{{contact.phone}}",
-            name: "{{contact.name}}",
-            tags: ["prospect_agence", "brief_complet"],
-            customFields: {
-              projectType: "{{previous.output.project}}",
-              quoteAmount: "{{variables.quotePrice}}",
-              kickoffDate: "{{previous.output.date}}",
-            },
-          }),
-          x: 2050,
-          y: 200,
-          connectedTo: 13,
-        },
-        {
-          id: 13,
-          type: "assign_agent",
-          name: "Notifier Équipe",
-          config: JSON.stringify({
-            agentId: "sales_team",
-            message: "🎯 Nouveau brief accepté !\nClient: {{contact.name}}\nProjet: {{previous.output.project}}\nDevis: {{variables.quotePrice}}€\nKick-off: {{previous.output.date}}",
-          }),
-          x: 2250,
-          y: 200,
-          connectedTo: 14,
-        },
-        {
-          id: 14,
-          type: "send_text",
-          name: "Confirmation Kick-off",
-          config: JSON.stringify({
-            text: "✅ Parfait ! Votre appel de kick-off est planifié le {{previous.output.date}} à {{previous.output.time}}. Vous recevrez un rappel 24h avant. À bientôt !",
-          }),
-          x: 2450,
-          y: 200,
-          connectedTo: 15,
-        },
-        {
-          id: 15,
-          type: "delay",
-          name: "Attendre J-1",
-          config: JSON.stringify({
-            duration: 24,
-            unit: "hours",
-          }),
-          x: 2650,
-          y: 200,
-          connectedTo: 16,
-        },
-        {
-          id: 16,
-          type: "send_reminder",
-          name: "Rappel Kick-off",
-          config: JSON.stringify({
-            calendarId: "sales",
-            appointmentId: "{{previous.output.appointmentId}}",
-            reminderTime: "24h",
-            message: "🔔 Rappel : Votre appel de kick-off est demain à {{previous.output.time}}. Nous avons hâte de démarrer votre projet !",
-          }),
-          x: 2850,
-          y: 200,
-        },
-      ]);
-      setWorkflowName("Agence Digital Pro - Pipeline Auto");
-    } else if (templateId === "hr_pro" || templateId === "hr") {
-      setNodes([
-        {
-          id: 1,
-          type: "send_text",
-          name: "Accueil Candidature",
-          config: JSON.stringify({
-            text: "💼 Bonjour ! Vous souhaitez postuler ? Envoyez-moi votre CV ou tapez *POSTULER* pour commencer le processus de candidature.",
-          }),
-          x: 50,
-          y: 300,
-          connectedTo: 2,
-        },
-        {
-          id: 2,
-          type: "gpt_analyze",
-          name: "Analyser CV",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Analyse le CV du candidat et extrait : diplômes, expérience, compétences, années d'expérience. Réponds en JSON structuré.",
-            prompt: "{{message.text}}",
-          }),
-          x: 250,
-          y: 300,
-          connectedTo: 3,
-        },
-        {
-          id: 3,
-          type: "condition",
-          name: "CV Valide ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.hasDiploma}}",
-            operator: "equals",
-            value: true,
-            ifTrue: 4,
-            ifFalse: 5,
-          }),
-          x: 450,
-          y: 300,
-          connectedTo: 4,
-        },
-        {
-          id: 4,
-          type: "save_contact",
-          name: "Sauvegarder Candidat",
-          config: JSON.stringify({
-            phone: "{{contact.phone}}",
-            name: "{{contact.name}}",
-            tags: ["candidat", "cv_valide"],
-            customFields: {
-              diploma: "{{previous.output.diploma}}",
-              experience: "{{previous.output.experience}}",
-              skills: "{{previous.output.skills}}",
-            },
-          }),
-          x: 650,
-          y: 200,
-          connectedTo: 6,
-        },
-        {
-          id: 5,
-          type: "send_text",
-          name: "Message Refus CV",
-          config: JSON.stringify({
-            text: "Merci pour votre candidature. Malheureusement, votre profil ne correspond pas aux critères requis pour ce poste. Nous vous souhaitons bonne chance dans vos recherches.",
-          }),
-          x: 650,
-          y: 400,
-        },
-        {
-          id: 6,
-          type: "gpt_respond",
-          name: "Test Soft Skills",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Pose des questions de soft skills pour évaluer la personnalité, la communication, le travail d'équipe, la résolution de problèmes. Sois professionnel et bienveillant.",
-            prompt: "Candidat: {{contact.name}}, Poste: Développeur",
-          }),
-          x: 850,
-          y: 200,
-          connectedTo: 7,
-        },
-        {
-          id: 7,
-          type: "gpt_analyze",
-          name: "Analyser Réponses Soft Skills",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Analyse les réponses du candidat aux questions de soft skills. Évalue : communication, adaptabilité, esprit d'équipe, leadership. Donne un score de 1 à 10 pour chaque critère.",
-            prompt: "{{message.text}}",
-          }),
-          x: 1050,
-          y: 200,
-          connectedTo: 8,
-        },
-        {
-          id: 8,
-          type: "set_variable",
-          name: "Calculer Score Global",
-          config: JSON.stringify({
-            variableName: "candidateScore",
-            value: "({{previous.output.communication}} + {{previous.output.adaptability}} + {{previous.output.teamwork}} + {{previous.output.leadership}}) / 4",
-          }),
-          x: 1250,
-          y: 200,
-          connectedTo: 9,
-        },
-        {
-          id: 9,
-          type: "condition",
-          name: "Score >= 7 ?",
-          config: JSON.stringify({
-            condition: "{{variables.candidateScore}}",
-            operator: "greater_than_or_equal",
-            value: 7,
-            ifTrue: 10,
-            ifFalse: 11,
-          }),
-          x: 1450,
-          y: 200,
-          connectedTo: 10,
-        },
-        {
-          id: 10,
-          type: "add_tag",
-          name: "Tag Qualifié",
-          config: JSON.stringify({
-            contactId: "{{contact.id}}",
-            tag: "candidat_qualifie",
-          }),
-          x: 1650,
-          y: 100,
-          connectedTo: 12,
-        },
-        {
-          id: 11,
-          type: "send_text",
-          name: "Message Non Qualifié",
-          config: JSON.stringify({
-            text: "Merci pour votre participation. Après analyse de votre profil, nous ne pouvons malheureusement pas retenir votre candidature pour ce poste. Nous vous souhaitons bonne chance.",
-          }),
-          x: 1650,
-          y: 300,
-        },
-        {
-          id: 12,
-          type: "check_availability",
-          name: "Vérifier Disponibilité RH",
-          config: JSON.stringify({
-            calendarId: "hr",
-            periodDays: 14,
-            durationMinutes: 60,
-            timeZone: "auto",
-            showWeekends: false,
-          }),
-          x: 1850,
-          y: 100,
-          connectedTo: 13,
-        },
-        {
-          id: 13,
-          type: "book_appointment",
-          name: "Planifier Entretien Final",
-          config: JSON.stringify({
-            calendarId: "hr",
-            date: "{{previous.output.availableDate}}",
-            time: "{{previous.output.availableTime}}",
-            duration: 60,
-            title: "Entretien {{contact.name}}",
-            description: "Score: {{variables.candidateScore}}/10, Compétences: {{contact.skills}}",
-          }),
-          x: 2050,
-          y: 100,
-          connectedTo: 14,
-        },
-        {
-          id: 14,
-          type: "update_contact",
-          name: "Mettre à Jour Statut",
-          config: JSON.stringify({
-            contactId: "{{contact.id}}",
-            customFields: {
-              interviewDate: "{{previous.output.date}}",
-              interviewTime: "{{previous.output.time}}",
-              status: "entretien_planifie",
-            },
-          }),
-          x: 2250,
-          y: 100,
-          connectedTo: 15,
-        },
-        {
-          id: 15,
-          type: "assign_agent",
-          name: "Notifier RH",
-          config: JSON.stringify({
-            agentId: "hr_team",
-            message: "🎯 Nouveau candidat qualifié !\nNom: {{contact.name}}\nScore: {{variables.candidateScore}}/10\nEntretien: {{previous.output.date}} à {{previous.output.time}}",
-          }),
-          x: 2450,
-          y: 100,
-          connectedTo: 16,
-        },
-        {
-          id: 16,
-          type: "send_text",
-          name: "Confirmation Entretien",
-          config: JSON.stringify({
-            text: "✅ Excellent ! Votre entretien est planifié le {{previous.output.date}} à {{previous.output.time}}. Vous recevrez un rappel 24h avant. Bonne chance !",
-          }),
-          x: 2650,
-          y: 100,
-          connectedTo: 17,
-        },
-        {
-          id: 17,
-          type: "delay",
-          name: "Attendre J-1",
-          config: JSON.stringify({
-            duration: 24,
-            unit: "hours",
-          }),
-          x: 2850,
-          y: 100,
-          connectedTo: 18,
-        },
-        {
-          id: 18,
-          type: "send_reminder",
-          name: "Rappel Entretien",
-          config: JSON.stringify({
-            calendarId: "hr",
-            appointmentId: "{{previous.output.appointmentId}}",
-            reminderTime: "24h",
-            message: "🔔 Rappel : Votre entretien est demain à {{previous.output.time}}. Nous avons hâte de vous rencontrer !",
-          }),
-          x: 3050,
-          y: 100,
-        },
-      ]);
-      setWorkflowName("RH Master Pipeline - Recrutement Auto");
-    } else if (templateId === "contest") {
-      setNodes([
-        {
-          id: 1,
-          type: "send_text",
-          name: "Lancement Concours",
-          config: JSON.stringify({
-            text: "🎉 CONCOURS EXCLUSIF !\n\nPartagez ce message à 3 amis et tentez de gagner un super cadeau !\n\nTapez *PARTICIPER* pour commencer.",
-          }),
-          x: 50,
-          y: 300,
-          connectedTo: 2,
-        },
-        {
-          id: 2,
-          type: "gpt_analyze",
-          name: "Vérifier Participation",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Le client veut-il participer au concours ? Réponds 'oui' ou 'non'.",
-            prompt: "{{message.text}}",
-          }),
-          x: 250,
-          y: 300,
-          connectedTo: 3,
-        },
-        {
-          id: 3,
-          type: "condition",
-          name: "Veut Participer ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.response}}",
-            operator: "contains",
-            value: "oui",
-            ifTrue: 4,
-            ifFalse: 5,
-          }),
-          x: 450,
-          y: 300,
-          connectedTo: 4,
-        },
-        {
-          id: 4,
-          type: "save_contact",
-          name: "Inscrire Participant",
-          config: JSON.stringify({
-            phone: "{{contact.phone}}",
-            name: "{{contact.name}}",
-            tags: ["concours_2024", "participant"],
-            customFields: {
-              contestEntryDate: "{{date.now}}",
-              sharesCount: 0,
-            },
-          }),
-          x: 650,
-          y: 200,
-          connectedTo: 6,
-        },
-        {
-          id: 5,
-          type: "send_text",
-          name: "Message Non Intéressé",
-          config: JSON.stringify({
-            text: "Pas de problème ! N'hésitez pas à revenir si vous changez d'avis. Bonne journée !",
-          }),
-          x: 650,
-          y: 400,
-        },
-        {
-          id: 6,
-          type: "gpt_respond",
-          name: "Instructions Partage",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Explique au client comment partager le concours à 3 amis. Sois enthousiaste et clair.",
-            prompt: "{{message.text}}",
-          }),
-          x: 850,
-          y: 200,
-          connectedTo: 7,
-        },
-        {
-          id: 7,
-          type: "gpt_analyze",
-          name: "Vérifier Partages",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Le client a-t-il partagé à 3 amis ? Vérifie les preuves (captures, mentions, etc.). Réponds 'oui' ou 'non' avec le nombre de partages détectés.",
-            prompt: "{{message.text}}",
-          }),
-          x: 1050,
-          y: 200,
-          connectedTo: 8,
-        },
-        {
-          id: 8,
-          type: "condition",
-          name: "3 Partages ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.sharesCount}}",
-            operator: "greater_than_or_equal",
-            value: 3,
-            ifTrue: 9,
-            ifFalse: 10,
-          }),
-          x: 1250,
-          y: 200,
-          connectedTo: 9,
-        },
-        {
-          id: 9,
-          type: "add_tag",
-          name: "Tag Éligible",
-          config: JSON.stringify({
-            contactId: "{{contact.id}}",
-            tag: "concours_eligible",
-          }),
-          x: 1450,
-          y: 100,
-          connectedTo: 11,
-        },
-        {
-          id: 10,
-          type: "send_text",
-          name: "Rappel Partage",
-          config: JSON.stringify({
-            text: "Il vous manque encore {{3 - previous.output.sharesCount}} partage(s) ! Partagez à vos amis pour être éligible au tirage au sort.",
-          }),
-          x: 1450,
-          y: 300,
-        },
-        {
-          id: 11,
-          type: "send_text",
-          name: "Confirmation Éligibilité",
-          config: JSON.stringify({
-            text: "✅ Parfait ! Vous êtes maintenant éligible au tirage au sort. Les résultats seront annoncés dans 48h. Bonne chance ! 🍀",
-          }),
-          x: 1650,
-          y: 100,
-          connectedTo: 12,
-        },
-        {
-          id: 12,
-          type: "delay",
-          name: "Attendre Fin Concours",
-          config: JSON.stringify({
-            duration: 48,
-            unit: "hours",
-          }),
-          x: 1850,
-          y: 100,
-          connectedTo: 13,
-        },
-        {
-          id: 13,
-          type: "random_choice",
-          name: "Tirage au Sort",
-          config: JSON.stringify({
-            participants: "{{contacts.with_tag.concours_eligible}}",
-            winnersCount: 1,
-          }),
-          x: 2050,
-          y: 100,
-          connectedTo: 14,
-        },
-        {
-          id: 14,
-          type: "condition",
-          name: "Gagnant ?",
-          config: JSON.stringify({
-            condition: "{{contact.phone}}",
-            operator: "equals",
-            value: "{{previous.output.winner}}",
-            ifTrue: 15,
-            ifFalse: 16,
-          }),
-          x: 2250,
-          y: 100,
-          connectedTo: 15,
-        },
-        {
-          id: 15,
-          type: "send_text",
-          name: "Annonce Gagnant",
-          config: JSON.stringify({
-            text: "🎉 FÉLICITATIONS ! Vous avez gagné le concours ! Contactez-nous pour récupérer votre prix. Bravo !",
-          }),
-          x: 2450,
-          y: 50,
-        },
-        {
-          id: 16,
-          type: "send_text",
-          name: "Message Perdant",
-          config: JSON.stringify({
-            text: "Merci d'avoir participé ! Malheureusement, vous n'avez pas gagné cette fois. Restez connecté pour les prochains concours !",
-          }),
-          x: 2450,
-          y: 150,
-        },
-      ]);
-      setWorkflowName("Jeu Concours - Viral & Social");
-    } else if (templateId === "education") {
-      setNodes([
-        {
-          id: 1,
-          type: "send_text",
-          name: "Accueil Formation",
-          config: JSON.stringify({
-            text: "📚 Bienvenue dans notre micro-formation ! Tapez *INSCRIPTION* pour commencer votre parcours d'apprentissage.",
-          }),
-          x: 50,
-          y: 300,
-          connectedTo: 2,
-        },
-        {
-          id: 2,
-          type: "gpt_analyze",
-          name: "Détecter Inscription",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Le client veut-il s'inscrire à la formation ? Réponds 'oui' ou 'non'.",
-            prompt: "{{message.text}}",
-          }),
-          x: 250,
-          y: 300,
-          connectedTo: 3,
-        },
-        {
-          id: 3,
-          type: "condition",
-          name: "Inscription Confirmée ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.response}}",
-            operator: "contains",
-            value: "oui",
-            ifTrue: 4,
-            ifFalse: 5,
-          }),
-          x: 450,
-          y: 300,
-          connectedTo: 4,
-        },
-        {
-          id: 4,
-          type: "save_contact",
-          name: "Inscrire Étudiant",
-          config: JSON.stringify({
-            phone: "{{contact.phone}}",
-            name: "{{contact.name}}",
-            tags: ["formation", "etudiant"],
-            customFields: {
-              inscriptionDate: "{{date.now}}",
-              currentModule: 1,
-              progress: 0,
-            },
-          }),
-          x: 650,
-          y: 200,
-          connectedTo: 6,
-        },
-        {
-          id: 5,
-          type: "send_text",
-          name: "Message Non Inscrit",
-          config: JSON.stringify({
-            text: "Pas de problème ! Revenez quand vous serez prêt à apprendre. À bientôt !",
-          }),
-          x: 650,
-          y: 400,
-        },
-        {
-          id: 6,
-          type: "send_text",
-          name: "Leçon 1 - Introduction",
-          config: JSON.stringify({
-            text: "📖 Leçon 1 : Introduction\n\nBienvenue dans cette formation ! Dans cette première leçon, nous allons découvrir les bases.\n\n[Lien vidéo ou contenu]",
-          }),
-          x: 850,
-          y: 200,
-          connectedTo: 7,
-        },
-        {
-          id: 7,
-          type: "delay",
-          name: "Attendre 24h",
-          config: JSON.stringify({
-            duration: 24,
-            unit: "hours",
-          }),
-          x: 1050,
-          y: 200,
-          connectedTo: 8,
-        },
-        {
-          id: 8,
-          type: "gpt_respond",
-          name: "Quiz Leçon 1",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Pose une question de quiz sur la leçon 1. Sois pédagogique et encourageant.",
-            prompt: "Leçon: Introduction",
-          }),
-          x: 1250,
-          y: 200,
-          connectedTo: 9,
-        },
-        {
-          id: 9,
-          type: "gpt_analyze",
-          name: "Vérifier Réponse",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "La réponse du client est-elle correcte ? Réponds 'correct' ou 'incorrect' avec une explication.",
-            prompt: "Question: {{previous.output.question}}, Réponse: {{message.text}}",
-          }),
-          x: 1450,
-          y: 200,
-          connectedTo: 10,
-        },
-        {
-          id: 10,
-          type: "condition",
-          name: "Réponse Correcte ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.result}}",
-            operator: "equals",
-            value: "correct",
-            ifTrue: 11,
-            ifFalse: 12,
-          }),
-          x: 1650,
-          y: 200,
-          connectedTo: 11,
-        },
-        {
-          id: 11,
-          type: "send_text",
-          name: "Félicitations",
-          config: JSON.stringify({
-            text: "✅ Excellente réponse ! Vous avez bien compris la leçon. Passons à la leçon 2 !",
-          }),
-          x: 1850,
-          y: 100,
-          connectedTo: 13,
-        },
-        {
-          id: 12,
-          type: "send_text",
-          name: "Correction",
-          config: JSON.stringify({
-            text: "Presque ! Voici la bonne réponse : {{previous.output.explanation}}\n\nRelisez la leçon et réessayez !",
-          }),
-          x: 1850,
-          y: 300,
-          connectedTo: 8,
-        },
-        {
-          id: 13,
-          type: "update_contact",
-          name: "Mettre à Jour Progrès",
-          config: JSON.stringify({
-            contactId: "{{contact.id}}",
-            customFields: {
-              currentModule: 2,
-              progress: 25,
-            },
-          }),
-          x: 2050,
-          y: 100,
-          connectedTo: 14,
-        },
-        {
-          id: 14,
-          type: "send_text",
-          name: "Leçon 2",
-          config: JSON.stringify({
-            text: "📖 Leçon 2 : Concepts Avancés\n\nFélicitations pour avoir terminé la leçon 1 ! Continuons avec des concepts plus avancés.\n\n[Lien vidéo ou contenu]",
-          }),
-          x: 2250,
-          y: 100,
-          connectedTo: 15,
-        },
-        {
-          id: 15,
-          type: "delay",
-          name: "Attendre Fin Formation",
-          config: JSON.stringify({
-            duration: 72,
-            unit: "hours",
-          }),
-          x: 2450,
-          y: 100,
-          connectedTo: 16,
-        },
-        {
-          id: 16,
-          type: "condition",
-          name: "Formation Terminée ?",
-          config: JSON.stringify({
-            condition: "{{contact.progress}}",
-            operator: "greater_than_or_equal",
-            value: 100,
-            ifTrue: 17,
-            ifFalse: 18,
-          }),
-          x: 2650,
-          y: 100,
-          connectedTo: 17,
-        },
-        {
-          id: 17,
-          type: "send_text",
-          name: "Certificat",
-          config: JSON.stringify({
-            text: "🎓 FÉLICITATIONS ! Vous avez terminé la formation avec succès ! Voici votre certificat : [lien certificat]",
-          }),
-          x: 2850,
-          y: 50,
-        },
-        {
-          id: 18,
-          type: "send_text",
-          name: "Rappel Continuer",
-          config: JSON.stringify({
-            text: "💡 N'oubliez pas de continuer votre formation ! Vous êtes à {{contact.progress}}% de progression.",
-          }),
-          x: 2850,
-          y: 150,
-        },
-      ]);
-      setWorkflowName("Micro-Formation - LMS WhatsApp");
-    } else if (templateId === "restaurant") {
-      setNodes([
-        {
-          id: 1,
-          type: "send_text",
-          name: "Accueil Restaurant",
-          config: JSON.stringify({
-            text: "🍽️ Bonjour ! Bienvenue chez nous !\n\nTapez *MENU* pour voir notre carte\nTapez *RÉSERVER* pour réserver une table\nTapez *COMMANDER* pour une livraison",
-          }),
-          x: 50,
-          y: 300,
-          connectedTo: 2,
-        },
-        {
-          id: 2,
-          type: "gpt_analyze",
-          name: "Analyser Demande",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Analyse la demande du client : veut-il voir le menu, réserver une table, ou commander à emporter ? Réponds avec 'menu', 'reservation', ou 'commande'.",
-            prompt: "{{message.text}}",
-          }),
-          x: 250,
-          y: 300,
-          connectedTo: 3,
-        },
-        {
-          id: 3,
-          type: "condition",
-          name: "Router Demande",
-          config: JSON.stringify({
-            condition: "{{previous.output.intention}}",
-            operator: "equals",
-            value: "menu",
-            ifTrue: 4,
-            ifFalse: 5,
-          }),
-          x: 450,
-          y: 300,
-          connectedTo: 4,
-        },
-        {
-          id: 4,
-          type: "show_catalog",
-          name: "Afficher Menu",
-          config: JSON.stringify({
-            message: "🍴 Voici notre menu du jour :",
-            showPrices: true,
-            showStock: true,
-            category: "restaurant",
-          }),
-          x: 650,
-          y: 100,
-          connectedTo: 6,
-        },
-        {
-          id: 5,
-          type: "condition",
-          name: "Réservation ou Commande ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.intention}}",
-            operator: "equals",
-            value: "reservation",
-            ifTrue: 7,
-            ifFalse: 8,
-          }),
-          x: 650,
-          y: 400,
-          connectedTo: 7,
-        },
-        {
-          id: 6,
-          type: "gpt_respond",
-          name: "Assistant Menu",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Aide le client à choisir ses plats. Recommande selon ses préférences et restrictions alimentaires.",
-            prompt: "{{message.text}}",
-          }),
-          x: 850,
-          y: 100,
-          connectedTo: 8,
-        },
-        {
-          id: 7,
-          type: "check_availability",
-          name: "Vérifier Disponibilité Table",
-          config: JSON.stringify({
-            calendarId: "restaurant_tables",
-            periodDays: 7,
-            durationMinutes: 120,
-            timeZone: "auto",
-            showWeekends: true,
-          }),
-          x: 850,
-          y: 300,
-          connectedTo: 9,
-        },
-        {
-          id: 8,
-          type: "gpt_analyze",
-          name: "Détecter Ajout Panier",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Le client veut-il ajouter un plat à sa commande ? Réponds 'oui' ou 'non'.",
-            prompt: "{{message.text}}",
-          }),
-          x: 1050,
-          y: 100,
-          connectedTo: 10,
-        },
-        {
-          id: 9,
-          type: "book_appointment",
-          name: "Réserver Table",
-          config: JSON.stringify({
-            calendarId: "restaurant_tables",
-            date: "{{previous.output.availableDate}}",
-            time: "{{previous.output.availableTime}}",
-            duration: 120,
-            title: "Réservation {{contact.name}}",
-            description: "Nombre de personnes: {{previous.output.guests}}",
-          }),
-          x: 1050,
-          y: 300,
-          connectedTo: 11,
-        },
-        {
-          id: 10,
-          type: "condition",
-          name: "Si Ajout Panier",
-          config: JSON.stringify({
-            condition: "{{previous.output.response}}",
-            operator: "contains",
-            value: "oui",
-            ifTrue: 12,
-            ifFalse: 13,
-          }),
-          x: 1250,
-          y: 100,
-          connectedTo: 12,
-        },
-        {
-          id: 11,
-          type: "send_text",
-          name: "Confirmation Réservation",
-          config: JSON.stringify({
-            text: "✅ Réservation confirmée le {{previous.output.date}} à {{previous.output.time}} pour {{previous.output.guests}} personne(s) ! À bientôt !",
-          }),
-          x: 1250,
-          y: 300,
-        },
-        {
-          id: 12,
-          type: "add_to_cart",
-          name: "Ajouter au Panier",
-          config: JSON.stringify({
-            productId: "{{previous.output.productId}}",
-            quantity: 1,
-            autoDetect: true,
-          }),
-          x: 1450,
-          y: 50,
-          connectedTo: 14,
-        },
-        {
-          id: 13,
-          type: "show_cart",
-          name: "Afficher Panier",
-          config: JSON.stringify({}),
-          x: 1450,
-          y: 150,
-          connectedTo: 14,
-        },
-        {
-          id: 14,
-          type: "gpt_analyze",
-          name: "Prêt à Commander ?",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Le client veut-il finaliser sa commande ? Réponds 'oui' ou 'non'.",
-            prompt: "{{message.text}}",
-          }),
-          x: 1650,
-          y: 100,
-          connectedTo: 15,
-        },
-        {
-          id: 15,
-          type: "condition",
-          name: "Si Commande",
-          config: JSON.stringify({
-            condition: "{{previous.output.response}}",
-            operator: "contains",
-            value: "oui",
-            ifTrue: 16,
-            ifFalse: 17,
-          }),
-          x: 1850,
-          y: 100,
-          connectedTo: 16,
-        },
-        {
-          id: 16,
-          type: "checkout",
-          name: "Paiement Commande",
-          config: JSON.stringify({
-            gateway: "moneroo",
-            currency: "XOF",
-            successUrl: "{{contact.phone}}",
-            failureUrl: "{{contact.phone}}",
-            testMode: true,
-          }),
-          x: 2050,
-          y: 50,
-          connectedTo: 18,
-        },
-        {
-          id: 17,
-          type: "send_text",
-          name: "Relance Panier",
-          config: JSON.stringify({
-            text: "💡 Votre panier vous attend ! Finalisez votre commande quand vous serez prêt.",
-          }),
-          x: 2050,
-          y: 150,
-        },
-        {
-          id: 18,
-          type: "send_text",
-          name: "Confirmation Commande",
-          config: JSON.stringify({
-            text: "✅ Commande confirmée ! Votre repas est en préparation. Temps estimé : 30-45 minutes. 👨‍🍳",
-          }),
-          x: 2250,
-          y: 50,
-          connectedTo: 19,
-        },
-        {
-          id: 19,
-          type: "delay",
-          name: "Attendre Préparation",
-          config: JSON.stringify({
-            duration: 35,
-            unit: "minutes",
-          }),
-          x: 2450,
-          y: 50,
-          connectedTo: 20,
-        },
-        {
-          id: 20,
-          type: "send_text",
-          name: "Commande Prête",
-          config: JSON.stringify({
-            text: "🎉 Votre commande est prête ! Vous pouvez venir la récupérer ou elle sera livrée sous peu. Bon appétit !",
-          }),
-          x: 2650,
-          y: 50,
-        },
-      ]);
-      setWorkflowName("Menu & Résa Resto - Complet");
-    } else if (templateId === "stock") {
-      setNodes([
-        {
-          id: 1,
-          type: "send_text",
-          name: "Détection Rupture Stock",
-          config: JSON.stringify({
-            text: "📦 Nous avons détecté qu'un produit que vous avez consulté est actuellement en rupture de stock.",
-          }),
-          x: 50,
-          y: 300,
-          connectedTo: 2,
-        },
-        {
-          id: 2,
-          type: "gpt_respond",
-          name: "Proposer Waitlist",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Propose poliment au client de s'inscrire sur la liste d'attente pour être notifié dès le retour en stock. Sois convaincant mais pas insistant.",
-            prompt: "Produit: {{previous.output.productName}}",
-          }),
-          x: 250,
-          y: 300,
-          connectedTo: 3,
-        },
-        {
-          id: 3,
-          type: "gpt_analyze",
-          name: "Détecter Inscription",
-          config: JSON.stringify({
-            model: "gpt-4o",
-            system: "Le client veut-il s'inscrire sur la waitlist ? Réponds 'oui' ou 'non'.",
-            prompt: "{{message.text}}",
-          }),
-          x: 450,
-          y: 300,
-          connectedTo: 4,
-        },
-        {
-          id: 4,
-          type: "condition",
-          name: "Veut S'Inscrire ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.response}}",
-            operator: "contains",
-            value: "oui",
-            ifTrue: 5,
-            ifFalse: 6,
-          }),
-          x: 650,
-          y: 300,
-          connectedTo: 5,
-        },
-        {
-          id: 5,
-          type: "save_contact",
-          name: "Ajouter à Waitlist",
-          config: JSON.stringify({
-            phone: "{{contact.phone}}",
-            name: "{{contact.name}}",
-            tags: ["waitlist", "{{previous.output.productId}}"],
-            customFields: {
-              waitlistProduct: "{{previous.output.productId}}",
-              waitlistDate: "{{date.now}}",
-            },
-          }),
-          x: 850,
-          y: 200,
-          connectedTo: 7,
-        },
-        {
-          id: 6,
-          type: "send_text",
-          name: "Message Refus",
-          config: JSON.stringify({
-            text: "Pas de problème ! N'hésitez pas à revenir vérifier la disponibilité. Bonne journée !",
-          }),
-          x: 850,
-          y: 400,
-        },
-        {
-          id: 7,
-          type: "send_text",
-          name: "Confirmation Waitlist",
-          config: JSON.stringify({
-            text: "✅ Vous êtes maintenant sur la liste d'attente ! Nous vous notifierons dès que le produit sera de retour en stock.",
-          }),
-          x: 1050,
-          y: 200,
-          connectedTo: 8,
-        },
-        {
-          id: 8,
-          type: "delay",
-          name: "Surveiller Stock",
-          config: JSON.stringify({
-            duration: 24,
-            unit: "hours",
-          }),
-          x: 1250,
-          y: 200,
-          connectedTo: 9,
-        },
-        {
-          id: 9,
-          type: "http_request",
-          name: "Vérifier Stock API",
-          config: JSON.stringify({
-            method: "GET",
-            url: "https://api.example.com/products/{{previous.output.productId}}/stock",
-            headers: {
-              "Authorization": "Bearer {{api.key}}",
-            },
-            timeout: 30,
-          }),
-          x: 1450,
-          y: 200,
-          connectedTo: 10,
-        },
-        {
-          id: 10,
-          type: "condition",
-          name: "Stock Disponible ?",
-          config: JSON.stringify({
-            condition: "{{previous.output.stock}}",
-            operator: "greater_than",
-            value: 0,
-            ifTrue: 11,
-            ifFalse: 8,
-          }),
-          x: 1650,
-          y: 200,
-          connectedTo: 11,
-        },
-        {
-          id: 11,
-          type: "send_text",
-          name: "Alerte Retour Stock",
-          config: JSON.stringify({
-            text: "🎉 BONNE NOUVELLE ! Le produit que vous attendiez est de retour en stock ! Il n'en reste que {{previous.output.stock}} exemplaire(s). Commandez maintenant : [lien produit]",
-          }),
-          x: 1850,
-          y: 200,
-          connectedTo: 12,
-        },
-        {
-          id: 12,
-          type: "show_catalog",
-          name: "Afficher Produit",
-          config: JSON.stringify({
-            message: "Voici le produit de retour :",
-            selectedProducts: ["{{previous.output.productId}}"],
-            showPrices: true,
-            showStock: true,
-          }),
-          x: 2050,
-          y: 200,
-          connectedTo: 13,
-        },
-        {
-          id: 13,
-          type: "delay",
-          name: "Attendre 24h",
-          config: JSON.stringify({
-            duration: 24,
-            unit: "hours",
-          }),
-          x: 2250,
-          y: 200,
-          connectedTo: 14,
-        },
-        {
-          id: 14,
-          type: "condition",
-          name: "A Acheté ?",
-          config: JSON.stringify({
-            condition: "{{contact.lastPurchase}}",
-            operator: "equals",
-            value: "{{previous.output.productId}}",
-            ifTrue: 15,
-            ifFalse: 16,
-          }),
-          x: 2450,
-          y: 200,
-          connectedTo: 15,
-        },
-        {
-          id: 15,
-          type: "remove_tag",
-          name: "Retirer de Waitlist",
-          config: JSON.stringify({
-            contactId: "{{contact.id}}",
-            tag: "waitlist",
-          }),
-          x: 2650,
-          y: 100,
-        },
-        {
-          id: 16,
-          type: "send_text",
-          name: "Rappel Urgence",
-          config: JSON.stringify({
-            text: "⏰ Dernière chance ! Le produit est toujours disponible mais les stocks sont limités. Ne manquez pas cette opportunité !",
-          }),
-          x: 2650,
-          y: 300,
-        },
-      ]);
-      setWorkflowName("Alerte Stock - Waitlist Auto");
-    } else {
-      setNodes([
-        {
-          id: 1,
-          type: "whatsapp_message",
-          name: "Point d'Entrée",
-          config: JSON.stringify({ aiInstructions: "" }),
-          x: 50,
-          y: 300,
-        },
-      ]);
+      setWorkflowName("RDV Expert (Google & Calendly)");
+    } else if (templateId === "custom") {
+
+      setNodes([]);
       setWorkflowName("Nouveau Workflow");
     }
 
+
     setViewMode("builder");
   };
-
   const handleAIGenerate = () => {
     if (!aiPrompt.trim()) return;
 
@@ -8502,7 +5314,6 @@ Ton but est de transformer chaque message en vente.
                       }}
                     >
                       <div className="relative w-[4000px] h-[3000px]">
-                        <div ref={canvasContentRef} className="absolute inset-0" />
                         {/* n8n-style Background - Simple dot pattern */}
                         <div className="absolute inset-0 pointer-events-none">
                           <svg className="absolute inset-0 w-full h-full">
@@ -8588,49 +5399,84 @@ Ton but est de transformer chaque message en vente.
                                 </marker>
                               </defs>
                               {nodes.flatMap((node, idx) => {
-                                // AI Agent typed input connections (from source node output -> agent bottom port)
-                                if (node.type === "ai_agent" && node.aiConnections) {
-                                  const leftPositionsByPort: Record<AIAgentInputPort, number> = {
-                                    ai_languageModel: 40,
-                                    ai_memory: 136,
-                                    ai_tool: 184,
-                                  };
+                                // For switch/router nodes, handle multiple output connections
+                                if (node.type === "switch_router") {
+                                  const parsedCfg = (() => {
+                                    try {
+                                      return typeof node.config === 'string' ? JSON.parse(node.config) : node.config;
+                                    } catch { return {}; }
+                                  })();
 
-                                  return (Object.keys(node.aiConnections) as AIAgentInputPort[])
-                                    .flatMap((port) => {
-                                      const sourceId = node.aiConnections?.[port];
-                                      if (!sourceId) return [];
-                                      const sourceNode = nodes.find((n) => n.id === sourceId);
-                                      if (!sourceNode) return [];
+                                  const cases = parsedCfg?.cases || [];
+                                  const hasDefault = parsedCfg?.hasDefault !== false;
+                                  const outputCount = cases.length + (hasDefault ? 1 : 0);
+                                  const nodeH = Math.max(120, 60 + outputCount * 40);
+                                  const nodeW = 160;
 
-                                      const sourceNodeWidth = sourceNode.type === "ai_agent" ? 224 : 96;
-                                      const startX = sourceNode.x + sourceNodeWidth;
-                                      const startY = sourceNode.y + 48;
+                                  const connections: Array<{ target: WorkflowNode; color: string; startY: number; branch: string }> = [];
 
-                                      const endX = node.x + (leftPositionsByPort[port] ?? 40);
-                                      // Matches DraggableNode bottom handle position: top-20 container + handle at top-3.
-                                      // We target the *center* of the 12px diamond (top-3 + 6px).
-                                      const endY = node.y + 80 + 12 + 6;
+                                  // Map cases
+                                  cases.forEach((c: any, cIdx: number) => {
+                                    const branch = `case_${cIdx}`;
+                                    const targetId = node.conditionalConnections?.[branch];
+                                    if (targetId) {
+                                      const target = nodes.find(n => n.id === targetId);
+                                      if (target) {
+                                        const caseColors = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#ec4899", "#ef4444", "#06b6d4", "#84cc16"];
+                                        const color = c.color || caseColors[cIdx % caseColors.length];
+                                        const yPercent = ((cIdx + 1) / (outputCount + 1));
+                                        connections.push({
+                                          target,
+                                          color,
+                                          startY: nodeH * yPercent,
+                                          branch
+                                        });
+                                      }
+                                    }
+                                  });
 
-                                      const dist = Math.abs(endX - startX);
-                                      const cpOffset = Math.min(dist * 0.4, 120);
+                                  // Map default
+                                  if (hasDefault) {
+                                    const targetId = node.conditionalConnections?.default;
+                                    if (targetId) {
+                                      const target = nodes.find(n => n.id === targetId);
+                                      if (target) {
+                                        const yPercent = ((cases.length + 1) / (outputCount + 1));
+                                        connections.push({
+                                          target,
+                                          color: "#71717a",
+                                          startY: nodeH * yPercent,
+                                          branch: "default"
+                                        });
+                                      }
+                                    }
+                                  }
 
-                                      const pathD = `M ${startX} ${startY} C ${startX + cpOffset} ${startY}, ${endX - cpOffset} ${endY}, ${endX} ${endY}`;
+                                  return connections.map(({ target: targetNode, color, startY, branch }) => {
+                                    const startX = node.x + nodeW + 40; // +40 for the n8n style offset
+                                    const startYPos = node.y + startY;
+                                    const targetW = targetNode.type === "ai_agent" ? 224 : 96;
+                                    const endX = targetNode.x;
+                                    const endY = targetNode.y + 48;
 
-                                      return (
-                                        <g key={`ai-conn-${sourceNode.id}-${node.id}-${port}`} className="group/line">
-                                          <path
-                                            d={pathD}
-                                            fill="none"
-                                            stroke="#b1b1b7"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            markerEnd="url(#n8n-arrow-head)"
-                                            className="group-hover/line:stroke-[#a78bfa] transition-colors duration-200"
-                                          />
-                                        </g>
-                                      );
-                                    });
+                                    const dist = Math.abs(endX - startX);
+                                    const cpOffset = Math.min(dist * 0.4, 120);
+                                    const pathD = `M ${startX} ${startYPos} C ${startX + cpOffset} ${startYPos}, ${endX - cpOffset} ${endY}, ${endX} ${endY}`;
+
+                                    return (
+                                      <g key={`line-switch-${node.id}-${targetNode.id}-${branch}`} className="group/line">
+                                        <path d={pathD} fill="none" stroke="transparent" strokeWidth="20" className="cursor-pointer" />
+                                        <path
+                                          d={pathD}
+                                          stroke={color}
+                                          strokeWidth="2"
+                                          fill="none"
+                                          strokeLinecap="round"
+                                          markerEnd="url(#n8n-arrow-head)"
+                                        />
+                                      </g>
+                                    );
+                                  });
                                 }
 
                                 // For condition nodes, handle conditional connections
@@ -8662,16 +5508,13 @@ Ton but est de transformer chaque message en vente.
                                   }
 
                                   return connections.map(({ target: targetNode, color, startY, branch }) => {
-                                    const startKey = `node:${node.id}:out:${branch}`;
-                                    const endKey = `node:${targetNode.id}:in:main`;
-                                    const start = getHandlePos(startKey);
-                                    const end = getHandlePos(endKey);
-                                    if (!start || !end) return null;
+                                    const sourceNodeWidth = 96;
+                                    const targetNodeWidth = targetNode.type === "ai_agent" ? 224 : 96;
 
-                                    const startX = start.x;
-                                    const startYPos = start.y;
-                                    const endX = end.x;
-                                    const endY = end.y;
+                                    const startX = node.x + sourceNodeWidth;
+                                    const startYPos = node.y + startY;
+                                    const endX = targetNode.x;
+                                    const endY = targetNode.y + 48;
 
                                     const dist = Math.abs(endX - startX);
                                     const cpOffset = Math.min(dist * 0.4, 120);
@@ -8757,16 +5600,14 @@ Ton but est de transformer chaque message en vente.
                                 }
 
                                 if (targetNode) {
-                                  const startKey = `node:${node.id}:out:main`;
-                                  const endKey = `node:${targetNode.id}:in:main`;
-                                  const start = getHandlePos(startKey);
-                                  const end = getHandlePos(endKey);
-                                  if (!start || !end) return [];
+                                  // Port offsets: AI Agent nodes are 224px wide, others are 96px
+                                  const sourceNodeWidth = node.type === "ai_agent" ? 224 : 96;
+                                  const targetNodeWidth = targetNode.type === "ai_agent" ? 224 : 96;
 
-                                  const startX = start.x;
-                                  const startY = start.y;
-                                  const endX = end.x;
-                                  const endY = end.y;
+                                  const startX = node.x + sourceNodeWidth;
+                                  const startY = node.y + 48; // Center of 96px height
+                                  const endX = targetNode.x;
+                                  const endY = targetNode.y + 48;
 
                                   // Dynamic curve offset based on distance
                                   const dist = Math.abs(endX - startX);
@@ -8928,22 +5769,20 @@ Ton but est de transformer chaque message en vente.
                                   );
                                   if (!sourceNode) return null;
 
-                                  const startKey = connectingBranch
-                                    ? `node:${sourceNode.id}:out:${connectingBranch}`
-                                    : `node:${sourceNode.id}:out:main`;
-                                  const start = getHandlePos(startKey);
-                                  if (!start) return null;
-
-                                  // Determine start color based on branch
+                                  // Determine start Y position based on branch
+                                  let startYOffset = 48; // Default center
                                   let strokeColor = '#87a9ff'; // Default color
+
                                   if (connectingBranch === 'true') {
+                                    startYOffset = 24; // Top quarter
                                     strokeColor = '#10b981'; // Green
                                   } else if (connectingBranch === 'false') {
+                                    startYOffset = 72; // Bottom quarter
                                     strokeColor = '#ef4444'; // Red
                                   }
 
-                                  const startX = start.x;
-                                  const startY = start.y;
+                                  const startX = sourceNode.x + 96;
+                                  const startY = sourceNode.y + startYOffset;
                                   const endX = mousePos.x;
                                   const endY = mousePos.y;
 
@@ -9001,35 +5840,20 @@ Ton but est de transformer chaque message en vente.
                                     setConnectingFrom(node.id);
                                     setConnectingBranch(branch || null);
                                     setMousePos({
-                                      x: node.x + (node.type === "ai_agent" ? 224 : 96),
-                                      y: node.y + (branch === "true" ? 24 : branch === "false" ? 72 : 48),
+                                      x: node.x + 96,
+                                      y: node.y + 48,
                                     });
                                   }}
-                                  onCompleteConnect={(targetPort) =>
-                                    handleNodeConnect(node.id, targetPort ?? "main")
+                                  onCompleteConnect={() =>
+                                    handleNodeConnect(node.id)
                                   }
-                                  onAddNext={(targetPort) => {
-                                    if (node.type === "ai_agent" && targetPort && targetPort !== "main") {
-                                      const leftPositionsByPort: Record<AIAgentInputPort, number> = {
-                                        ai_languageModel: 40,
-                                        ai_memory: 136,
-                                        ai_tool: 184,
-                                      };
-                                      setNodePickerPos({
-                                        x: node.x + (leftPositionsByPort[targetPort] ?? 40),
-                                        y: node.y + 96,
-                                        index: idx + 1,
-                                        agentTarget: { agentId: node.id, port: targetPort },
-                                      });
-                                      return;
-                                    }
-
+                                  onAddNext={() =>
                                     setNodePickerPos({
                                       x: node.x + 140,
                                       y: node.y,
                                       index: idx + 1,
-                                    });
-                                  }}
+                                    })
+                                  }
                                   isConnecting={connectingFrom !== null}
                                   isDisconnected={node.connectedTo === -1}
                                   isWhatsAppConnected={isWhatsAppConnected}
@@ -9054,23 +5878,7 @@ Ton but est de transformer chaque message en vente.
                                     Insérer un bloc
                                   </h4>
                                   <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
-                                    {nodeCategories
-                                      .map((category) => {
-                                        const requiredPort = nodePickerPos.agentTarget?.port;
-                                        if (!requiredPort) return { category, nodes: category.nodes };
-
-                                        return {
-                                          category,
-                                          nodes: category.nodes.filter((n) =>
-                                            isNodeCompatibleWithAIAgentPort(
-                                              n.id,
-                                              requiredPort,
-                                            ),
-                                          ),
-                                        };
-                                      })
-                                      .filter(({ nodes }) => nodes.length > 0)
-                                      .map(({ category, nodes }) => (
+                                    {nodeCategories.map((category) => (
                                       <div
                                         key={category.id}
                                         className="space-y-1"
@@ -9079,7 +5887,7 @@ Ton but est de transformer chaque message en vente.
                                           {category.name}
                                         </p>
                                         <div className="grid grid-cols-1 gap-1">
-                                          {nodes.map((node) => {
+                                          {category.nodes.map((node) => {
                                             const isTriggerType =
                                               category.id === "triggers";
                                             const isDisabled =
@@ -9582,7 +6390,7 @@ Ton but est de transformer chaque message en vente.
                                           <div className="space-y-4">
                                             <div className="space-y-1.5">
                                               <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">
-                                                Nom du bloc
+                                                Nom de cette étape
                                               </label>
                                               <Input
                                                 value={node.name}
@@ -9626,236 +6434,22 @@ Ton but est de transformer chaque message en vente.
                                                   </p>
                                                   <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest opacity-60">
                                                     {nodeInfo?.category?.name ||
-                                                      "Action"}
+                                                      "Étape"}
                                                   </p>
                                                 </div>
                                               </div>
                                               <div className="h-px bg-white/5 w-full mb-3" />
                                               <p className="text-[11px] text-muted-foreground/80 leading-relaxed italic">
                                                 {nodeInfo?.description ||
-                                                  "Configurez ce bloc pour définir son comportement dans le workflow."}
+                                                  "Configurez cette action pour définir ce qu'elle doit faire."}
                                               </p>
                                             </div>
 
                                             {/* Outputs disponibles et Output (exécution) sont maintenant affichés dans la colonne Output à droite */}
 
-                                            {/* Output Fields Configuration - Basé sur les outputs attendus (n8n style) */}
-                                            {(() => {
-                                              const expectedOutputs = getNodeOutputs(node.type, node.config);
-                                              const outputFields = Object.keys(expectedOutputs);
-
-                                              const isTriggerOrSpecialized = [
-                                                "whatsapp_message",
-                                                "telegram_message",
-                                                "keyword",
-                                                "new_contact",
-                                                "scheduled",
-                                                "webhook_trigger",
-                                                "gpt_analyze",
-                                                "gpt_respond",
-                                                "ai_agent"
-                                              ].includes(node.type);
-
-                                              if (outputFields.length === 0 || isTriggerOrSpecialized) return null;
-
-                                              const cfg = (defaultValue = {}) => {
-                                                try {
-                                                  return {
-                                                    ...defaultValue,
-                                                    ...JSON.parse(node.config),
-                                                  };
-                                                } catch (e) {
-                                                  return defaultValue;
-                                                }
-                                              };
-                                              const updateCfg = (newCfg: any) => {
-                                                setNodes(
-                                                  nodes.map((n) =>
-                                                    n.id === node.id
-                                                      ? {
-                                                        ...n,
-                                                        config: JSON.stringify(newCfg),
-                                                      }
-                                                      : n,
-                                                  ),
-                                                );
-                                              };
-                                              const currentCfg = cfg();
-
-                                              return (
-                                                <div className="space-y-3 pt-2 border-t border-white/5">
-                                                  <div className="flex items-center justify-between">
-                                                    <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">
-                                                      Outputs Attendus
-                                                    </label>
-                                                    <span className="text-[9px] text-muted-foreground/60">
-                                                      {outputFields.length} output{outputFields.length > 1 ? 's' : ''}
-                                                    </span>
-                                                  </div>
-                                                  <div className="space-y-3">
-                                                    {outputFields.map((outputKey) => {
-                                                      const outputDesc = expectedOutputs[outputKey];
-                                                      const outputType = outputDesc.split(' - ')[0];
-                                                      const outputDescription = outputDesc.split(' - ')[1] || '';
-                                                      const fieldPath = `outputFields.${outputKey}`;
-                                                      const fieldMode = currentCfg[`${fieldPath}.mode`] || 'fixed';
-                                                      const fieldValue = currentCfg[`${fieldPath}.value`] || '';
-
-                                                      return (
-                                                        <div key={outputKey} className="space-y-2">
-                                                          <div className="flex items-center justify-between">
-                                                            <div className="flex items-center gap-2">
-                                                              <label className="text-[10px] font-semibold text-white/90">
-                                                                {outputKey}
-                                                              </label>
-                                                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-white/50 font-medium">
-                                                                {outputType}
-                                                              </span>
-                                                            </div>
-                                                            <div className="flex items-center gap-1">
-                                                              <button
-                                                                onClick={() => {
-                                                                  // Toggle Input panel visibility - would need state management
-                                                                }}
-                                                                className="h-6 w-6 rounded hover:bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-colors"
-                                                                title="Ouvrir la vue Input"
-                                                              >
-                                                                <PanelRight className="h-3.5 w-3.5" />
-                                                              </button>
-                                                              <button
-                                                                className="h-6 w-6 rounded hover:bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-colors"
-                                                                title="Plus d'options"
-                                                              >
-                                                                <MoreVertical className="h-3.5 w-3.5" />
-                                                              </button>
-                                                              <div className="flex items-center gap-1 bg-white/5 rounded p-0.5">
-                                                                <button
-                                                                  onClick={() => updateCfg({ ...currentCfg, [`${fieldPath}.mode`]: 'fixed' })}
-                                                                  className={`px-2 py-0.5 text-[10px] rounded transition-colors ${fieldMode === 'fixed'
-                                                                    ? 'bg-white/10 text-white'
-                                                                    : 'text-white/50 hover:text-white/70'
-                                                                    }`}
-                                                                >
-                                                                  Fixed
-                                                                </button>
-                                                                <button
-                                                                  onClick={() => updateCfg({ ...currentCfg, [`${fieldPath}.mode`]: 'expression' })}
-                                                                  className={`px-2 py-0.5 text-[10px] rounded transition-colors ${fieldMode === 'expression'
-                                                                    ? 'bg-white/10 text-white'
-                                                                    : 'text-white/50 hover:text-white/70'
-                                                                    }`}
-                                                                >
-                                                                  Expression
-                                                                </button>
-                                                              </div>
-                                                            </div>
-                                                          </div>
-                                                          {outputDescription && (
-                                                            <p className="text-[9px] text-muted-foreground/60">
-                                                              {outputDescription}
-                                                            </p>
-                                                          )}
-                                                          <div className="relative">
-                                                            {fieldMode === 'fixed' ? (
-                                                              <div className="relative flex items-center gap-2">
-                                                                <div className="flex-1 relative">
-                                                                  <ExpressionInput
-                                                                    value={fieldValue}
-                                                                    onChange={(newValue) => updateCfg({ ...currentCfg, [`${fieldPath}.value`]: newValue })}
-                                                                    onDrop={(e) => {
-                                                                      e.preventDefault();
-                                                                      const data = e.dataTransfer.getData('text/plain');
-                                                                      if (data.startsWith('{{')) {
-                                                                        const currentValue = fieldValue || '';
-                                                                        const input = e.currentTarget as HTMLInputElement;
-                                                                        const cursorPos = input.selectionStart || currentValue.length;
-                                                                        const newValue = currentValue.slice(0, cursorPos) + data + currentValue.slice(cursorPos);
-                                                                        updateCfg({ ...currentCfg, [`${fieldPath}.value`]: newValue, [`${fieldPath}.mode`]: 'expression' });
-                                                                      }
-                                                                    }}
-                                                                    onDragOver={(e) => {
-                                                                      e.preventDefault();
-                                                                      if (e.currentTarget.parentElement) {
-                                                                        e.currentTarget.parentElement.style.borderColor = 'rgba(16, 163, 127, 0.5)';
-                                                                      }
-                                                                    }}
-                                                                    onDragLeave={(e) => {
-                                                                      if (e.currentTarget.parentElement) {
-                                                                        e.currentTarget.parentElement.style.borderColor = '';
-                                                                      }
-                                                                    }}
-                                                                    currentNodeId={node.id}
-                                                                    className="w-full bg-white/5 border-white/10 h-9 focus:border-primary/50 transition-colors"
-                                                                    placeholder={`Valeur pour ${outputKey}...`}
-                                                                  />
-                                                                </div>
-                                                                <VariableInsertButton
-                                                                  onInsert={(variable: string) => {
-                                                                    const currentValue = fieldValue || '';
-                                                                    const newValue = currentValue + variable;
-                                                                    updateCfg({ ...currentCfg, [`${fieldPath}.value`]: newValue, [`${fieldPath}.mode`]: 'expression' });
-                                                                  }}
-                                                                  currentNodeId={node.id}
-                                                                  className=""
-                                                                />
-                                                              </div>
-                                                            ) : (
-                                                              <div className="relative">
-                                                                <div className="relative">
-                                                                  <ExpressionInput
-                                                                    value={fieldValue}
-                                                                    onChange={(newValue) => updateCfg({ ...currentCfg, [`${fieldPath}.value`]: newValue })}
-                                                                    onDrop={(e) => {
-                                                                      e.preventDefault();
-                                                                      const data = e.dataTransfer.getData('text/plain');
-                                                                      if (data.startsWith('{{')) {
-                                                                        const currentValue = fieldValue || '';
-                                                                        const textarea = e.currentTarget as HTMLTextAreaElement;
-                                                                        const cursorPos = textarea.selectionStart || currentValue.length;
-                                                                        const newValue = currentValue.slice(0, cursorPos) + data + currentValue.slice(cursorPos);
-                                                                        updateCfg({ ...currentCfg, [`${fieldPath}.value`]: newValue });
-                                                                      }
-                                                                    }}
-                                                                    onDragOver={(e) => {
-                                                                      e.preventDefault();
-                                                                      if (e.currentTarget.parentElement) {
-                                                                        e.currentTarget.parentElement.style.borderColor = 'rgba(16, 163, 127, 0.5)';
-                                                                      }
-                                                                    }}
-                                                                    onDragLeave={(e) => {
-                                                                      if (e.currentTarget.parentElement) {
-                                                                        e.currentTarget.parentElement.style.borderColor = '';
-                                                                      }
-                                                                    }}
-                                                                    isTextarea={true}
-                                                                    currentNodeId={node.id}
-                                                                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 pr-10 focus:border-primary/50 transition-colors"
-                                                                    placeholder={`{{previous.output.${outputKey}}} ou expression...`}
-                                                                  />
-                                                                  <VariableInsertButton
-                                                                    onInsert={(variable: string) => {
-                                                                      const currentValue = fieldValue || '';
-                                                                      const newValue = currentValue + variable;
-                                                                      updateCfg({ ...currentCfg, [`${fieldPath}.value`]: newValue });
-                                                                    }}
-                                                                    currentNodeId={node.id}
-                                                                    className="absolute right-2 top-2 z-20"
-                                                                  />
-                                                                </div>
-                                                              </div>
-                                                            )}
-                                                          </div>
-                                                        </div>
-                                                      );
-                                                    })}
-                                                  </div>
-                                                </div>
-                                              );
-                                            })()}
-
                                             <div className="space-y-3 pt-2">
                                               <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">
-                                                Configuration Spécifique
+                                                Autres options de l'étape
                                               </label>
 
                                               {(() => {
@@ -9903,7 +6497,7 @@ Ton but est de transformer chaque message en vente.
                                                           <Bot className="h-3 w-3 text-primary" />
                                                         </div>
                                                         <label className="text-[10px] font-black uppercase tracking-widest text-white/90 cursor-pointer">
-                                                          Instructions IA
+                                                          Consignes de l'IA
                                                         </label>
                                                       </div>
                                                       <ChevronRight
@@ -9942,15 +6536,12 @@ Ton but est de transformer chaque message en vente.
                                                                 })
                                                               }
                                                               className="w-full h-24 bg-black/40 border border-white/10 rounded-xl p-3 text-[11px] text-white/80 focus:border-primary/50 transition-all font-medium leading-relaxed resize-none"
-                                                              placeholder="Ex: Sois très amical, ou ignore si le client semble agressif..."
+                                                              placeholder="Ex: Réponds avec enthousiasme et aide le client à choisir..."
                                                             />
                                                             <div className="flex items-center gap-2">
                                                               <Sparkles className="h-2.5 w-2.5 text-primary opacity-50" />
                                                               <p className="text-[8px] text-muted-foreground italic font-medium">
-                                                                Guide le
-                                                                comportement de l'IA
-                                                                spécifiquement pour
-                                                                ce bloc.
+                                                                Définissez ici comment l'IA doit agir pour cette étape précise.
                                                               </p>
                                                             </div>
                                                           </div>
@@ -10140,112 +6731,154 @@ Ton but est de transformer chaque message en vente.
                                                                   />
                                                                 </FormField>
 
-                                                                <div className="space-y-3">
-                                                                  <div className="flex items-center justify-between">
-                                                                    <label className="text-sm text-white/80 font-medium">Intentions à détecter</label>
-                                                                    <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded text-muted-foreground font-mono">
-                                                                      {(analyzeCfg.categories || "Vente, Support, Autre").split(',').length} intentions
-                                                                    </span>
-                                                                  </div>
-
-                                                                  <div className="flex gap-2">
-                                                                    <input
-                                                                      type="text"
-                                                                      value={newIntent}
-                                                                      onChange={(e) => setNewIntent(e.target.value)}
-                                                                      onKeyDown={(e) => {
-                                                                        if (e.key === 'Enter' && newIntent.trim()) {
-                                                                          const current = analyzeCfg.categories || "Vente, Support, Autre";
-                                                                          const list = current.split(',').map((s: string) => s.trim());
-                                                                          if (!list.includes(newIntent.trim())) {
-                                                                            updateCfg({ ...analyzeCfg, categories: [...list, newIntent.trim()].join(', ') });
-                                                                            setNewIntent("");
-                                                                          }
-                                                                        }
-                                                                      }}
-                                                                      placeholder="Ajouter une intention (ex: Livraison)"
-                                                                      className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-[#10a37f]/50"
-                                                                    />
-                                                                    <button
-                                                                      onClick={() => {
-                                                                        if (newIntent.trim()) {
-                                                                          const current = analyzeCfg.categories || "Vente, Support, Autre";
-                                                                          const list = current.split(',').map((s: string) => s.trim());
-                                                                          if (!list.includes(newIntent.trim())) {
-                                                                            updateCfg({ ...analyzeCfg, categories: [...list, newIntent.trim()].join(', ') });
-                                                                            setNewIntent("");
-                                                                          }
-                                                                        }
-                                                                      }}
-                                                                      className="w-10 h-10 flex items-center justify-center bg-[#10a37f] hover:bg-[#10a37f]/80 rounded-lg text-white transition-colors"
-                                                                    >
-                                                                      <Plus className="h-4 w-4" />
-                                                                    </button>
-                                                                  </div>
-
-                                                                  <div className="flex flex-wrap gap-2">
-                                                                    {(analyzeCfg.categories || "Vente, Support, Autre").split(',').map((cat: string, idx: number) => (
-                                                                      <div
-                                                                        key={idx}
-                                                                        className="group flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 px-2.5 py-1.5 rounded-lg text-xs text-white/90 transition-all"
-                                                                      >
-                                                                        <span className="font-medium">{cat.trim()}</span>
-                                                                        <button
-                                                                          onClick={() => {
-                                                                            const current = analyzeCfg.categories || "Vente, Support, Autre";
-                                                                            const list = current.split(',').map((s: string) => s.trim());
-                                                                            const filtered = list.filter((_: any, i: number) => i !== idx);
-                                                                            updateCfg({ ...analyzeCfg, categories: filtered.join(', ') });
-                                                                          }}
-                                                                          className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all"
-                                                                        >
-                                                                          <X className="h-3 w-3" />
-                                                                        </button>
+                                                                {/* Section Analyse Automatique */}
+                                                                <div className="space-y-4 pt-4 border-t border-white/5">
+                                                                  <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-500/10 to-blue-500/10 border border-emerald-500/20">
+                                                                    <div className="flex items-center gap-2 mb-2">
+                                                                      <Sparkles className="h-4 w-4 text-emerald-400" />
+                                                                      <span className="text-sm font-bold text-emerald-400">Détection Automatique</span>
+                                                                    </div>
+                                                                    <p className="text-[11px] text-white/60 leading-relaxed">
+                                                                      Ce bloc analyse automatiquement chaque message pour détecter :
+                                                                    </p>
+                                                                    <div className="mt-3 grid grid-cols-2 gap-2">
+                                                                      <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
+                                                                        <Target className="h-3 w-3 text-purple-400" />
+                                                                        <span className="text-[10px] text-white/70">Intention</span>
                                                                       </div>
-                                                                    ))}
+                                                                      <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
+                                                                        <Smile className="h-3 w-3 text-amber-400" />
+                                                                        <span className="text-[10px] text-white/70">Sentiment</span>
+                                                                      </div>
+                                                                      <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
+                                                                        <Flame className="h-3 w-3 text-red-400" />
+                                                                        <span className="text-[10px] text-white/70">Urgence (1-5)</span>
+                                                                      </div>
+                                                                      <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5">
+                                                                        <Check className="h-3 w-3 text-blue-400" />
+                                                                        <span className="text-[10px] text-white/70">Auto-résolvable</span>
+                                                                      </div>
+                                                                    </div>
                                                                   </div>
 
-                                                                  <div className="pt-2 border-t border-white/5">
-                                                                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Suggestions</span>
-                                                                    <div className="flex flex-wrap gap-1.5 mt-2">
-                                                                      {['Livraison', 'Inscription', 'Prix', 'Rendez-vous', 'Remboursement', 'Plainte'].map((sugg: string) => (
-                                                                        <button
-                                                                          key={sugg}
-                                                                          onClick={() => {
-                                                                            const current = analyzeCfg.categories || "Vente, Support, Autre";
-                                                                            const list = current.split(',').map((s: string) => s.trim());
-                                                                            if (!list.includes(sugg)) {
-                                                                              updateCfg({ ...analyzeCfg, categories: [...list, sugg].join(', ') });
-                                                                            }
+                                                                  {/* Intentions détectées */}
+                                                                  <div className="space-y-2">
+                                                                    <label className="text-sm text-white/80 font-medium flex items-center gap-2">
+                                                                      <Target className="h-4 w-4 text-purple-400" />
+                                                                      Intentions détectées
+                                                                    </label>
+                                                                    <p className="text-[10px] text-muted-foreground/60 italic">
+                                                                      L'IA identifie automatiquement l'intention du message :
+                                                                    </p>
+                                                                    <div className="flex flex-wrap gap-2 mt-2">
+                                                                      {[
+                                                                        { name: "salutation", emoji: "👋", color: "#10b981" },
+                                                                        { name: "question_prix", emoji: "💰", color: "#3b82f6" },
+                                                                        { name: "demande_produit", emoji: "📦", color: "#8b5cf6" },
+                                                                        { name: "plainte", emoji: "😤", color: "#ef4444" },
+                                                                        { name: "remerciement", emoji: "🙏", color: "#10b981" },
+                                                                        { name: "demande_aide", emoji: "🆘", color: "#f59e0b" },
+                                                                        { name: "commande", emoji: "🛒", color: "#ec4899" },
+                                                                        { name: "reservation", emoji: "📅", color: "#f59e0b" },
+                                                                        { name: "annulation", emoji: "❌", color: "#ef4444" },
+                                                                      ].map((intent) => (
+                                                                        <div
+                                                                          key={intent.name}
+                                                                          className="px-2.5 py-1 rounded-full text-[10px] font-medium flex items-center gap-1.5"
+                                                                          style={{
+                                                                            backgroundColor: `${intent.color}15`,
+                                                                            color: intent.color,
+                                                                            border: `1px solid ${intent.color}30`
                                                                           }}
-                                                                          className="px-2 py-1 rounded bg-white/5 hover:bg-[#10a37f]/10 text-white/40 hover:text-[#10a37f] text-[10px] transition-colors"
                                                                         >
-                                                                          {sugg}
-                                                                        </button>
+                                                                          <span>{intent.emoji}</span>
+                                                                          <span>{intent.name}</span>
+                                                                        </div>
                                                                       ))}
                                                                     </div>
                                                                   </div>
-                                                                </div>
 
-
-
-
-                                                                <FormField label="Température (créativité)">
-                                                                  <div className="flex items-center gap-3 flex-1">
-                                                                    <input
-                                                                      type="range"
-                                                                      min="0"
-                                                                      max="1"
-                                                                      step="0.1"
-                                                                      value={analyzeCfg.temperature}
-                                                                      onChange={(e) => updateCfg({ ...analyzeCfg, temperature: parseFloat(e.target.value) })}
-                                                                      className="flex-1 h-2 bg-black/40 rounded-full appearance-none cursor-pointer accent-[#10a37f]"
-                                                                    />
-                                                                    <span className="text-sm font-bold text-[#10a37f] w-8 text-right">
-                                                                      {analyzeCfg.temperature}
-                                                                    </span>
+                                                                  {/* Variables disponibles */}
+                                                                  <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
+                                                                    <div className="flex items-center gap-2">
+                                                                      <Code className="h-3.5 w-3.5 text-blue-400" />
+                                                                      <span className="text-xs font-medium text-white/80">Variables disponibles</span>
+                                                                    </div>
+                                                                    <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                                                                      <code className="px-2 py-1 rounded bg-blue-500/10 text-blue-400 font-mono">{"{{intent}}"}</code>
+                                                                      <code className="px-2 py-1 rounded bg-amber-500/10 text-amber-400 font-mono">{"{{sentiment}}"}</code>
+                                                                      <code className="px-2 py-1 rounded bg-red-500/10 text-red-400 font-mono">{"{{urgency}}"}</code>
+                                                                      <code className="px-2 py-1 rounded bg-purple-500/10 text-purple-400 font-mono">{"{{sentiment_score}}"}</code>
+                                                                      <code className="px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 font-mono">{"{{auto_resolvable}}"}</code>
+                                                                      <code className="px-2 py-1 rounded bg-pink-500/10 text-pink-400 font-mono">{"{{emotions}}"}</code>
+                                                                    </div>
                                                                   </div>
-                                                                </FormField>
+
+                                                                  {/* Section Intentions Personnalisées */}
+                                                                  <div className="pt-4 border-t border-white/5 space-y-3">
+                                                                    <div className="flex items-center justify-between">
+                                                                      <label className="text-sm text-white/80 font-medium flex items-center gap-2">
+                                                                        <Settings className="h-4 w-4 text-purple-400" />
+                                                                        Intentions personnalisées
+                                                                      </label>
+                                                                      <button
+                                                                        onClick={() => updateCfg({ ...analyzeCfg, useCustomIntents: !analyzeCfg.useCustomIntents })}
+                                                                        className={`relative w-10 h-5 rounded-full transition-colors ${analyzeCfg.useCustomIntents ? 'bg-purple-500' : 'bg-white/20'}`}
+                                                                      >
+                                                                        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${analyzeCfg.useCustomIntents ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                                                                      </button>
+                                                                    </div>
+
+                                                                    {analyzeCfg.useCustomIntents && (
+                                                                      <div className="space-y-3">
+                                                                        <p className="text-[10px] text-muted-foreground/60 italic">
+                                                                          Définissez vos propres intentions que l'IA doit détecter (une par ligne).
+                                                                        </p>
+                                                                        <textarea
+                                                                          value={analyzeCfg.customIntents || ""}
+                                                                          onChange={(e) => updateCfg({ ...analyzeCfg, customIntents: e.target.value })}
+                                                                          placeholder={`devis
+reservation
+suivi_commande
+retour_produit
+partenariat
+reclamation_livraison`}
+                                                                          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-xs text-white placeholder:text-white/30 focus:border-purple-500/50 focus:outline-none transition-colors resize-none min-h-[100px] font-mono"
+                                                                        />
+                                                                        <div className="flex flex-wrap gap-1.5">
+                                                                          {(analyzeCfg.customIntents || "").split('\n').filter((i: string) => i.trim()).map((intent: string, idx: number) => (
+                                                                            <span
+                                                                              key={idx}
+                                                                              className="px-2 py-0.5 rounded-full text-[9px] font-medium bg-purple-500/15 text-purple-400 border border-purple-500/30"
+                                                                            >
+                                                                              {intent.trim()}
+                                                                            </span>
+                                                                          ))}
+                                                                        </div>
+                                                                        <div className="p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20 flex items-start gap-2">
+                                                                          <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                                                                          <p className="text-[10px] text-amber-400/80">
+                                                                            Ces intentions remplaceront les intentions par défaut. L'IA classifiera chaque message selon vos catégories.
+                                                                          </p>
+                                                                        </div>
+                                                                      </div>
+                                                                    )}
+                                                                  </div>
+
+                                                                  {/* Instructions supplémentaires */}
+                                                                  <div className="pt-4 border-t border-white/5 space-y-2">
+                                                                    <label className="text-sm text-white/80 font-medium flex items-center gap-2">
+                                                                      <MessageSquare className="h-4 w-4 text-blue-400" />
+                                                                      Instructions supplémentaires
+                                                                    </label>
+                                                                    <textarea
+                                                                      value={analyzeCfg.aiInstructions || ""}
+                                                                      onChange={(e) => updateCfg({ ...analyzeCfg, aiInstructions: e.target.value })}
+                                                                      placeholder="Ex: Considère 'urgent' tout message mentionnant une livraison en retard. Les questions sur les prix doivent être marquées comme 'demande_aide' si le client semble perdu..."
+                                                                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-xs text-white placeholder:text-white/30 focus:border-blue-500/50 focus:outline-none transition-colors resize-none min-h-[80px]"
+                                                                    />
+                                                                  </div>
+                                                                </div>
 
 
                                                               </div>
@@ -10255,8 +6888,11 @@ Ton but est de transformer chaque message en vente.
                                                         case "gpt_respond":
                                                           const gpt = cfg({
                                                             model: "gpt-4o",
-                                                            system: "",
-                                                            temperature: 0.7,
+                                                            personality: "professionnel",
+                                                            domain: "",
+                                                            language: "fr",
+                                                            responseLength: "moyen",
+                                                            rules: [] as string[],
                                                           });
                                                           return (
                                                             <div className="space-y-0">
@@ -10266,77 +6902,182 @@ Ton but est de transformer chaque message en vente.
                                                               </div>
 
                                                               <div className="py-4 space-y-4">
+                                                                {/* Modèle */}
                                                                 <FormField label="Modèle">
                                                                   <StyledSelect
                                                                     value={gpt.model}
                                                                     onChange={(e) => updateCfg({ ...gpt, model: e.target.value })}
                                                                     options={[
                                                                       { value: "gpt-4o", label: "gpt-4o" },
-                                                                      { value: "gpt-4o-mini", label: "gpt-4o-mini" },
+                                                                      { value: "gpt-4o-mini", label: "gpt-4o-mini (rapide)" },
                                                                       { value: "gpt-4-turbo", label: "gpt-4-turbo" },
-                                                                      { value: "o1-preview", label: "o1-preview" }
                                                                     ]}
                                                                   />
                                                                 </FormField>
 
+                                                                {/* Personnalité */}
                                                                 <div className="space-y-2">
-                                                                  <div className="flex items-center justify-between">
-                                                                    <label className="text-sm text-white/80 font-medium">Instructions système</label>
-                                                                    <div className="flex items-center gap-1">
+                                                                  <label className="text-sm text-white/80 font-medium flex items-center gap-2">
+                                                                    <Smile className="h-4 w-4 text-purple-400" />
+                                                                    Personnalité
+                                                                  </label>
+                                                                  <div className="grid grid-cols-2 gap-2">
+                                                                    {[
+                                                                      { id: "professionnel", label: "Professionnel", emoji: "👔", desc: "Formel et courtois" },
+                                                                      { id: "amical", label: "Amical", emoji: "😊", desc: "Chaleureux et accessible" },
+                                                                      { id: "expert", label: "Expert", emoji: "🎓", desc: "Technique et précis" },
+                                                                      { id: "vendeur", label: "Vendeur", emoji: "💼", desc: "Persuasif et engageant" },
+                                                                    ].map((p) => (
                                                                       <button
-                                                                        onClick={async () => {
-                                                                          try {
-                                                                            const response = await fetch('/api/chat', {
-                                                                              method: 'POST',
-                                                                              headers: { 'Content-Type': 'application/json' },
-                                                                              body: JSON.stringify({
-                                                                                message: "Génère des instructions système professionnelles pour un assistant de vente. Inclus le rôle, le ton, et le style de réponse.",
-                                                                                systemPrompt: "Tu es un expert en création de prompts pour assistants IA.",
-                                                                                model: "gpt-4o-mini",
-                                                                                maxTokens: 200
-                                                                              })
-                                                                            });
-                                                                            if (response.ok) {
-                                                                              const data = await response.json();
-                                                                              if (data.success && data.response) {
-                                                                                updateCfg({ ...gpt, system: data.response.trim() });
-                                                                              }
-                                                                            }
-                                                                          } catch (error) {
-                                                                            console.error('Erreur:', error);
-                                                                          }
-                                                                        }}
-                                                                        className="h-6 px-2 rounded-md hover:bg-white/5 flex items-center gap-1 text-[#10a37f] text-xs font-medium transition-colors"
+                                                                        key={p.id}
+                                                                        onClick={() => updateCfg({ ...gpt, personality: p.id })}
+                                                                        className={`p-3 rounded-xl border text-left transition-all ${gpt.personality === p.id
+                                                                          ? "border-purple-500/50 bg-purple-500/10"
+                                                                          : "border-white/10 bg-white/[0.02] hover:bg-white/5"
+                                                                          }`}
                                                                       >
-                                                                        <Sparkles className="h-3 w-3" />
-                                                                        Générer
+                                                                        <div className="flex items-center gap-2">
+                                                                          <span className="text-lg">{p.emoji}</span>
+                                                                          <span className="text-xs font-medium text-white">{p.label}</span>
+                                                                        </div>
+                                                                        <p className="text-[10px] text-white/50 mt-1">{p.desc}</p>
                                                                       </button>
-                                                                    </div>
+                                                                    ))}
                                                                   </div>
-                                                                  <MarkdownEditor
-                                                                    value={gpt.system || ""}
-                                                                    onChange={(value) => updateCfg({ ...gpt, system: value })}
-                                                                    placeholder="Décrivez le rôle et le comportement de l'assistant (ton, style, limites)..."
+                                                                </div>
+
+                                                                {/* Domaine d'expertise */}
+                                                                <div className="space-y-2">
+                                                                  <label className="text-sm text-white/80 font-medium flex items-center gap-2">
+                                                                    <Briefcase className="h-4 w-4 text-blue-400" />
+                                                                    Domaine d'expertise
+                                                                  </label>
+                                                                  <input
+                                                                    type="text"
+                                                                    value={gpt.domain || ""}
+                                                                    onChange={(e) => updateCfg({ ...gpt, domain: e.target.value })}
+                                                                    placeholder="Ex: E-commerce de vêtements, Support technique, Immobilier..."
+                                                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:border-blue-500/50 focus:outline-none transition-colors"
                                                                   />
                                                                 </div>
 
-                                                                <FormField label="Température (créativité)">
-                                                                  <div className="flex items-center gap-3 flex-1">
-                                                                    <input
-                                                                      type="range"
-                                                                      min="0"
-                                                                      max="1"
-                                                                      step="0.1"
-                                                                      value={gpt.temperature}
-                                                                      onChange={(e) => updateCfg({ ...gpt, temperature: parseFloat(e.target.value) })}
-                                                                      className="flex-1 h-2 bg-black/40 rounded-full appearance-none cursor-pointer accent-[#10a37f]"
-                                                                    />
-                                                                    <span className="text-sm font-bold text-[#10a37f] w-8 text-right">
-                                                                      {gpt.temperature}
-                                                                    </span>
+                                                                {/* Longueur des réponses */}
+                                                                <div className="space-y-2">
+                                                                  <label className="text-sm text-white/80 font-medium flex items-center gap-2">
+                                                                    <FileText className="h-4 w-4 text-emerald-400" />
+                                                                    Longueur des réponses
+                                                                  </label>
+                                                                  <div className="flex gap-2">
+                                                                    {[
+                                                                      { id: "court", label: "Court", desc: "1-2 phrases" },
+                                                                      { id: "moyen", label: "Moyen", desc: "3-5 phrases" },
+                                                                      { id: "long", label: "Détaillé", desc: "Complet" },
+                                                                    ].map((l) => (
+                                                                      <button
+                                                                        key={l.id}
+                                                                        onClick={() => updateCfg({ ...gpt, responseLength: l.id })}
+                                                                        className={`flex-1 p-2.5 rounded-lg border text-center transition-all ${gpt.responseLength === l.id
+                                                                          ? "border-emerald-500/50 bg-emerald-500/10"
+                                                                          : "border-white/10 bg-white/[0.02] hover:bg-white/5"
+                                                                          }`}
+                                                                      >
+                                                                        <span className="text-xs font-medium text-white">{l.label}</span>
+                                                                        <p className="text-[9px] text-white/40 mt-0.5">{l.desc}</p>
+                                                                      </button>
+                                                                    ))}
                                                                   </div>
+                                                                </div>
+
+                                                                {/* Langue */}
+                                                                <FormField label="Langue de réponse">
+                                                                  <StyledSelect
+                                                                    value={gpt.language || "fr"}
+                                                                    onChange={(e) => updateCfg({ ...gpt, language: e.target.value })}
+                                                                    options={[
+                                                                      { value: "fr", label: "🇫🇷 Français" },
+                                                                      { value: "en", label: "🇬🇧 Anglais" },
+                                                                      { value: "es", label: "🇪🇸 Espagnol" },
+                                                                      { value: "auto", label: "🌍 Auto (langue du client)" },
+                                                                    ]}
+                                                                  />
                                                                 </FormField>
 
+                                                                {/* Règles personnalisées */}
+                                                                <div className="space-y-2 pt-3 border-t border-white/5">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-sm text-white/80 font-medium flex items-center gap-2">
+                                                                      <ListChecks className="h-4 w-4 text-amber-400" />
+                                                                      Règles personnalisées
+                                                                    </label>
+                                                                    <button
+                                                                      onClick={() => {
+                                                                        const currentRules = gpt.rules || [];
+                                                                        updateCfg({ ...gpt, rules: [...currentRules, ""] });
+                                                                      }}
+                                                                      className="h-6 px-2 rounded-md bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-medium flex items-center gap-1 transition-colors"
+                                                                    >
+                                                                      <Plus className="h-3 w-3" />
+                                                                      Ajouter
+                                                                    </button>
+                                                                  </div>
+                                                                  <p className="text-[10px] text-muted-foreground/60 italic">
+                                                                    Instructions spécifiques que l'IA doit suivre.
+                                                                  </p>
+
+                                                                  {(gpt.rules || []).length === 0 ? (
+                                                                    <div className="p-4 rounded-xl border border-dashed border-white/10 bg-white/[0.02] text-center">
+                                                                      <p className="text-[11px] text-muted-foreground/50">Aucune règle définie (optionnel)</p>
+                                                                    </div>
+                                                                  ) : (
+                                                                    <div className="space-y-2">
+                                                                      {(gpt.rules || []).map((rule: string, ruleIndex: number) => (
+                                                                        <div key={ruleIndex} className="flex items-center gap-2">
+                                                                          <span className="text-[10px] text-amber-400/60 w-4">{ruleIndex + 1}.</span>
+                                                                          <input
+                                                                            type="text"
+                                                                            value={rule}
+                                                                            onChange={(e) => {
+                                                                              const newRules = [...(gpt.rules || [])];
+                                                                              newRules[ruleIndex] = e.target.value;
+                                                                              updateCfg({ ...gpt, rules: newRules });
+                                                                            }}
+                                                                            placeholder="Ex: Ne jamais donner de prix sans validation"
+                                                                            className="flex-1 bg-white/[0.03] border border-white/5 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-white/20 focus:border-amber-500/30 focus:outline-none transition-colors"
+                                                                          />
+                                                                          <button
+                                                                            onClick={() => {
+                                                                              const newRules = (gpt.rules || []).filter((_: string, i: number) => i !== ruleIndex);
+                                                                              updateCfg({ ...gpt, rules: newRules });
+                                                                            }}
+                                                                            className="h-6 w-6 rounded hover:bg-white/5 text-white/30 hover:text-red-400 flex items-center justify-center transition-colors"
+                                                                          >
+                                                                            <X className="h-3 w-3" />
+                                                                          </button>
+                                                                        </div>
+                                                                      ))}
+                                                                    </div>
+                                                                  )}
+
+                                                                  {/* Suggestions de règles */}
+                                                                  {(gpt.rules || []).length === 0 && (
+                                                                    <div className="flex flex-wrap gap-1.5 pt-1">
+                                                                      {[
+                                                                        "Toujours proposer de l'aide",
+                                                                        "Répondre en moins de 3 phrases",
+                                                                        "Utiliser des emojis",
+                                                                        "Ne pas parler de la concurrence",
+                                                                      ].map((suggestion) => (
+                                                                        <button
+                                                                          key={suggestion}
+                                                                          onClick={() => updateCfg({ ...gpt, rules: [suggestion] })}
+                                                                          className="px-2 py-1 rounded-md bg-white/5 hover:bg-white/10 text-[10px] text-white/50 hover:text-white/70 transition-colors"
+                                                                        >
+                                                                          + {suggestion}
+                                                                        </button>
+                                                                      ))}
+                                                                    </div>
+                                                                  )}
+                                                                </div>
 
                                                               </div>
                                                             </div>
@@ -10346,190 +7087,228 @@ Ton but est de transformer chaque message en vente.
                                                           const agentCfg = cfg({
                                                             name: "Mon Agent",
                                                             model: "gpt-4o",
-                                                            systemPrompt: "Vous êtes un assistant utile.",
+                                                            agentType: "assistant",
+                                                            instructions: "Tu es un assistant utile.",
+                                                            dataSources: {
+                                                              urls: [] as string[],
+                                                              files: [] as string[],
+                                                              mcpProviders: [] as string[],
+                                                            },
+                                                            domain: "",
+                                                            personality: "professionnel",
+                                                            capabilities: [] as string[],
+                                                            rules: [] as string[],
                                                             includeHistory: true,
-                                                            reasoningEffort: "moyen",
-                                                            outputFormat: "text",
-                                                            verbosity: "moyen",
-                                                            continueOnError: false,
-                                                            writeToHistory: true,
-                                                            showAdvanced: false,
                                                           });
                                                           return (
                                                             <div className="space-y-0">
                                                               {/* Header */}
                                                               <div className="pb-4 border-b border-white/5">
                                                                 <h3 className="text-base font-semibold text-white">{agentCfg.name || "Mon Agent"}</h3>
-                                                                <p className="text-xs text-muted-foreground mt-0.5">Appelez le modèle avec vos instructions et vos outils</p>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Agent IA autonome avec outils et mémoire</p>
                                                               </div>
 
-                                                              <div className="py-4 space-y-4">
-                                                                {/* Name */}
-                                                                <div className="flex items-center justify-between gap-4">
-                                                                  <label className="text-sm text-white/80 font-medium shrink-0">Nom</label>
-                                                                  <input
-                                                                    type="text"
-                                                                    value={agentCfg.name}
-                                                                    onChange={(e) => updateCfg({ ...agentCfg, name: e.target.value })}
-                                                                    placeholder="Mon Agent"
-                                                                    className="flex-1 bg-white/5 border border-white/10 rounded-lg h-9 px-3 text-sm text-white placeholder:text-white/30 focus:border-white/20 focus:outline-none transition-colors"
-                                                                  />
-                                                                </div>
-
-                                                                {/* Instructions */}
+                                                              <div className="py-4 space-y-6">
+                                                                {/* Instructions de l'Agent (PROMPT) */}
                                                                 <div className="space-y-2">
-                                                                  <div className="flex items-center justify-between">
-                                                                    <label className="text-sm text-white/80 font-medium">Instructions</label>
-                                                                    <div className="flex items-center gap-1">
-                                                                      <button
-                                                                        onClick={async () => {
-                                                                          try {
-                                                                            // Générer des instructions automatiquement avec l'IA
-                                                                            const response = await fetch('/api/chat', {
-                                                                              method: 'POST',
-                                                                              headers: { 'Content-Type': 'application/json' },
-                                                                              body: JSON.stringify({
-                                                                                message: `Génère des instructions système professionnelles pour un agent IA nommé "${agentCfg.name || 'Mon Agent'}". Les instructions doivent être en français, claires et concises. Inclus le rôle, le ton, et le style de réponse attendu.`,
-                                                                                systemPrompt: "Tu es un expert en création de prompts pour agents IA. Génère des instructions système professionnelles, claires et concises en français.",
-                                                                                model: "gpt-4o-mini",
-                                                                                maxTokens: 200
-                                                                              })
-                                                                            });
-
-                                                                            if (response.ok) {
-                                                                              const data = await response.json();
-                                                                              if (data.success && data.response) {
-                                                                                updateCfg({ ...agentCfg, systemPrompt: data.response.trim() });
-                                                                              }
-                                                                            }
-                                                                          } catch (error) {
-                                                                            console.error('Erreur lors de la génération:', error);
-                                                                          }
-                                                                        }}
-                                                                        className="h-6 px-2 rounded-md hover:bg-white/5 flex items-center gap-1 text-[#10a37f] text-xs font-medium transition-colors"
-                                                                      >
-                                                                        <Sparkles className="h-3 w-3" />
-                                                                        Générer
-                                                                      </button>
-                                                                    </div>
-                                                                  </div>
-                                                                  <MarkdownEditor
-                                                                    value={agentCfg.systemPrompt || ""}
-                                                                    onChange={(value) => updateCfg({ ...agentCfg, systemPrompt: value })}
-                                                                    placeholder="Décrivez le comportement souhaité du modèle (ton, utilisation des outils, style de réponse)"
+                                                                  <label className="text-sm text-white/80 font-medium flex items-center gap-2">
+                                                                    <Wand2 className="h-4 w-4 text-purple-400" />
+                                                                    Instructions (Prompt Système)
+                                                                  </label>
+                                                                  <textarea
+                                                                    value={agentCfg.instructions}
+                                                                    onChange={(e) => updateCfg({ ...agentCfg, instructions: e.target.value })}
+                                                                    placeholder="Dis à l'IA comment elle doit se comporter et ce qu'elle doit faire..."
+                                                                    className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-xs text-white placeholder:text-white/30 focus:border-purple-500/50 outline-none min-h-[100px] transition-all"
                                                                   />
                                                                 </div>
 
-                                                                {/* Include chat history */}
-                                                                <div className="flex items-center justify-between">
-                                                                  <label className="text-sm text-white/80 font-medium">Inclure l&apos;historique du chat</label>
-                                                                  <button
-                                                                    onClick={() => updateCfg({ ...agentCfg, includeHistory: !agentCfg.includeHistory })}
-                                                                    className={`relative w-10 h-6 rounded-full transition-colors ${agentCfg.includeHistory ? "bg-[#10a37f]" : "bg-white/20"}`}
-                                                                  >
-                                                                    <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${agentCfg.includeHistory ? "left-5" : "left-1"}`} />
-                                                                  </button>
-                                                                </div>
-
-                                                                {/* Model */}
-                                                                <div className="flex items-center justify-between gap-4">
-                                                                  <label className="text-sm text-white/80 font-medium shrink-0">Modèle</label>
-                                                                  <select
-                                                                    value={agentCfg.model}
-                                                                    onChange={(e) => updateCfg({ ...agentCfg, model: e.target.value })}
-                                                                    className="flex-1 max-w-[180px] bg-transparent border-none text-sm text-white font-medium cursor-pointer focus:outline-none text-right appearance-none"
-                                                                    style={{ direction: "rtl" }}
-                                                                  >
-                                                                    <option value="gpt-4o">gpt-4o</option>
-                                                                    <option value="gpt-4o-mini">gpt-4o-mini</option>
-                                                                    <option value="gpt-4-turbo">gpt-4-turbo</option>
-                                                                    <option value="o1-preview">o1-preview</option>
-                                                                  </select>
-                                                                </div>
-
-                                                                {/* Reasoning effort */}
-                                                                <div className="flex items-center justify-between gap-4">
-                                                                  <label className="text-sm text-white/80 font-medium shrink-0">Effort de raisonnement</label>
-                                                                  <select
-                                                                    value={agentCfg.reasoningEffort}
-                                                                    onChange={(e) => updateCfg({ ...agentCfg, reasoningEffort: e.target.value })}
-                                                                    className="bg-transparent border-none text-sm text-white font-medium cursor-pointer focus:outline-none text-right appearance-none"
-                                                                  >
-                                                                    <option value="low">faible</option>
-                                                                    <option value="medium">moyen</option>
-                                                                    <option value="high">élevé</option>
-                                                                  </select>
-                                                                </div>
-
-                                                                <div className="h-px bg-white/5" />
-
-                                                                {/* Output format */}
-                                                                <div className="flex items-center justify-between gap-4">
-                                                                  <label className="text-sm text-white/80 font-medium shrink-0">Format de sortie</label>
-                                                                  <select
-                                                                    value={agentCfg.outputFormat}
-                                                                    onChange={(e) => updateCfg({ ...agentCfg, outputFormat: e.target.value })}
-                                                                    className="bg-transparent border-none text-sm text-white font-medium cursor-pointer focus:outline-none text-right appearance-none"
-                                                                  >
-                                                                    <option value="text">Texte</option>
-                                                                    <option value="json">JSON</option>
-                                                                    <option value="markdown">Markdown</option>
-                                                                  </select>
-                                                                </div>
-
-                                                                {/* Advanced Section */}
-                                                                <div className="pt-2">
-                                                                  <button
-                                                                    onClick={() => updateCfg({ ...agentCfg, showAdvanced: !agentCfg.showAdvanced })}
-                                                                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors"
-                                                                  >
-                                                                    <ChevronDown className={`h-4 w-4 transition-transform ${agentCfg.showAdvanced ? "rotate-180" : ""}`} />
-                                                                    <span>{agentCfg.showAdvanced ? "Moins" : "Plus"}</span>
-                                                                  </button>
-                                                                </div>
-
-                                                                {agentCfg.showAdvanced && (
-                                                                  <div className="space-y-4 pt-2">
-                                                                    {/* Model parameters */}
-                                                                    <div className="text-xs font-medium text-muted-foreground">Paramètres du modèle</div>
-
-                                                                    <div className="flex items-center justify-between gap-4">
-                                                                      <label className="text-sm text-white/80 font-medium shrink-0">Verbosité</label>
-                                                                      <select
-                                                                        value={agentCfg.verbosity}
-                                                                        onChange={(e) => updateCfg({ ...agentCfg, verbosity: e.target.value })}
-                                                                        className="bg-transparent border-none text-sm text-white font-medium cursor-pointer focus:outline-none text-right appearance-none"
-                                                                      >
-                                                                        <option value="low">faible</option>
-                                                                        <option value="medium">moyen</option>
-                                                                        <option value="high">élevé</option>
-                                                                      </select>
-                                                                    </div>
-
-                                                                    {/* Advanced */}
-                                                                    <div className="text-xs font-medium text-muted-foreground pt-2">Avancé</div>
-
-                                                                    <div className="flex items-center justify-between">
-                                                                      <label className="text-sm text-white/80 font-medium">Continuer en cas d&apos;erreur</label>
+                                                                {/* Sources de Données & MCP */}
+                                                                <div className="space-y-3 pt-4 border-t border-white/5">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-sm text-white/80 font-medium flex items-center gap-2">
+                                                                      <Database className="h-4 w-4 text-emerald-400" />
+                                                                      Sources de Données & MCP
+                                                                    </label>
+                                                                    <div className="flex gap-2">
                                                                       <button
-                                                                        onClick={() => updateCfg({ ...agentCfg, continueOnError: !agentCfg.continueOnError })}
-                                                                        className={`relative w-10 h-6 rounded-full transition-colors ${agentCfg.continueOnError ? "bg-[#10a37f]" : "bg-white/20"}`}
+                                                                        onClick={() => {
+                                                                          const urls = agentCfg.dataSources?.urls || [];
+                                                                          updateCfg({ ...agentCfg, dataSources: { ...agentCfg.dataSources, urls: [...urls, ""] } });
+                                                                        }}
+                                                                        className="p-1.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 transition-colors"
+                                                                        title="Ajouter un lien Web"
                                                                       >
-                                                                        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${agentCfg.continueOnError ? "left-5" : "left-1"}`} />
+                                                                        <Globe className="h-3.5 w-3.5" />
                                                                       </button>
-                                                                    </div>
-
-                                                                    <div className="flex items-center justify-between">
-                                                                      <label className="text-sm text-white/80 font-medium">Écrire dans l&apos;historique de la conversation</label>
                                                                       <button
-                                                                        onClick={() => updateCfg({ ...agentCfg, writeToHistory: !agentCfg.writeToHistory })}
-                                                                        className={`relative w-10 h-6 rounded-full transition-colors ${agentCfg.writeToHistory ? "bg-[#10a37f]" : "bg-white/20"}`}
+                                                                        onClick={() => {
+                                                                          const files = agentCfg.dataSources?.files || [];
+                                                                          updateCfg({ ...agentCfg, dataSources: { ...agentCfg.dataSources, files: [...files, ""] } });
+                                                                        }}
+                                                                        className="p-1.5 rounded-md bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 transition-colors"
+                                                                        title="Uploader un fichier"
                                                                       >
-                                                                        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm ${agentCfg.writeToHistory ? "left-5" : "left-1"}`} />
+                                                                        <Upload className="h-3.5 w-3.5" />
+                                                                      </button>
+                                                                      <button
+                                                                        onClick={() => {
+                                                                          const mcps = agentCfg.dataSources?.mcpProviders || [];
+                                                                          updateCfg({ ...agentCfg, dataSources: { ...agentCfg.dataSources, mcpProviders: [...mcps, ""] } });
+                                                                        }}
+                                                                        className="p-1.5 rounded-md bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 transition-colors"
+                                                                        title="Ajouter un serveur MCP"
+                                                                      >
+                                                                        <Cpu className="h-3.5 w-3.5" />
                                                                       </button>
                                                                     </div>
                                                                   </div>
-                                                                )}
+
+                                                                  <div className="space-y-3">
+                                                                    {/* Liste des URLs */}
+                                                                    {(agentCfg.dataSources?.urls || []).map((url: string, i: number) => (
+                                                                      <div key={`url-${i}`} className="flex items-center gap-2">
+                                                                        <Globe className="h-3 w-3 text-emerald-400/60" />
+                                                                        <input
+                                                                          type="text"
+                                                                          value={url}
+                                                                          onChange={(e) => {
+                                                                            const urls = [...agentCfg.dataSources.urls];
+                                                                            urls[i] = e.target.value;
+                                                                            updateCfg({ ...agentCfg, dataSources: { ...agentCfg.dataSources, urls } });
+                                                                          }}
+                                                                          placeholder="https://votre-site.com"
+                                                                          className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] text-white outline-none"
+                                                                        />
+                                                                        <button onClick={() => {
+                                                                          const urls = agentCfg.dataSources.urls.filter((_: any, idx: number) => idx !== i);
+                                                                          updateCfg({ ...agentCfg, dataSources: { ...agentCfg.dataSources, urls } });
+                                                                        }} className="text-white/20 hover:text-red-400"><X className="h-3 w-3" /></button>
+                                                                      </div>
+                                                                    ))}
+
+                                                                    {/* Liste des Fichiers */}
+                                                                    {(agentCfg.dataSources?.files || []).map((file: any, i: number) => (
+                                                                      <div key={`file-${i}`} className="flex items-center gap-2">
+                                                                        <FileText className="h-3 w-3 text-blue-400/60" />
+                                                                        <label className="flex-1 flex items-center justify-between bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 cursor-pointer hover:border-blue-500/30 transition-colors">
+                                                                          <span className="text-[10px] text-white/60 truncate max-w-[150px]">
+                                                                            {typeof file === 'object' && file.name ? file.name : 'Cliquer pour uploader PDF/Doc...'}
+                                                                          </span>
+                                                                          <Upload className="h-2.5 w-2.5 text-white/40" />
+                                                                          <input
+                                                                            type="file"
+                                                                            accept=".pdf,.doc,.docx,.txt"
+                                                                            className="hidden"
+                                                                            onChange={(e) => {
+                                                                              const uploadedFile = e.target.files?.[0];
+                                                                              if (uploadedFile) {
+                                                                                const reader = new FileReader();
+                                                                                reader.onloadend = () => {
+                                                                                  const files = [...(agentCfg.dataSources?.files || [])];
+                                                                                  files[i] = {
+                                                                                    name: uploadedFile.name,
+                                                                                    type: uploadedFile.type,
+                                                                                    size: uploadedFile.size,
+                                                                                    data: reader.result
+                                                                                  };
+                                                                                  updateCfg({ ...agentCfg, dataSources: { ...agentCfg.dataSources, files } });
+                                                                                };
+                                                                                reader.readAsDataURL(uploadedFile);
+                                                                              }
+                                                                            }}
+                                                                          />
+                                                                        </label>
+                                                                        <button onClick={() => {
+                                                                          const files = (agentCfg.dataSources?.files || []).filter((_: any, idx: number) => idx !== i);
+                                                                          updateCfg({ ...agentCfg, dataSources: { ...agentCfg.dataSources, files } });
+                                                                        }} className="text-white/20 hover:text-red-400"><X className="h-3 w-3" /></button>
+                                                                      </div>
+                                                                    ))}
+
+                                                                    {/* Liste des MCP */}
+                                                                    {(agentCfg.dataSources?.mcpProviders || []).map((mcp: string, i: number) => (
+                                                                      <div key={`mcp-${i}`} className="flex items-center gap-2">
+                                                                        <Cpu className="h-3 w-3 text-amber-400/60" />
+                                                                        <input
+                                                                          type="text"
+                                                                          value={mcp}
+                                                                          onChange={(e) => {
+                                                                            const mcps = [...agentCfg.dataSources.mcpProviders];
+                                                                            mcps[i] = e.target.value;
+                                                                            updateCfg({ ...agentCfg, dataSources: { ...agentCfg.dataSources, mcpProviders: mcps } });
+                                                                          }}
+                                                                          placeholder="Endpoint serveur MCP"
+                                                                          className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] text-white outline-none"
+                                                                        />
+                                                                        <button onClick={() => {
+                                                                          const mcps = agentCfg.dataSources.mcpProviders.filter((_: any, idx: number) => idx !== i);
+                                                                          updateCfg({ ...agentCfg, dataSources: { ...agentCfg.dataSources, mcpProviders: mcps } });
+                                                                        }} className="text-white/20 hover:text-red-400"><X className="h-3 w-3" /></button>
+                                                                      </div>
+                                                                    ))}
+
+                                                                    {/* Suggestions MCP */}
+                                                                    <div className="flex flex-wrap gap-1.5 mt-2">
+                                                                      {[
+                                                                        { name: "Google Calendar", endpoint: "http://localhost:3003", icon: "📅" },
+                                                                        { name: "Gmail", endpoint: "http://localhost:3004", icon: "📧" },
+                                                                        { name: "Calendly", endpoint: "http://localhost:3005", icon: "🔗" },
+                                                                        { name: "Brave Search", endpoint: "http://localhost:3006", icon: "🔍" },
+                                                                        { name: "Devises", endpoint: "http://localhost:3007", icon: "🪙" },
+                                                                        { name: "Notion", endpoint: "http://localhost:3008", icon: "📝" },
+                                                                        { name: "Slack", endpoint: "http://localhost:3009", icon: "💬" },
+                                                                        { name: "Sheets", endpoint: "http://localhost:3010", icon: "📊" },
+                                                                        { name: "Maps", endpoint: "http://localhost:3011", icon: "📍" },
+                                                                      ].map((mcpSuggestion) => (
+                                                                        <button
+                                                                          key={mcpSuggestion.name}
+                                                                          onClick={() => {
+                                                                            const mcps = agentCfg.dataSources?.mcpProviders || [];
+                                                                            if (!mcps.includes(mcpSuggestion.endpoint)) {
+                                                                              updateCfg({ ...agentCfg, dataSources: { ...agentCfg.dataSources, mcpProviders: [...mcps, mcpSuggestion.endpoint] } });
+                                                                            }
+                                                                          }}
+                                                                          className="px-2 py-1 rounded-md bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/10 text-[9px] text-amber-500/70 hover:text-amber-500 transition-colors flex items-center gap-1.5"
+                                                                        >
+                                                                          <span>{mcpSuggestion.icon}</span>
+                                                                          {mcpSuggestion.name}
+                                                                        </button>
+                                                                      ))}
+                                                                    </div>
+                                                                  </div>
+                                                                </div>
+
+                                                                {/* Paramètres de base */}
+
+
+                                                                <div className="pt-4 border-t border-white/5 space-y-4">
+                                                                  <div className="space-y-2">
+                                                                    <label className="text-sm text-white/80 font-medium flex items-center gap-2">
+                                                                      <Bot className="h-4 w-4 text-purple-400" />
+                                                                      Nom de l'agent
+                                                                    </label>
+                                                                    <input
+                                                                      type="text"
+                                                                      value={agentCfg.name}
+                                                                      onChange={(e) => updateCfg({ ...agentCfg, name: e.target.value })}
+                                                                      placeholder="Ex: Sophie, Assistant Commercial..."
+                                                                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white focus:border-purple-500/50 transition-colors"
+                                                                    />
+                                                                  </div>
+
+                                                                  <FormField label="Modèle IA">
+                                                                    <StyledSelect
+                                                                      value={agentCfg.model}
+                                                                      onChange={(e) => updateCfg({ ...agentCfg, model: e.target.value })}
+                                                                      options={[
+                                                                        { value: "gpt-4o", label: "gpt-4o (recommandé)" },
+                                                                        { value: "gpt-4o-mini", label: "gpt-4o-mini (rapide)" },
+                                                                        { value: "o1-preview", label: "o1-preview (raisonnement)" },
+                                                                      ]}
+                                                                    />
+                                                                  </FormField>
+                                                                </div>
                                                               </div>
                                                             </div>
                                                           );
@@ -10682,6 +7461,122 @@ Ton but est de transformer chaque message en vente.
                                                                     ))}
                                                                   </div>
                                                                 )}
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "rag_knowledge":
+                                                          const ragCfg = cfg({
+                                                            knowledgeBaseId: "default",
+                                                            searchMode: "semantic",
+                                                            maxDocuments: 3,
+                                                            temperature: 0,
+                                                            fallbackMessage: "Désolé, je n'ai pas trouvé d'information à ce sujet dans mes documents.",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Base de Connaissances</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Répond en utilisant vos documents (PDF, Doc)</p>
+                                                              </div>
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="Base de connaissances">
+                                                                  <StyledSelect
+                                                                    value={ragCfg.knowledgeBaseId}
+                                                                    onChange={(e) => updateCfg({ ...ragCfg, knowledgeBaseId: e.target.value })}
+                                                                    options={[
+                                                                      { value: "default", label: "Base par défaut" },
+                                                                      { value: "manual", label: "Saisie manuelle" },
+                                                                      { value: "produits", label: "Fiches Produits" },
+                                                                      { value: "legal", label: "Documents Légaux" },
+                                                                    ]}
+                                                                  />
+                                                                </FormField>
+
+                                                                {ragCfg.knowledgeBaseId === "manual" && (
+                                                                  <div className="space-y-2">
+                                                                    <label className="text-xs font-medium text-white/70">Contenu de la base (Texte ou PDF extrait)</label>
+                                                                    <textarea
+                                                                      value={ragCfg.knowledgeContent || ""}
+                                                                      onChange={(e) => updateCfg({ ...ragCfg, knowledgeContent: e.target.value })}
+                                                                      className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-[11px] text-white focus:border-purple-500/50 outline-none min-h-[150px] transition-all"
+                                                                      placeholder="Collez ici les informations de votre entreprise..."
+                                                                    />
+                                                                    <p className="text-[9px] text-muted-foreground italic">
+                                                                      Astuce : Plus vous donnez de détails, plus l'IA sera précise.
+                                                                    </p>
+                                                                  </div>
+                                                                )}
+
+                                                                <FormField label="Nombre de docs à consulter">
+                                                                  <input
+                                                                    type="number"
+                                                                    min="1"
+                                                                    max="10"
+                                                                    value={ragCfg.maxDocuments}
+                                                                    onChange={(e) => updateCfg({ ...ragCfg, maxDocuments: parseInt(e.target.value) })}
+                                                                    className="w-full bg-white/5 border border-white/10 rounded-lg h-9 px-3 text-xs text-white"
+                                                                  />
+                                                                </FormField>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "python_script":
+                                                          const scriptCfg = cfg({
+                                                            script: "# Écrivez votre code Python ici\n# Utilisez 'context' pour accéder aux données\n# Stockez les résultats dans 'results'\n\nresults['message'] = f'Bonjour {context.get(\"userName\", \"client\")}!'",
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Script Python</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Exécutez du code Python personnalisé</p>
+                                                              </div>
+                                                              <div className="py-4 space-y-4">
+                                                                <div className="space-y-2">
+                                                                  <label className="text-xs font-medium text-white/70">Code Python (LangChain Ready)</label>
+                                                                  <textarea
+                                                                    value={scriptCfg.script}
+                                                                    onChange={(e) => updateCfg({ ...scriptCfg, script: e.target.value })}
+                                                                    className="w-full bg-black/40 border border-white/10 rounded-lg p-4 text-[11px] font-mono text-emerald-400 min-h-[200px] focus:border-emerald-500/50 outline-none"
+                                                                  />
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "long_term_memory":
+                                                          const memoryCfg = cfg({
+                                                            action: "load",
+                                                            key: "user_preferences",
+                                                            ttl: 30,
+                                                          });
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Mémoire Long Terme</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Retenir des infos sur le client</p>
+                                                              </div>
+                                                              <div className="py-4 space-y-4">
+                                                                <FormField label="Action">
+                                                                  <StyledSelect
+                                                                    value={memoryCfg.action}
+                                                                    onChange={(e) => updateCfg({ ...memoryCfg, action: e.target.value })}
+                                                                    options={[
+                                                                      { value: "load", label: "Charger la mémoire" },
+                                                                      { value: "store", label: "Enregistrer en mémoire" },
+                                                                    ]}
+                                                                  />
+                                                                </FormField>
+                                                                <FormField label="Clé de mémoire">
+                                                                  <input
+                                                                    type="text"
+                                                                    value={memoryCfg.key}
+                                                                    onChange={(e) => updateCfg({ ...memoryCfg, key: e.target.value })}
+                                                                    className="w-full bg-white/5 border border-white/10 rounded-lg h-9 px-3 text-xs text-white"
+                                                                    placeholder="ex : preferences_achat"
+                                                                  />
+                                                                </FormField>
                                                               </div>
                                                             </div>
                                                           );
@@ -11691,62 +8586,391 @@ Ton but est de transformer chaque message en vente.
 
                                                         case "condition":
                                                           const cond = cfg({
-                                                            field: "message",
-                                                            operator: "contains",
+                                                            field: "intent",
+                                                            operator: "equals",
                                                             value: "",
+                                                            templateType: "custom"
                                                           });
+
+                                                          // Templates de conditions prédéfinies
+                                                          const conditionTemplates = [
+                                                            { id: "my_intent", label: "🎯 Mon intention", field: "intent", operator: "equals", value: "", color: "#8b5cf6" },
+                                                            { id: "negative_sentiment", label: "😤 Client mécontent", field: "sentiment_score", operator: "less_than", value: "-0.3", color: "#ef4444" },
+                                                            { id: "positive_sentiment", label: "😊 Client satisfait", field: "sentiment_score", operator: "greater_than", value: "0.3", color: "#10b981" },
+                                                            { id: "urgent", label: "🔥 Urgent (4-5)", field: "urgency", operator: "greater_than", value: "3", color: "#f59e0b" },
+                                                            { id: "plainte", label: "📢 Plainte détectée", field: "intent", operator: "equals", value: "plainte", color: "#ef4444" },
+                                                            { id: "achat", label: "🛒 Intention d'achat", field: "intent", operator: "equals", value: "commande", color: "#10b981" },
+                                                            { id: "custom", label: "⚙️ Autre condition", field: "", operator: "", value: "", color: "#6b7280" },
+                                                          ];
+
+
                                                           return (
                                                             <div className="space-y-0">
                                                               <div className="pb-4 border-b border-white/5">
                                                                 <h3 className="text-base font-semibold text-white">Condition Si/Sinon</h3>
-                                                                <p className="text-xs text-muted-foreground mt-0.5">Crée deux chemins selon une condition</p>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Route le flux selon une condition</p>
                                                               </div>
 
                                                               <div className="py-4 space-y-4">
-                                                                <FormField label="Si la donnée...">
-                                                                  <StyledSelect
-                                                                    value={cond.field}
-                                                                    onChange={(e) => updateCfg({ ...cond, field: e.target.value })}
-                                                                    options={[
-                                                                      { value: "message", label: "Message reçu" },
-                                                                      { value: "name", label: "Nom du contact" },
-                                                                      { value: "phone", label: "Numéro de téléphone" }
-                                                                    ]}
-                                                                  />
-                                                                </FormField>
+                                                                {/* Templates rapides */}
+                                                                <div className="space-y-2">
+                                                                  <label className="text-sm text-white/80 font-medium flex items-center gap-2">
+                                                                    <Sparkles className="h-4 w-4 text-amber-400" />
+                                                                    Conditions rapides
+                                                                  </label>
+                                                                  <div className="grid grid-cols-2 gap-2">
+                                                                    {conditionTemplates.map((tpl) => (
+                                                                      <button
+                                                                        key={tpl.id}
+                                                                        onClick={() => {
+                                                                          if (tpl.id === "custom") {
+                                                                            updateCfg({ ...cond, templateType: "custom" });
+                                                                          } else {
+                                                                            updateCfg({
+                                                                              ...cond,
+                                                                              field: tpl.field,
+                                                                              operator: tpl.operator,
+                                                                              value: tpl.value,
+                                                                              templateType: tpl.id
+                                                                            });
+                                                                          }
+                                                                        }}
+                                                                        className={`p-2.5 rounded-xl text-left transition-all text-xs font-medium ${cond.templateType === tpl.id
+                                                                          ? "ring-2 ring-offset-1 ring-offset-black"
+                                                                          : "hover:scale-[1.02]"
+                                                                          }`}
+                                                                        style={{
+                                                                          backgroundColor: cond.templateType === tpl.id ? `${tpl.color}20` : "rgba(255,255,255,0.03)",
+                                                                          borderWidth: "1px",
+                                                                          borderStyle: "solid",
+                                                                          borderColor: cond.templateType === tpl.id ? `${tpl.color}50` : "rgba(255,255,255,0.1)",
+                                                                          color: cond.templateType === tpl.id ? tpl.color : "rgba(255,255,255,0.7)",
+                                                                        }}
+                                                                      >
+                                                                        {tpl.label}
+                                                                      </button>
 
-                                                                <FormField label="Opérateur">
-                                                                  <StyledSelect
-                                                                    value={cond.operator}
-                                                                    onChange={(e) => updateCfg({ ...cond, operator: e.target.value })}
-                                                                    options={[
-                                                                      { value: "contains", label: "Contient" },
-                                                                      { value: "equals", label: "Est égal à" },
-                                                                      { value: "starts", label: "Commence par" },
-                                                                      { value: "exists", label: "Existe / Rempli" }
-                                                                    ]}
-                                                                  />
-                                                                </FormField>
+                                                                    ))}
+                                                                  </div>
+                                                                </div>
 
-                                                                <FormField label="Valeur attendue">
-                                                                  <StyledInput
-                                                                    value={cond.value}
-                                                                    onChange={(e) => updateCfg({ ...cond, value: e.target.value })}
-                                                                    placeholder="Ex: Bonjour..."
-                                                                  />
-                                                                </FormField>
+                                                                {/* Configuration personnalisée */}
+                                                                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/10 space-y-3">
+                                                                  <div className="flex items-center gap-2 text-xs text-white/60">
+                                                                    <Settings className="h-3.5 w-3.5" />
+                                                                    <span>Configuration de la condition</span>
+                                                                  </div>
 
-                                                                <div className="flex items-center gap-2 p-3 rounded-lg bg-orange-500/5 border border-orange-500/10">
+                                                                  <FormField label="Variable à tester">
+                                                                    <StyledSelect
+                                                                      value={cond.field}
+                                                                      onChange={(e) => updateCfg({ ...cond, field: e.target.value, templateType: "custom" })}
+                                                                      options={[
+                                                                        { value: "intent", label: "🎯 Intention détectée" },
+                                                                        { value: "sentiment", label: "😊 Sentiment (texte)" },
+                                                                        { value: "sentiment_score", label: "📊 Score sentiment (-1 à 1)" },
+                                                                        { value: "urgency", label: "🔥 Urgence (1-5)" },
+                                                                        { value: "auto_resolvable", label: "✅ Auto-résolvable" },
+                                                                        { value: "message", label: "💬 Message reçu" },
+                                                                        { value: "name", label: "👤 Nom du contact" },
+                                                                      ]}
+                                                                    />
+                                                                  </FormField>
+
+                                                                  <FormField label="Opérateur">
+                                                                    <StyledSelect
+                                                                      value={cond.operator}
+                                                                      onChange={(e) => updateCfg({ ...cond, operator: e.target.value, templateType: "custom" })}
+                                                                      options={[
+                                                                        { value: "equals", label: "= Est égal à" },
+                                                                        { value: "not_equals", label: "≠ N'est pas égal à" },
+                                                                        { value: "contains", label: "∈ Contient" },
+                                                                        { value: "less_than", label: "< Est inférieur à" },
+                                                                        { value: "greater_than", label: "> Est supérieur à" },
+                                                                        { value: "is_true", label: "✓ Est vrai" },
+                                                                        { value: "is_false", label: "✗ Est faux" },
+                                                                      ]}
+                                                                    />
+                                                                  </FormField>
+
+                                                                  {!["is_true", "is_false"].includes(cond.operator) && (
+                                                                    <FormField label="Valeur">
+                                                                      {cond.field === "intent" ? (
+                                                                        <div className="space-y-2">
+                                                                          <StyledInput
+                                                                            value={cond.value}
+                                                                            onChange={(e) => updateCfg({ ...cond, value: e.target.value, templateType: "custom" })}
+                                                                            placeholder="Tapez votre intention (ex: devis, reservation...)"
+                                                                          />
+                                                                          <div className="flex flex-wrap gap-1.5">
+                                                                            <span className="text-[9px] text-white/40 mr-1">Suggestions :</span>
+                                                                            {[
+                                                                              { name: "salutation", emoji: "👋" },
+                                                                              { name: "plainte", emoji: "😤" },
+                                                                              { name: "commande", emoji: "🛒" },
+                                                                              { name: "demande_aide", emoji: "🆘" },
+                                                                              { name: "annulation", emoji: "❌" },
+                                                                            ].map((s) => (
+                                                                              <button
+                                                                                key={s.name}
+                                                                                onClick={() => updateCfg({ ...cond, value: s.name, templateType: "custom" })}
+                                                                                className={`px-2 py-0.5 rounded text-[9px] transition-all ${cond.value === s.name ? 'bg-purple-500/30 text-purple-300' : 'bg-white/5 text-white/50 hover:text-white/80'}`}
+                                                                              >
+                                                                                {s.emoji} {s.name}
+                                                                              </button>
+                                                                            ))}
+                                                                          </div>
+                                                                        </div>
+
+                                                                      ) : cond.field === "sentiment" ? (
+                                                                        <StyledSelect
+                                                                          value={cond.value}
+                                                                          onChange={(e) => updateCfg({ ...cond, value: e.target.value, templateType: "custom" })}
+                                                                          options={[
+                                                                            { value: "très_positif", label: "😄 Très positif" },
+                                                                            { value: "positif", label: "🙂 Positif" },
+                                                                            { value: "neutre", label: "😐 Neutre" },
+                                                                            { value: "négatif", label: "😕 Négatif" },
+                                                                            { value: "très_négatif", label: "😠 Très négatif" },
+                                                                          ]}
+                                                                        />
+                                                                      ) : (
+                                                                        <StyledInput
+                                                                          value={cond.value}
+                                                                          onChange={(e) => updateCfg({ ...cond, value: e.target.value, templateType: "custom" })}
+                                                                          placeholder={
+                                                                            cond.field === "sentiment_score" ? "Ex: -0.3" :
+                                                                              cond.field === "urgency" ? "Ex: 3" :
+                                                                                "Valeur..."
+                                                                          }
+                                                                        />
+                                                                      )}
+                                                                    </FormField>
+                                                                  )}
+                                                                </div>
+
+                                                                {/* Aperçu de la condition */}
+                                                                <div className="flex items-center gap-2 p-3 rounded-lg bg-gradient-to-r from-emerald-500/10 to-orange-500/10 border border-white/10">
                                                                   <GitBranch className="h-4 w-4 text-orange-400" />
-                                                                  <p className="text-[9px] text-orange-400/80 font-medium">
-                                                                    Ce bloc crée deux chemins : <b>VRAI</b> et <b>FAUX</b>. Connectez les nœuds suivants selon le résultat.
-                                                                  </p>
+                                                                  <div className="flex-1">
+                                                                    <p className="text-[10px] text-white/80 font-medium">
+                                                                      Si <code className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 mx-1">{`{{${cond.field}}}`}</code>
+                                                                      <span className="text-amber-400 mx-1">
+                                                                        {cond.operator === "equals" ? "=" :
+                                                                          cond.operator === "not_equals" ? "≠" :
+                                                                            cond.operator === "contains" ? "contient" :
+                                                                              cond.operator === "less_than" ? "<" :
+                                                                                cond.operator === "greater_than" ? ">" :
+                                                                                  cond.operator === "is_true" ? "est vrai" : "est faux"}
+                                                                      </span>
+                                                                      {!["is_true", "is_false"].includes(cond.operator) && (
+                                                                        <code className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">{cond.value || "..."}</code>
+                                                                      )}
+                                                                    </p>
+                                                                  </div>
+                                                                </div>
+
+                                                                <div className="grid grid-cols-2 gap-2 text-center">
+                                                                  <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                                                                    <Check className="h-4 w-4 text-emerald-400 mx-auto mb-1" />
+                                                                    <p className="text-[10px] font-bold text-emerald-400">VRAI</p>
+                                                                  </div>
+                                                                  <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/30">
+                                                                    <X className="h-4 w-4 text-red-400 mx-auto mb-1" />
+                                                                    <p className="text-[10px] font-bold text-red-400">FAUX</p>
+                                                                  </div>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          );
+
+                                                        case "switch_router":
+                                                          const switchCfg = cfg({
+                                                            field: "intent",
+                                                            cases: [] as { id: number; value: string; label: string; color: string }[],
+                                                            hasDefault: true
+                                                          });
+
+                                                          const caseColors = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#ec4899", "#ef4444", "#06b6d4", "#84cc16"];
+
+                                                          return (
+                                                            <div className="space-y-0">
+                                                              <div className="pb-4 border-b border-white/5">
+                                                                <h3 className="text-base font-semibold text-white">Aiguillage Multi-Chemins</h3>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">Route vers différents chemins selon la valeur</p>
+                                                              </div>
+
+                                                              <div className="py-4 space-y-4">
+                                                                {/* Variable à tester */}
+                                                                <FormField label="Variable à tester">
+                                                                  <StyledSelect
+                                                                    value={switchCfg.field}
+                                                                    onChange={(e) => updateCfg({ ...switchCfg, field: e.target.value })}
+                                                                    options={[
+                                                                      { value: "intent", label: "🎯 Intention détectée" },
+                                                                      { value: "sentiment", label: "😊 Sentiment" },
+                                                                      { value: "urgency", label: "🔥 Urgence (1-5)" },
+                                                                      { value: "message", label: "💬 Message reçu" },
+                                                                    ]}
+                                                                  />
+                                                                </FormField>
+
+                                                                {/* Liste des cas */}
+                                                                <div className="space-y-2">
+                                                                  <div className="flex items-center justify-between">
+                                                                    <label className="text-sm text-white/80 font-medium flex items-center gap-2">
+                                                                      <ListChecks className="h-4 w-4 text-purple-400" />
+                                                                      Chemins de routage
+                                                                    </label>
+                                                                    <button
+                                                                      onClick={() => {
+                                                                        const newCase = {
+                                                                          id: Date.now(),
+                                                                          value: "",
+                                                                          label: `Cas ${(switchCfg.cases || []).length + 1}`,
+                                                                          color: caseColors[(switchCfg.cases || []).length % caseColors.length]
+                                                                        };
+                                                                        updateCfg({ ...switchCfg, cases: [...(switchCfg.cases || []), newCase] });
+                                                                      }}
+                                                                      className="h-7 px-3 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 text-xs font-medium flex items-center gap-1.5 transition-colors"
+                                                                    >
+                                                                      <Plus className="h-3 w-3" />
+                                                                      Ajouter
+                                                                    </button>
+                                                                  </div>
+
+                                                                  <div className="space-y-2">
+                                                                    {(switchCfg.cases || []).length === 0 ? (
+                                                                      <div className="p-4 rounded-xl border border-dashed border-purple-500/30 bg-purple-500/5 text-center">
+                                                                        <Filter className="h-6 w-6 text-purple-400 mx-auto mb-2" />
+                                                                        <p className="text-xs text-purple-400">Ajoutez des cas pour créer des chemins</p>
+                                                                        <p className="text-[10px] text-purple-400/60 mt-1">Ex: Si intent = "devis" → Chemin 1</p>
+                                                                      </div>
+                                                                    ) : (
+                                                                      (switchCfg.cases || []).map((c: any, idx: number) => (
+                                                                        <div
+                                                                          key={c.id}
+                                                                          className="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-2"
+                                                                          style={{ borderLeftWidth: "3px", borderLeftColor: c.color }}
+                                                                        >
+                                                                          <div className="flex items-center gap-2">
+                                                                            <div
+                                                                              className="h-6 w-6 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0"
+                                                                              style={{ backgroundColor: `${c.color}30`, color: c.color }}
+                                                                            >
+                                                                              {idx + 1}
+                                                                            </div>
+                                                                            <input
+                                                                              type="text"
+                                                                              value={c.value}
+                                                                              onChange={(e) => {
+                                                                                const newCases = [...(switchCfg.cases || [])];
+                                                                                newCases[idx] = { ...c, value: e.target.value };
+                                                                                updateCfg({ ...switchCfg, cases: newCases });
+                                                                              }}
+                                                                              placeholder={switchCfg.field === "intent" ? "devis, reservation, commande..." : "valeur..."}
+                                                                              className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-white/30 focus:border-purple-500/50 focus:outline-none"
+                                                                            />
+                                                                            <button
+                                                                              onClick={() => {
+                                                                                const newCases = (switchCfg.cases || []).filter((_: any, i: number) => i !== idx);
+                                                                                updateCfg({ ...switchCfg, cases: newCases });
+                                                                              }}
+                                                                              className="h-6 w-6 rounded hover:bg-red-500/10 text-white/40 hover:text-red-400 flex items-center justify-center transition-colors"
+                                                                            >
+                                                                              <X className="h-3 w-3" />
+                                                                            </button>
+                                                                          </div>
+                                                                          <div className="flex items-center gap-2 pl-8">
+                                                                            <ArrowRight className="h-3 w-3 text-white/30" />
+                                                                            <span className="text-[10px] text-white/50">Chemin vers le bloc suivant</span>
+                                                                          </div>
+                                                                        </div>
+                                                                      ))
+                                                                    )}
+                                                                  </div>
+                                                                </div>
+
+                                                                {/* Suggestions rapides pour intent */}
+                                                                {switchCfg.field === "intent" && (
+                                                                  <div className="space-y-2">
+                                                                    <p className="text-[10px] text-white/40">Ajouter rapidement :</p>
+                                                                    <div className="flex flex-wrap gap-1.5">
+                                                                      {[
+                                                                        { value: "salutation", emoji: "👋" },
+                                                                        { value: "plainte", emoji: "😤" },
+                                                                        { value: "commande", emoji: "🛒" },
+                                                                        { value: "devis", emoji: "📝" },
+                                                                        { value: "reservation", emoji: "📅" },
+                                                                        { value: "annulation", emoji: "❌" },
+                                                                      ].filter(s => !(switchCfg.cases || []).some((c: any) => c.value === s.value)).map((s) => (
+                                                                        <button
+                                                                          key={s.value}
+                                                                          onClick={() => {
+                                                                            const newCase = {
+                                                                              id: Date.now(),
+                                                                              value: s.value,
+                                                                              label: s.value,
+                                                                              color: caseColors[(switchCfg.cases || []).length % caseColors.length]
+                                                                            };
+                                                                            updateCfg({ ...switchCfg, cases: [...(switchCfg.cases || []), newCase] });
+                                                                          }}
+                                                                          className="px-2 py-1 rounded text-[9px] bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                                                                        >
+                                                                          {s.emoji} {s.value}
+                                                                        </button>
+                                                                      ))}
+                                                                    </div>
+                                                                  </div>
+                                                                )}
+
+                                                                {/* Chemin par défaut */}
+                                                                <div className="flex items-center justify-between p-3 rounded-xl bg-gray-500/10 border border-gray-500/20">
+                                                                  <div className="flex items-center gap-2">
+                                                                    <div className="h-6 w-6 rounded-lg bg-gray-500/20 flex items-center justify-center">
+                                                                      <span className="text-[10px] text-gray-400">∞</span>
+                                                                    </div>
+                                                                    <div>
+                                                                      <p className="text-xs font-medium text-gray-300">Chemin par défaut</p>
+                                                                      <p className="text-[9px] text-gray-400">Si aucun cas ne correspond</p>
+                                                                    </div>
+                                                                  </div>
+                                                                  <button
+                                                                    onClick={() => updateCfg({ ...switchCfg, hasDefault: !switchCfg.hasDefault })}
+                                                                    className={`relative w-10 h-5 rounded-full transition-colors ${switchCfg.hasDefault ? 'bg-gray-500' : 'bg-white/20'}`}
+                                                                  >
+                                                                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${switchCfg.hasDefault ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                                                                  </button>
+                                                                </div>
+
+                                                                {/* Aperçu */}
+                                                                <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/20">
+                                                                  <p className="text-[10px] text-white/60 mb-2">Aperçu du routage :</p>
+                                                                  <div className="space-y-1">
+                                                                    {(switchCfg.cases || []).map((c: any, idx: number) => (
+                                                                      <div key={c.id} className="flex items-center gap-2 text-[10px]">
+                                                                        <code className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400">{`{{${switchCfg.field}}}`}</code>
+                                                                        <span className="text-amber-400">=</span>
+                                                                        <code className="px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: `${c.color}30`, color: c.color }}>{c.value || "..."}</code>
+                                                                        <ArrowRight className="h-3 w-3 text-white/30" />
+                                                                        <span className="text-white/60">Chemin {idx + 1}</span>
+                                                                      </div>
+                                                                    ))}
+                                                                    {switchCfg.hasDefault && (
+                                                                      <div className="flex items-center gap-2 text-[10px]">
+                                                                        <span className="text-gray-400">Sinon</span>
+                                                                        <ArrowRight className="h-3 w-3 text-white/30" />
+                                                                        <span className="text-gray-400">Chemin par défaut</span>
+                                                                      </div>
+                                                                    )}
+                                                                  </div>
                                                                 </div>
                                                               </div>
                                                             </div>
                                                           );
 
                                                         case "show_catalog":
+
                                                           const cat = cfg({
                                                             category: "all",
                                                             layout: "grid",
@@ -13771,17 +10995,16 @@ Ton but est de transformer chaque message en vente.
                                                               <div className="p-5 rounded-2xl bg-black/40 border border-white/10 space-y-4 shadow-inner group transition-all hover:border-white/20">
                                                                 <div className="flex items-center justify-between px-1">
                                                                   <div className="flex items-center gap-2">
-                                                                    <Terminal className="h-3 w-3 text-muted-foreground" />
+                                                                    <Settings2 className="h-3 w-3 text-muted-foreground" />
                                                                     <label className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-widest">
-                                                                      Paramètres
-                                                                      avancés
+                                                                      Options du bloc
                                                                     </label>
                                                                   </div>
                                                                   <Badge
                                                                     variant="outline"
                                                                     className="text-[7px] border-white/10 text-muted-foreground/40 font-black uppercase px-2"
                                                                   >
-                                                                    Optionnel
+                                                                    Facultatif
                                                                   </Badge>
                                                                 </div>
 
@@ -13792,11 +11015,11 @@ Ton but est de transformer chaque message en vente.
                                                                         <div className="flex items-center gap-2">
                                                                           <Sparkles className="h-4 w-4 text-primary" />
                                                                           <p className="text-[10px] font-bold text-primary">
-                                                                            Aucun paramètre défini
+                                                                            Aucune option ajoutée
                                                                           </p>
                                                                         </div>
                                                                         <p className="text-[9px] text-muted-foreground/70 leading-relaxed">
-                                                                          Ajoutez des paramètres personnalisés pour ce bloc. Choisissez le type de champ (Texte, Nombre, Oui/Non, Liste) selon vos besoins.
+                                                                          Ajoutez des champs personnalisés pour ce bloc (Texte, Nombre, Case à cocher ou Liste) selon vos besoins.
                                                                         </p>
                                                                       </div>
                                                                     )}
@@ -13834,10 +11057,10 @@ Ton but est de transformer chaque message en vente.
                                                                                   });
                                                                                   updateConfigObject(newObj);
                                                                                 }}
-                                                                                placeholder="Nom du paramètre (ex: enabled)"
+                                                                                placeholder="Nom de l'option (ex: Ville, Couleur...)"
                                                                                 className="h-8 bg-black/40 border-white/10 text-[10px] flex-1"
                                                                               />
-                                                                              <span className="text-[9px] text-muted-foreground/60 font-bold uppercase">Booléen</span>
+                                                                              <span className="text-[9px] text-muted-foreground/60 font-bold uppercase tracking-widest">Case à cocher</span>
                                                                             </div>
                                                                             <button
                                                                               onClick={() => {
@@ -13896,7 +11119,7 @@ Ton but est de transformer chaque message en vente.
                                                                                 });
                                                                                 updateConfigObject(newObj);
                                                                               }}
-                                                                              placeholder="Nom du paramètre (ex: apiUrl, timeout, mode)"
+                                                                              placeholder="Nom de l'option (ex: Adresse, Age...)"
                                                                               className="h-8 bg-black/40 border-white/10 text-[10px]"
                                                                             />
                                                                             <select
@@ -13927,10 +11150,10 @@ Ton but est de transformer chaque message en vente.
                                                                               }}
                                                                               className="h-8 bg-black/60 border border-white/10 rounded-lg text-[9px] text-white px-2 cursor-pointer"
                                                                             >
-                                                                              <option value="text">Texte</option>
-                                                                              <option value="number">Nombre</option>
-                                                                              <option value="boolean">Oui/Non</option>
-                                                                              <option value="select">Liste</option>
+                                                                              <option value="text">Texte (ABC)</option>
+                                                                              <option value="number">Nombre (123)</option>
+                                                                              <option value="boolean">Oui / Non</option>
+                                                                              <option value="select">Liste de choix</option>
                                                                             </select>
                                                                             <Button
                                                                               variant="ghost"
@@ -13993,8 +11216,8 @@ Ton but est de transformer chaque message en vente.
 
                                                                           {valueType === 'select' && (
                                                                             <div className="space-y-2">
-                                                                              <div className="text-[8px] text-muted-foreground/60 uppercase font-bold px-1">
-                                                                                Options (une par ligne)
+                                                                              <div className="text-[8px] text-muted-foreground/60 uppercase font-black tracking-widest px-1">
+                                                                                Choix possibles (un par ligne)
                                                                               </div>
                                                                               <textarea
                                                                                 value={Array.isArray(value) ? value.join('\n') : ''}
@@ -14051,17 +11274,17 @@ Ton but est de transformer chaque message en vente.
                                                                         onClick={() => {
                                                                           const newObj: Record<string, any> = { ...parsedConfig };
                                                                           let idx = 1;
-                                                                          let newKey = "param_1";
+                                                                          let newKey = "option_1";
                                                                           while (newKey in newObj) {
                                                                             idx += 1;
-                                                                            newKey = `param_${idx}`;
+                                                                            newKey = `option_${idx}`;
                                                                           }
                                                                           newObj[newKey] = "";
                                                                           updateConfigObject(newObj);
                                                                         }}
                                                                       >
                                                                         <Plus className="h-3 w-3 mr-1" />
-                                                                        <span className="text-[11px]">Texte</span>
+                                                                        <span className="text-[11px]">Ajouter du Texte</span>
                                                                       </Button>
                                                                       <Button
                                                                         type="button"
@@ -14071,17 +11294,17 @@ Ton but est de transformer chaque message en vente.
                                                                         onClick={() => {
                                                                           const newObj: Record<string, any> = { ...parsedConfig };
                                                                           let idx = 1;
-                                                                          let newKey = "param_1";
+                                                                          let newKey = "option_1";
                                                                           while (newKey in newObj) {
                                                                             idx += 1;
-                                                                            newKey = `param_${idx}`;
+                                                                            newKey = `option_${idx}`;
                                                                           }
                                                                           newObj[newKey] = 0;
                                                                           updateConfigObject(newObj);
                                                                         }}
-                                                                        title="Ajouter un paramètre numérique"
+                                                                        title="Ajouter un champ Nombre"
                                                                       >
-                                                                        <span className="text-[11px]">123</span>
+                                                                        <span className="text-[11px]">Un Nombre</span>
                                                                       </Button>
                                                                       <Button
                                                                         type="button"
@@ -14091,15 +11314,15 @@ Ton but est de transformer chaque message en vente.
                                                                         onClick={() => {
                                                                           const newObj: Record<string, any> = { ...parsedConfig };
                                                                           let idx = 1;
-                                                                          let newKey = "param_1";
+                                                                          let newKey = "option_1";
                                                                           while (newKey in newObj) {
                                                                             idx += 1;
-                                                                            newKey = `param_${idx}`;
+                                                                            newKey = `option_${idx}`;
                                                                           }
                                                                           newObj[newKey] = true;
                                                                           updateConfigObject(newObj);
                                                                         }}
-                                                                        title="Ajouter un paramètre booléen (Oui/Non)"
+                                                                        title="Ajouter un choix Oui / Non"
                                                                       >
                                                                         <Check className="h-3 w-3" />
                                                                       </Button>
@@ -14111,12 +11334,12 @@ Ton but est de transformer chaque message en vente.
                                                                         onClick={() => {
                                                                           const newObj: Record<string, any> = { ...parsedConfig };
                                                                           let idx = 1;
-                                                                          let newKey = "param_1";
+                                                                          let newKey = "option_1";
                                                                           while (newKey in newObj) {
                                                                             idx += 1;
-                                                                            newKey = `param_${idx}`;
+                                                                            newKey = `option_${idx}`;
                                                                           }
-                                                                          newObj[newKey] = ['option1', 'option2'];
+                                                                          newObj[newKey] = ["Choix 1", "Choix 2"];
                                                                           updateConfigObject(newObj);
                                                                         }}
                                                                         title="Ajouter une liste de choix"
@@ -14151,14 +11374,14 @@ Ton but est de transformer chaque message en vente.
                                                                       <div className="flex items-center gap-2">
                                                                         <Code className="h-3.5 w-3.5 text-emerald-400/60 group-hover:text-emerald-400 transition-colors" />
                                                                         <span className="text-[9px] font-bold uppercase tracking-wider">
-                                                                          Aperçu JSON (Avancé)
+                                                                          Données de l'étape
                                                                         </span>
                                                                       </div>
                                                                       <ChevronDown className="h-3 w-3 text-muted-foreground/40 group-hover:text-white/60 transition-transform duration-200" />
                                                                     </summary>
                                                                     <div className="px-3 pb-3 pt-2 space-y-2">
                                                                       <p className="text-[8px] text-muted-foreground/50 italic">
-                                                                        Ce JSON est généré automatiquement à partir de vos paramètres ci-dessus. Vous n'avez pas besoin de le modifier manuellement.
+                                                                        Ces informations sont générées automatiquement selon vos choix ci-dessus.
                                                                       </p>
                                                                       <pre className="text-[10px] text-emerald-400 font-mono whitespace-pre-wrap break-all bg-black/60 p-3 rounded-lg border border-emerald-500/10 overflow-x-auto">
                                                                         {JSON.stringify(

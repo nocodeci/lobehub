@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import OpenAI from "openai";
+import { ChatOpenAI } from "@langchain/openai";
+import { DynamicTool, createAgent } from "langchain";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -390,6 +392,7 @@ RÈGLES STRICTES:
             `Réponse GPT générée (${aiResponse.length} caractères)`,
             Date.now() - startTime,
           );
+          return context;
         } catch (e: any) {
           context.responses.push(`❌ Erreur GPT: ${e.message}`);
           addLog(
@@ -414,34 +417,48 @@ RÈGLES STRICTES:
           agentCfg = JSON.parse(node.config || "{}");
         } catch (e) { }
 
+        // 1. Define Tools
+        const tools = [
+          new DynamicTool({
+            name: "recherche_catalogue",
+            description: "Recherche des produits dans le catalogue (iPhone, MacBook, etc.). Retourne les prix et stocks. Entrée: requête de recherche.",
+            func: async (query) => {
+              const results = PRODUCTS_DB.filter(p =>
+                p.name.toLowerCase().includes(query.toLowerCase())
+              );
+              return results.length > 0 ? JSON.stringify(results) : "Aucun produit trouvé.";
+            },
+          }),
+          new DynamicTool({
+            name: "statut_commande",
+            description: "Vérifie le statut d'une commande. Entrée: ID de la commande (#12345).",
+            func: async (orderId) => {
+              return `La commande ${orderId} est en cours de livraison. Arrivée prévue demain.`;
+            },
+          }),
+        ];
+
         let contextInfo = "";
 
-        // RAG Logic: Search if knowledgeBaseId is provided
+        // RAG Logic
         if (agentCfg.knowledgeBaseId) {
           try {
             const chunks = await prisma.knowledgeChunk.findMany({
               where: {
-                document: {
-                  knowledgeBaseId: agentCfg.knowledgeBaseId,
-                },
-                content: {
-                  contains: context.userMessage, // Simple text search for MVP
-                  mode: "insensitive",
-                },
+                document: { knowledgeBaseId: agentCfg.knowledgeBaseId },
+                content: { contains: context.userMessage, mode: "insensitive" },
               },
               take: 5,
               select: { content: true },
             });
-
             if (chunks.length > 0) {
-              contextInfo = "\n\nCONTEXTE ISSU DE LA BASE DE CONNAISSANCES:\n" +
+              contextInfo = "\n\nCONTEXTE BASE DE CONNAISSANCES:\n" +
                 chunks.map((c: any) => `- ${c.content}`).join("\n");
             }
-          } catch (e) {
-            console.error("RAG Search Error:", e);
-          }
+          } catch (e) { }
         }
 
+        // 2. Persona & Prompt
         const personalityPresets: Record<string, string> = {
           Expert: "Sois précis, technique et professionnel.",
           Vendeur: "Sois persuasif, chaleureux et orienté vers la vente.",
@@ -453,23 +470,45 @@ RÈGLES STRICTES:
         const systemPrompt = `Tu es ${agentCfg.agentName || "un assistant IA"}.
 ${agentCfg.instructions || "Réponds de manière utile."}
 ${personalityInstructions}
-${agentCfg.strictMode ? "IMPORTANT: Réponds UNIQUEMENT en utilisant les informations du contexte fourni ci-dessous. Si l'information n'est pas présente, réponds que tu ne sais pas." : ""}
+${agentCfg.strictMode ? "IMPORTANT: Réponds UNIQUEMENT via le contexte ou les outils fournis. Si absent, dis que tu ne sais pas." : ""}
+
 ${contextInfo}`;
 
+        // 3. Create & Run LangChain Agent (v1.x style)
         try {
-          const aiResult = await openai.chat.completions.create({
-            model: agentCfg.model || "gpt-4o-mini",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: context.userMessage },
-            ],
+          const model = new ChatOpenAI({
+            modelName: agentCfg.model || "gpt-4o-mini",
             temperature: agentCfg.temperature || 0.4,
+            apiKey: process.env.OPENAI_API_KEY,
           });
 
-          const aiResponse = aiResult.choices[0]?.message?.content || "Désolé, je ne peux pas répondre pour le moment.";
+          // In LangChain v1.x (ReactAgent), createAgent is the main entry point
+          const agent = createAgent({
+            model,
+            tools,
+            systemPrompt,
+          });
+
+          // Run the agent
+          // @ts-ignore - messages might be expecting specific BaseMessage classes
+          const result = await agent.invoke({
+            messages: [{ role: "user", content: context.userMessage }]
+          });
+
+          // Extract response from result messages
+          const lastMsg = result.messages[result.messages.length - 1];
+          let aiResponse = "Aucune réponse générée.";
+
+          if (typeof lastMsg?.content === "string") {
+            aiResponse = lastMsg.content;
+          } else if (Array.isArray(lastMsg?.content)) {
+            aiResponse = lastMsg.content.map((c: any) => (typeof c === 'string' ? c : (c.text || ""))).join("");
+          }
+
           context.responses.push(aiResponse);
-          addLog(context, node, "success", `Agent IA a répondu (${aiResponse.length} chars)`, Date.now() - startTime);
+          addLog(context, node, "success", `Agent LangChain (ReAct) a répondu`, Date.now() - startTime);
         } catch (e: any) {
+          console.error("LangChain Error:", e);
           context.responses.push(`❌ Erreur Agent IA: ${e.message}`);
           addLog(context, node, "error", `Erreur Agent: ${e.message}`, Date.now() - startTime);
         }
@@ -1873,7 +1912,7 @@ export async function POST(request: NextRequest) {
     }
 
     const hasTriggerNode = nodes.some((n: WorkflowNode) =>
-      ["whatsapp_message", "keyword", "new_contact"].includes(n.type),
+      ["whatsapp_message", "keyword", "new_contact", "telegram_message", "webhook_trigger"].includes(n.type),
     );
 
     if (!hasTriggerNode) {
@@ -1905,7 +1944,7 @@ export async function POST(request: NextRequest) {
 
     // Find the starting trigger (the leftmost trigger)
     const startNode = sortedNodes.find((n: WorkflowNode) =>
-      ["whatsapp_message", "keyword", "new_contact"].includes(n.type),
+      ["whatsapp_message", "keyword", "new_contact", "telegram_message", "webhook_trigger"].includes(n.type),
     );
 
     if (!startNode) {

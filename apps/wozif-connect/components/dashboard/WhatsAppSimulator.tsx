@@ -422,7 +422,8 @@ export function WhatsAppSimulator({
         const logs: string[] = [];
 
         // Find trigger nodes or starting node
-        let currentNode = nodes.find(n => n.type === 'keyword' || n.type === 'whatsapp_message' || n.type === 'telegram_message');
+        // Priority: Current active trigger if we had one, otherwise find any trigger node
+        let currentNode = nodes.find(n => n.type === 'whatsapp_message' || n.type === 'keyword' || n.type === 'telegram_message' || n.type === 'webhook_trigger');
         if (!currentNode && nodes.length > 0) currentNode = nodes[0];
 
         // Extraire la dernière image et audio des messages pour le contexte
@@ -469,6 +470,22 @@ export function WhatsAppSimulator({
         const nodeStatusMap: Record<number, "success" | "error" | "warning" | "skipped" | "running"> = {};
         const loopCounters = new Map<number, number>();
 
+        const isPlainObject = (v: any) => {
+            return v !== null && typeof v === 'object' && !Array.isArray(v);
+        };
+
+        const deepMergeInPlace = (target: any, source: any) => {
+            if (!isPlainObject(source) || !isPlainObject(target)) return;
+            for (const [key, value] of Object.entries(source)) {
+                if (isPlainObject(value)) {
+                    if (!isPlainObject((target as any)[key])) (target as any)[key] = {};
+                    deepMergeInPlace((target as any)[key], value);
+                } else {
+                    (target as any)[key] = value;
+                }
+            }
+        };
+
         let nodeIndex = 0;
         while (currentNode) {
             const startTime = Date.now();
@@ -482,22 +499,32 @@ export function WhatsAppSimulator({
             nodeStatusMap[currentNode.id] = "running";
             if (setNodeStatuses) setNodeStatuses({ ...nodeStatusMap });
 
-            // Capture input context before execution
-            const inputContext = JSON.parse(JSON.stringify(context));
+            // Safely capture input context for debugging (without functions/circular refs)
+            let inputContext = {};
+            try {
+                inputContext = JSON.parse(JSON.stringify(context, (key, value) =>
+                    typeof value === 'function' ? undefined : value
+                ));
+            } catch (e) {
+                console.warn("[Simulator] Could not stringify context", e);
+            }
 
             // Execute the node
             const result = await executeNode(currentNode, context);
             const duration = Date.now() - startTime;
 
-            // Capture output context after execution
-            const outputContext = JSON.parse(JSON.stringify(context));
-
-            // Store node output data in context for next nodes to access
+            // Store node output data in context for next nodes to access (automatic mode A)
             if (result.data && typeof result.data === 'object') {
-                Object.keys(result.data).forEach(key => {
-                    context[key] = result.data[key];
-                });
+                deepMergeInPlace(context, result.data);
             }
+
+            // Safely capture output context
+            let outputContext = {};
+            try {
+                outputContext = JSON.parse(JSON.stringify(context, (key, value) =>
+                    typeof value === 'function' ? undefined : value
+                ));
+            } catch (e) { }
 
             // Notify about node execution data for inspection
             if (onNodeExecutionData) {
@@ -528,7 +555,8 @@ export function WhatsAppSimulator({
             };
 
             executedNodes.push(nodeStatus);
-            logs.push(`[${currentNode.name}] ${result.message}`);
+            const statusEmoji = result.success ? '✅' : '❌';
+            logs.push(`${statusEmoji} [${currentNode.name}] ${result.message || (result.success ? 'Succès' : 'Erreur')}`);
 
             // Update execution sequence for logs
             if (setExecutionSequence) {
@@ -539,44 +567,79 @@ export function WhatsAppSimulator({
             await new Promise(resolve => setTimeout(resolve, 300));
 
             // Decide where to go next
-            let nextNodeId: number | undefined = currentNode.connectedTo;
+            // IMPORTANT: -1 means "not connected", treat it as undefined
+            let nextNodeId: number | undefined = (currentNode.connectedTo !== undefined && currentNode.connectedTo !== -1) ? currentNode.connectedTo : undefined;
 
-            if (currentNode.type === 'condition' || currentNode.type === 'random_choice' || currentNode.type === 'loop') {
-                let passed = false;
+            // Debug: log connection info
+            console.log(`[Simulator] Node ${currentNode.id} (${currentNode.type}) connectedTo:`, currentNode.connectedTo, '-> nextNodeId:', nextNodeId);
 
-                if (currentNode.type === 'loop') {
+            if (currentNode.type === 'condition' || currentNode.type === 'random_choice' || currentNode.type === 'loop' || currentNode.type === 'switch_router') {
+                if (currentNode.type === 'switch_router') {
+                    const matchedIdx = result.data?.matchedIndex;
+                    if (matchedIdx !== undefined && matchedIdx !== -1) {
+                        nextNodeId = currentNode.conditionalConnections?.[`case_${matchedIdx}`];
+                    } else {
+                        nextNodeId = currentNode.conditionalConnections?.default;
+                    }
+                } else if (currentNode.type === 'loop') {
                     const loopId = currentNode.id;
                     const currentCount = loopCounters.get(loopId) || 0;
                     const maxCount = result.data?.loopCount || 3;
 
                     if (currentCount < maxCount) {
-                        passed = true;
+                        nextNodeId = currentNode.connectedToTrue || currentNode.conditionalConnections?.true;
                         loopCounters.set(loopId, currentCount + 1);
                         logs.push(`[${currentNode.name}] Itération ${currentCount + 1}/${maxCount}`);
                     } else {
-                        passed = false;
+                        nextNodeId = currentNode.connectedToFalse || currentNode.conditionalConnections?.false;
                         loopCounters.delete(loopId);
                         logs.push(`[${currentNode.name}] Boucle terminée`);
                     }
                 } else {
-                    passed = result.data?.conditionPassed || (currentNode.type === 'random_choice' && result.data?.selectedIndex === 0);
+                    const passed = result.data?.conditionPassed || (currentNode.type === 'random_choice' && result.data?.selectedIndex === 0);
+                    if (passed) {
+                        nextNodeId = currentNode.conditionalConnections?.true || currentNode.connectedToTrue;
+                    } else {
+                        nextNodeId = currentNode.conditionalConnections?.false || currentNode.connectedToFalse;
+                    }
                 }
 
-                if (passed) {
-                    nextNodeId = currentNode.connectedToTrue && currentNode.connectedToTrue !== -1 ? currentNode.connectedToTrue : undefined;
-                } else {
-                    nextNodeId = currentNode.connectedToFalse && currentNode.connectedToFalse !== -1 ? currentNode.connectedToFalse : undefined;
+                // If nextNodeId is -1 or undefined, fallback to general connectedTo
+                if (nextNodeId === undefined || nextNodeId === -1) {
+                    nextNodeId = (currentNode.connectedTo !== -1) ? currentNode.connectedTo : undefined;
                 }
             }
+
 
             if (!result.success && currentNode.type === 'keyword') {
                 logs.push(`[${currentNode.name}] Mot-clé non trouvé - Arrêt du workflow`);
                 break;
             }
 
-            // 🔥 STEP 3: Animate wire to next node BEFORE moving to next
-            const nextNode = nextNodeId ? nodes.find(n => n.id === nextNodeId) : null;
+            // Determine the next node
+            let nextNode = null;
+            if (nextNodeId !== undefined && nextNodeId !== -1) {
+                // Find node by ID, ensuring type-agnostic comparison
+                nextNode = nodes.find(n => String(n.id) === String(nextNodeId));
 
+                if (!nextNode) {
+                    logs.push(`⚠️ Bloc suivant (ID: ${nextNodeId}) non trouvé sur le canevas.`);
+                }
+            }
+
+            // FALLBACK: If no explicit connection, try to find the next node by X position (left to right flow)
+            if (!nextNode && nodeIndex === 0) {
+                const currentX = currentNode.x || 0;
+                const nodesAfter = nodes.filter(n => n.id !== currentNode.id && (n.x || 0) > currentX);
+                if (nodesAfter.length > 0) {
+                    nodesAfter.sort((a, b) => (a.x || 0) - (b.x || 0));
+                    nextNode = nodesAfter[0];
+                    logs.push(`↪️ Connexion automatique vers [${nextNode.name}] (par position)`);
+                    console.log(`[Simulator] Fallback: found next node by position:`, nextNode.id, nextNode.name);
+                }
+            }
+
+            // 🔥 STEP 3: Animate wire to next node BEFORE moving to next
             if (nextNode) {
                 console.log(`→ [${nodeIndex}] Wire animation to next node`);
                 if (setActiveStep) setActiveStep(visualNodeIndex + 0.5);
