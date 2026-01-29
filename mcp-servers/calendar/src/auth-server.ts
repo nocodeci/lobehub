@@ -3,9 +3,12 @@ import { AuthServer } from './auth/server.js';
 
 // Check for command line arguments
 const args = process.argv.slice(2);
+const shouldServe = args.includes('--serve') || process.env.CALENDAR_AUTH_SERVE === '1';
+const servePort = Number(process.env.CALENDAR_AUTH_PORT || 3500);
 if (args.length > 0) {
   // Assume the first argument is the account mode
-  process.env.GOOGLE_ACCOUNT_MODE = args[0];
+  const accountModeArg = args.find((a) => !a.startsWith('-'));
+  if (accountModeArg) process.env.GOOGLE_ACCOUNT_MODE = accountModeArg;
 }
 
 async function runAuthServer() {
@@ -14,6 +17,28 @@ async function runAuthServer() {
     const oauth2Client = await initializeOAuth2Client();
     
     authServer = new AuthServer(oauth2Client);
+
+    if (shouldServe) {
+      const ok = await authServer.serve(servePort);
+      if (!ok) {
+        process.stderr.write(`Failed to start auth server on port ${servePort}.\n`);
+        process.exit(1);
+      }
+
+      process.stderr.write(`Google Calendar auth server listening on http://localhost:${servePort}\n`);
+      process.stderr.write(`Status endpoint: http://localhost:${servePort}/auth/status\n`);
+
+      // Keep process alive until killed
+      const keepAlive = setInterval(() => {}, 1 << 30);
+      process.on('SIGINT', async () => {
+        clearInterval(keepAlive);
+        if (authServer) {
+          await authServer.stop();
+        }
+        process.exit(0);
+      });
+      return;
+    }
     
     const success = await authServer.start(true);
     

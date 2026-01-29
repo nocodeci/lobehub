@@ -15,7 +15,8 @@ import {
     Bell,
     Share2,
     Database,
-    ShieldCheck
+    ShieldCheck,
+    Briefcase
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -24,6 +25,7 @@ import { useSession, signOut } from "next-auth/react";
 
 const navItems = [
     { icon: LayoutDashboard, label: "Vue d'ensemble", path: "/" },
+    { icon: Briefcase, label: "Projet", path: "/projet" },
     { icon: MessageSquare, label: "Campagnes", path: "/campaigns" },
     { icon: ShoppingBag, label: "Produits", path: "/products" },
     { icon: Zap, label: "Automatisations", path: "/automations" },
@@ -57,7 +59,7 @@ export function DashboardSidebar() {
             <motion.div
                 initial={false}
                 animate={{ width: isCollapsed ? "72px" : "260px" }}
-                className="h-full bg-[#171717] rounded-3xl border border-white/10 flex flex-col relative shadow-2xl"
+                className="h-full bg-card rounded-3xl border border-border flex flex-col relative shadow-sm"
             >
                 {/* Logo Section */}
                 <div className="p-4 flex items-center gap-3">
@@ -91,8 +93,8 @@ export function DashboardSidebar() {
                                 <motion.div
                                     whileHover={{ x: isCollapsed ? 0 : 4 }}
                                     className={`flex items-center gap-2.5 p-2.5 rounded-xl transition-all group relative overflow-hidden ${isActive
-                                        ? "bg-primary/10 text-primary border border-primary/20 shadow-[0_0_15px_rgba(37,211,102,0.1)]"
-                                        : "text-muted-foreground hover:text-white hover:bg-white/5 border border-transparent"
+                                        ? "bg-primary text-primary-foreground border-transparent"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent"
                                         }`}
                                 >
                                     <item.icon className={`h-4.5 w-4.5 shrink-0 ${isActive ? "text-primary" : "group-hover:text-primary transition-colors"}`} />
