@@ -444,6 +444,8 @@
     "semantic-release": "^21.1.2",
     "serwist": "^9.5.0",
     "stylelint": "^15.11.0",
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/postcss": "^4.0.0",
     "tsx": "^4.21.0",
     "type-fest": "^5.4.1",
     "typescript": "^5.9.3",
