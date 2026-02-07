@@ -183,15 +183,23 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     position: relative;
     padding: 120px 24px;
     z-index: 1;
-    width: calc(100% - 48px);
-    max-width: 1440px;
-    margin: 24px auto;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
     background: #000;
     overflow: hidden;
     color: #fff;
-    border-radius: 48px;
+    border-radius: 32px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 40px 120px rgba(0, 0, 0, 0.5);
+    
+    @media (min-width: 768px) {
+      border-radius: 40px;
+    }
+    
+    @media (min-width: 1024px) {
+      border-radius: 48px;
+    }
   `,
   heroGlowCircle: css`
     position: absolute;
