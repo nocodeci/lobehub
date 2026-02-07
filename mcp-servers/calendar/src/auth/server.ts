@@ -46,17 +46,50 @@ export class AuthServer {
   /**
    * Generates an OAuth authorization URL with standard settings.
    */
-  private generateOAuthUrl(client: OAuth2Client): string {
+  private generateOAuthUrl(client: OAuth2Client, state?: string): string {
     return client.generateAuthUrl({
       access_type: 'offline',
       scope: ['https://www.googleapis.com/auth/calendar'],
-      prompt: 'consent'
+      prompt: 'consent',
+      state: state || undefined,
     });
   }
 
   private createServer(): http.Server {
     const server = http.createServer(async (req, res) => {
       const url = new URL(req.url || '/', `http://${req.headers.host}`);
+
+      const origin = typeof req.headers.origin === 'string' ? req.headers.origin : '';
+      const isLocalOrigin = origin.includes('localhost') || origin.includes('127.0.0.1');
+      const corsOrigin = origin && isLocalOrigin ? origin : '*';
+
+      if (req.method === 'OPTIONS') {
+        res.writeHead(200, {
+          'Access-Control-Allow-Origin': corsOrigin,
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+        });
+        res.end();
+        return;
+      }
+
+      if (url.pathname === '/auth/status') {
+        try {
+          const connected = await this.tokenManager.validateTokens();
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': corsOrigin,
+          });
+          res.end(JSON.stringify({ connected }));
+        } catch {
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': corsOrigin,
+          });
+          res.end(JSON.stringify({ connected: false }));
+        }
+        return;
+      }
       
       if (url.pathname === '/styles.css') {
         // Serve shared CSS
@@ -67,7 +100,36 @@ export class AuthServer {
       } else if (url.pathname === '/') {
         // Root route - show auth link
         const clientForUrl = this.flowOAuth2Client || this.baseOAuth2Client;
-        const authUrl = this.generateOAuthUrl(clientForUrl);
+        const returnTo = url.searchParams.get('returnTo') || '';
+        const state = returnTo ? Buffer.from(returnTo, 'utf8').toString('base64') : undefined;
+        const authUrl = this.generateOAuthUrl(clientForUrl, state);
+
+        const alreadyConnected = await this.tokenManager.validateTokens().catch(() => false);
+        if (alreadyConnected) {
+          if (returnTo) {
+            res.writeHead(302, { Location: returnTo });
+            res.end();
+            return;
+          }
+
+          const tokenPath = this.tokenManager.getTokenPath();
+          const accountMode = this.tokenManager.getAccountMode();
+          const successHtml = await renderAuthSuccess({
+            accountId: accountMode,
+            tokenPath: tokenPath
+          });
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(successHtml);
+          return;
+        }
+
+        const showUi = url.searchParams.get('ui') === '1';
+        if (!showUi) {
+          res.writeHead(302, { Location: authUrl });
+          res.end();
+          return;
+        }
+
         const accountMode = getAccountMode();
 
         const landingHtml = await renderAuthLanding({
@@ -106,6 +168,16 @@ export class AuthServer {
           const tokenPath = this.tokenManager.getTokenPath();
           const accountMode = this.tokenManager.getAccountMode();
 
+          const stateParam = url.searchParams.get('state') || '';
+          let returnTo = '';
+          if (stateParam) {
+            try {
+              returnTo = Buffer.from(stateParam, 'base64').toString('utf8');
+            } catch {
+              returnTo = '';
+            }
+          }
+
           // Auto-shutdown after successful auth if triggered by MCP tool
           if (this.autoShutdownOnSuccess) {
             // Clear the timeout since auth succeeded
@@ -119,6 +191,14 @@ export class AuthServer {
             }, 2000);
           }
           
+          if (returnTo) {
+            const safeReturnTo = JSON.stringify(returnTo);
+            const html = `<!doctype html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Account connected</title></head><body><script>const returnTo=${safeReturnTo};try{if(window.opener&&!window.opener.closed){try{window.opener.location.href=returnTo;window.close();}catch(e){window.location.href=returnTo;}}else{window.location.href=returnTo;}}catch(e){window.location.href=returnTo;}</script></body></html>`;
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(html);
+            return;
+          }
+
           const successHtml = await renderAuthSuccess({
             accountId: accountMode,
             tokenPath: tokenPath
@@ -162,6 +242,31 @@ export class AuthServer {
         setTimeout(() => reject(new Error('Auth server start timed out after 10 seconds')), 10000);
       })
     ]).catch(() => false); // Return false on timeout instead of throwing
+  }
+
+  async serve(port = 3500): Promise<boolean> {
+    // Start the auth server and keep it running, even if tokens already exist.
+    // This is meant for local development where a UI needs a stable endpoint.
+    const originalRange = this.portRange;
+    this.portRange = { start: port, end: port };
+
+    try {
+      const runningPort = await this.startServerOnAvailablePort();
+      if (runningPort === null) {
+        return false;
+      }
+
+      try {
+        this.flowOAuth2Client = await this.createFlowOAuth2Client(runningPort);
+      } catch {
+        await this.stop();
+        return false;
+      }
+
+      return true;
+    } finally {
+      this.portRange = originalRange;
+    }
   }
 
   private async startWithTimeout(openBrowser = true): Promise<boolean> {

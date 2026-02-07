@@ -2,64 +2,115 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Season';
+  src: url('/fonts/season/SeasonSansUprightsVF.woff2') format('woff2');
+  font-weight: 300 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --background: 0 0% 99.6%;
+    /* Sim Studio Neutral Near-White */
+    --foreground: 0 0% 17.6%;
+    /* --sim-text-primary */
+    --card: 0 0% 99.6%;
+    --card-foreground: 0 0% 17.6%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 142 70% 45%;
-    /* WhatsApp Primary Green */
+    --popover-foreground: 0 0% 17.6%;
+    --primary: 263 90% 64%;
+    /* Sim Studio Brand (Purple) */
     --primary-foreground: 0 0% 100%;
-    --secondary: 168 80% 20%;
-    /* WhatsApp Dark Teal */
-    --secondary-foreground: 210 40% 98%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 142 70% 45%;
+    --secondary: 201 100% 60%;
+    /* Sim Studio Brand Secondary (Blue) */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 263 90% 64%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 142 70% 45%;
-    --radius: 1.25rem;
+    --border: 0 0% 87.8%;
+    /* --sim-border */
+    --input: 0 0% 87.8%;
+    --ring: 263 90% 64%;
+    --radius: 0.6rem;
+    /* Sim Studio rounded style */
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+
+    /* Manus Style Variables */
+    --background-gray-main: #f9f9f9;
+    --fill-input-chat: #ffffff;
+    --border-main: rgba(0, 0, 0, 0.08);
+    --border-light: rgba(0, 0, 0, 0.04);
+    --text-disable: #b3b3b3;
+    --text-secondary: #666666;
+    --icon-primary: #1a1a1a;
+    --icon-secondary: #666666;
+    --icon-tertiary: #999999;
+    --fill-tsp-gray-main: rgba(0, 0, 0, 0.05);
+    --Button-primary-black: #1a1a1a;
+    --text-onblack: #ffffff;
+    --icon-onblack: #ffffff;
   }
 
   .dark {
-    /* Main background #212121 (hsl 0 0% 13%) */
-    --background: 0 0% 13%;
-    --foreground: 210 40% 98%;
-    /* Sidebar/Card background #171717 (hsl 0 0% 9%) */
-    --card: 0 0% 9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 0 0% 9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 142 70% 45%;
+    --background: 0 0% 10.6%;
+    /* Sim Studio Dark Background */
+    --foreground: 0 0% 90.2%;
+    /* --sim-text-primary */
+    --card: 0 0% 11.8%;
+    /* --sim-surface-1 */
+    --card-foreground: 0 0% 90.2%;
+    --popover: 0 0% 11.8%;
+    --popover-foreground: 0 0% 90.2%;
+    --primary: 263 90% 64%;
+    /* Sim Studio Purple */
     --primary-foreground: 0 0% 100%;
-    --secondary: 187 45% 18%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 0 0% 11%;
-    --muted-foreground: 215 15% 70%;
-    --accent: 142 70% 45%;
-    --accent-foreground: 0 0% 9%;
+    --secondary: 201 100% 60%;
+    /* Sim Studio Blue */
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 263 90% 64%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 0 0% 16%;
-    --input: 0 0% 16%;
-    --ring: 142 70% 45%;
+    --border: 0 0% 17.3%;
+    /* --sim-border dark */
+    --input: 0 0% 17.3%;
+    --ring: 263 90% 64%;
+    --radius: 0.6rem;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+    --sim-text-secondary: #cccccc;
+    --sim-brand: #8e4cfb;
+    --sim-brand-secondary: #33b4ff;
+
+    /* Manus Style Variables Dark */
+    --background-gray-main: #1b1b1b;
+    --fill-input-chat: #242424;
+    --border-main: rgba(255, 255, 255, 0.1);
+    --border-dark: rgba(255, 255, 255, 0.2);
+    --border-light: rgba(255, 255, 255, 0.05);
+    --text-disable: #4d4d4d;
+    --text-secondary: #a3a3a3;
+    --icon-primary: #e5e5e5;
+    --icon-secondary: #a3a3a3;
+    --icon-tertiary: #737373;
+    --fill-tsp-gray-main: rgba(255, 255, 255, 0.08);
+    --Button-primary-black: #e5e5e5;
+    --text-onblack: #1a1a1a;
+    --icon-onblack: #1a1a1a;
   }
 }
 
@@ -70,8 +121,139 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  }
+
+  /* Chat response styling - Tiempos Text */
+  .chat-response {
+    font-family: 'Tiempos Text', Georgia, serif;
+    @apply text-[17px] leading-relaxed;
+  }
+
+  /* Code block styling - iA Writer Quattro */
+  code,
+  pre,
+  .font-mono {
+    font-family: "iA Writer Quattro", "iA Writer Mono", Menlo, Monaco, Consolas, monospace !important;
+  }
+}
+
+/* BProgress Styles */
+:root {
+  --bprogress-color: #0081f2;
+  --bprogress-height: 2px;
+  --bprogress-spinner-size: 18px;
+  --bprogress-spinner-animation-duration: 400ms;
+  --bprogress-spinner-border-size: 2px;
+  --bprogress-box-shadow: 0 0 10px #0081f2, 0 0 5px #0081f2;
+  --bprogress-z-index: 99999;
+  --bprogress-spinner-top: 15px;
+  --bprogress-spinner-bottom: auto;
+  --bprogress-spinner-right: 15px;
+  --bprogress-spinner-left: auto;
+}
+
+.bprogress {
+  pointer-events: none;
+  z-index: var(--bprogress-z-index);
+}
+
+.bprogress .bar {
+  background: var(--bprogress-color);
+  position: fixed;
+  z-index: var(--bprogress-z-index);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--bprogress-height);
+}
+
+.bprogress .peg {
+  display: block;
+  position: absolute;
+  right: 0;
+  width: 100px;
+  height: 100%;
+  box-shadow: var(--bprogress-box-shadow);
+  opacity: 1.0;
+  transform: rotate(3deg) translate(0px, -4px);
+}
+
+.bprogress .spinner {
+  display: block;
+  position: fixed;
+  z-index: var(--bprogress-z-index);
+  top: var(--bprogress-spinner-top);
+  bottom: var(--bprogress-spinner-bottom);
+  right: var(--bprogress-spinner-right);
+  left: var(--bprogress-spinner-left);
+}
+
+.bprogress .spinner-icon {
+  width: var(--bprogress-spinner-size);
+  height: var(--bprogress-spinner-size);
+  box-sizing: border-box;
+  border: solid var(--bprogress-spinner-border-size) transparent;
+  border-top-color: var(--bprogress-color);
+  border-left-color: var(--bprogress-color);
+  border-radius: 50%;
+  -webkit-animation: bprogress-spinner var(--bprogress-spinner-animation-duration) linear infinite;
+  animation: bprogress-spinner var(--bprogress-spinner-animation-duration) linear infinite;
+}
+
+@-webkit-keyframes bprogress-spinner {
+  0% {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+
+  100% {
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bprogress-spinner {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Connectors Variables Extension */
+:root {
+  --background-nav: #f7f7f7;
+  --background-menu-white: #ffffff;
+  --logo-color: #1a1a1a;
+  --fill-tsp-white-main: rgba(0, 0, 0, 0.04);
+  --fill-tsp-white-light: rgba(0, 0, 0, 0.02);
+  --fill-tsp-white-dark: rgba(0, 0, 0, 0.06);
+  --border-btn-main: rgba(0, 0, 0, 0.08);
+  --text-blue: #0081f2;
+}
+
+.dark {
+  --background-nav: #161616;
+  --background-menu-white: #1f1f1f;
+  --logo-color: #ffffff;
+  --fill-tsp-white-main: rgba(255, 255, 255, 0.04);
+  --fill-tsp-white-light: rgba(255, 255, 255, 0.02);
+  --fill-tsp-white-dark: rgba(255, 255, 255, 0.06);
+  --border-btn-main: rgba(255, 255, 255, 0.1);
+  --text-blue: #33b4ff;
 }
 
 /* Custom Scrollbar */
@@ -110,15 +292,12 @@
   background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
 }
 
-.bg_pattern_wazzap_conversation {
-  background-image: url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png");
-  background-repeat: repeat;
-  background-size: 400px;
-  filter: invert(1) opacity(0.04);
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 0;
+.primary-glow {
+  @apply bg-primary/10 blur-[120px];
+}
+
+.secondary-glow {
+  @apply bg-secondary/10 blur-[150px];
 }
 
 /* Premium Phone Input Styles */
@@ -226,4 +405,12 @@
 
 .glow-active {
   animation: glowPulse 1.5s ease-in-out infinite;
+}
+
+/* ContentEditable Placeholder */
+[contenteditable][data-placeholder]:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-disable);
+  pointer-events: none;
+  display: block;
 }
