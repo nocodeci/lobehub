@@ -2398,9 +2398,9 @@ RÈGLES D'OR DE TA PERSONNALITÉ (CRITIQUE):
 
 RÈGLES TECHNIQUES (OBLIGATOIRES):
 1. Retourne UNIQUEMENT du JSON (aucun texte hors JSON).
-2. Le JSON doit avoir EXACTEMENT les clés: {"message": string, "nodes": array}.
-3. Chaque node doit respecter: {id:number,type:string,name:string,config:string,x:number,y:number,connectedTo?:number}.
-4. "config" doit être une STRING (éventuellement un JSON sérialisé).
+2. Le JSON doit avoir EXACTEMENT les clés: {"thinking": string, "message": string, "nodes": array}. METS LE CHAMP "thinking" EN PREMIER, PUIS "message".
+3. Dans "thinking", explique ton raisonnement interne, tes choix techniques et comment tu vas structurer l'automatisation. Sois ultra-détaillé sur ta stratégie.
+4. Chaque node doit respecter: {id:number,type:string,name:string,config:string,x:number,y:number,connectedTo?:number}.
 
 FORMAT DU MESSAGE DANS LE JSON :
 - SI TU APPLIQUES UNE NOUVELLE MODIFICATION : Sois super content ! ✨ Commence par un truc du genre "Et hop ! C'est fait ! 😊" ou "Tadaaa ! J'ai rajouté ça pour toi ! 🚀". Explique ensuite ce que tu as fait sans jargon technique.
@@ -2416,6 +2416,116 @@ ${JSON.stringify(nodes)}
 
 DEMANDE DE L'UTILISATEUR (parle-lui comme à un ami) :
 ${message}`;
+
+        if (wantsStream) {
+          const stream = new ReadableStream<Uint8Array>({
+            async start(controller) {
+              try {
+                controller.enqueue(sseEvent("start", { success: true }));
+
+                const openaiStream = await openai.chat.completions.create({
+                  model: "gpt-4o",
+                  messages: [
+                    { role: "system", content: builderSystemPrompt },
+                    ...messages.slice(-50),
+                  ],
+                  response_format: { type: "json_object" },
+                  stream: true,
+                });
+
+                let fullContent = "";
+                let streamedMessage = "";
+                let streamedThinking = "";
+                let currentField: 'none' | 'thinking' | 'message' = 'none';
+                let isEscaped = false;
+
+                for await (const chunk of openaiStream) {
+                  const content = chunk.choices[0]?.delta?.content || "";
+                  fullContent += content;
+
+                  // Better field detection
+                  if (currentField === 'none') {
+                    const thinkingMatch = fullContent.match(/"thinking"\s*:\s*"/);
+                    const messageMatch = fullContent.match(/"message"\s*:\s*"/);
+
+                    if (thinkingMatch && (!messageMatch || thinkingMatch.index! < messageMatch.index!)) {
+                      currentField = 'thinking';
+                    } else if (messageMatch) {
+                      currentField = 'message';
+                    }
+                  }
+
+                  if (currentField !== 'none') {
+                    const matchPattern = currentField === 'thinking' ? /"thinking"\s*:\s*"/ : /"message"\s*:\s*"/;
+                    const match = fullContent.match(matchPattern);
+                    const fieldContent = content;
+
+                    let cleanText = "";
+                    for (let i = 0; i < fieldContent.length; i++) {
+                      const char = fieldContent[i];
+                      if (isEscaped) {
+                        cleanText += char;
+                        isEscaped = false;
+                      } else if (char === '\\') {
+                        isEscaped = true;
+                        cleanText += char;
+                      } else if (char === '"') {
+                        // Field might have ended
+                        currentField = 'none';
+                        break;
+                      } else {
+                        cleanText += char;
+                      }
+                    }
+
+                    if (cleanText) {
+                      const delta = cleanText.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\t/g, "\t");
+                      if (currentField === 'thinking' || (currentField === 'none' && !streamedMessage)) {
+                        streamedThinking += delta;
+                        controller.enqueue(sseEvent("thought", { thought: delta }));
+                      } else {
+                        streamedMessage += delta;
+                        controller.enqueue(sseEvent("delta", { delta }));
+                      }
+                    }
+                  }
+                }
+
+                let builderData: any = {};
+                try {
+                  builderData = JSON.parse(fullContent || "{}");
+                } catch (e) {
+                  console.error("JSON Parse Error in Builder Stream:", e);
+                }
+
+                const extractedUrl = extractFirstUrl(message);
+                let newNodes = sanitizeWorkflowNodes(builderData.nodes);
+                if (extractedUrl) newNodes = ensureWebFetchNode(newNodes, extractedUrl);
+
+                controller.enqueue(sseEvent("done", {
+                  success: true,
+                  response: builderData.message || streamedMessage || (newNodes.length > 0 ? "J'ai généré ton automatisation." : "C'est fait ! ✨"),
+                  thinking: builderData.thinking || streamedThinking,
+                  newNodes: newNodes.length > 0 ? newNodes : nodes,
+                  executed: false,
+                }));
+                controller.close();
+              } catch (e: any) {
+                console.error("Streaming Builder Error:", e);
+                controller.enqueue(sseEvent("error", { error: e.message || String(e) }));
+                controller.close();
+              }
+            },
+          });
+
+          return new Response(stream, {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache, no-transform",
+              Connection: "keep-alive",
+            },
+          });
+        }
 
         const builderResult = await openai.chat.completions.create({
           model: "gpt-4o",
