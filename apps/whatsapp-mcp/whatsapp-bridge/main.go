@@ -778,7 +778,7 @@ func handleMessage(client *whatsmeow.Client, messageStore *MessageStore, msg *ev
 }
 
 // LobeHub webhook URL - configurable via environment variable
-var lobeHubWebhookURL = getEnvOrDefault("LOBEHUB_WEBHOOK_URL", "http://localhost:3010/api/webhooks/whatsapp")
+var lobeHubWebhookURL = getEnvOrDefault("LOBEHUB_WEBHOOK_URL", "https://app.connect.wozif.com/api/webhooks/whatsapp")
 
 func getEnvOrDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
