@@ -415,13 +415,22 @@ async function generateAgentResponse(
         const messages = buildMessagesWithHistory(agent.systemRole, history, currentMessage, webContext);
         console.log(`[WhatsApp Webhook] Sending ${messages.length} messages to OpenAI`);
 
+        const isReasoningModel = agent.model.includes('o1') || agent.model.includes('o3');
+        const apiBody: any = {
+            messages,
+            model: agent.model,
+        };
+
+        if (isReasoningModel) {
+            apiBody.max_completion_tokens = 1000;
+            // Reasoning models typically don't support temperature or other sampling parameters
+        } else {
+            apiBody.max_tokens = 1000;
+            apiBody.temperature = 0.7;
+        }
+
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            body: JSON.stringify({
-                max_tokens: 1000,
-                messages,
-                model: agent.model,
-                temperature: 0.7,
-            }),
+            body: JSON.stringify(apiBody),
             headers: {
                 'Authorization': `Bearer ${OPENAI_API_KEY}`,
                 'Content-Type': 'application/json',
