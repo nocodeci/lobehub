@@ -480,7 +480,7 @@ export async function POST(req: NextRequest) {
         const agent = await getActiveWhatsAppAgent();
 
         if (!agent) {
-            console.log('[WhatsApp Webhook] No active agent, ignoring message');
+            console.warn('[WhatsApp Webhook] No active agent found with "lobe-whatsapp-local" plugin. Please check your agent settings in Connect.');
             return NextResponse.json({ status: 'no_active_agent' });
         }
 
@@ -516,6 +516,7 @@ export async function POST(req: NextRequest) {
         const sent = await sendWhatsAppMessage(bridgeUrl, chat_jid, response, sessionId);
 
         if (!sent) {
+            console.error(`[WhatsApp Webhook] Failed to send response back to bridge at ${bridgeUrl}. Check if WHATSAPP_BRIDGE_URL is correct.`);
             return NextResponse.json({ error: 'Failed to send response' }, { status: 500 });
         }
 
