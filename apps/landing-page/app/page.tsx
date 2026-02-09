@@ -69,10 +69,9 @@ import {
 } from "@lobehub/icons";
 import React, { memo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChatPreview } from "@/components/ChatPreview";
-import { PlatformPreview } from "@/components/PlatformPreview";
 import { AgentBuilderPreview } from "@/components/AgentBuilderPreview";
 import { StepsSection } from "@/components/StepsSection";
+import { WhatsAppLogo, GoogleSheetsLogo, ChromeLogo } from "@/components/Logos";
 
 declare global {
   namespace JSX {
@@ -2323,10 +2322,10 @@ const LandingPage = memo(() => {
 
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24, width: "100%" }}>
                     {[
-                      { icon: <MessageSquare size={24} />, title: "Chat Lobe-Style", description: "Une interface conversationnelle premium pour gérer vos échanges WhatsApp et vos agents IA." },
-                      { icon: <Database size={24} />, title: "Sync Google Sheets", description: "Enregistrez automatiquement les données de vos conversations dans vos tableurs en temps réel." },
+                      { icon: <WhatsAppLogo size={24} color="#fff" />, title: "Chat Lobe-Style", description: "Une interface conversationnelle premium pour gérer vos échanges WhatsApp et vos agents IA." },
+                      { icon: <GoogleSheetsLogo size={24} />, title: "Sync Google Sheets", description: "Enregistrez automatiquement les données de vos conversations dans vos tableurs en temps réel." },
                       { icon: <Zap size={24} />, title: "Flows Ultra-Rapides", description: "Des automatisations qui s'exécutent instantanément entre WhatsApp, vos CRM et vos outils." },
-                      { icon: <Smartphone size={24} />, title: "Multi-Device Support", description: "Pilotez votre instance Connect depuis votre ordinateur ou votre mobile avec la même fluidité." },
+                      { icon: <ChromeLogo size={24} />, title: "Multi-Device Support", description: "Pilotez votre instance Connect depuis votre ordinateur ou votre mobile avec la même fluidité." },
                     ].map((item, i) => (
                       <div key={i} style={{ background: "#fff", borderRadius: 16, padding: 24, border: "1px solid rgba(0,0,0,0.05)" }}>
                         <div style={{ width: 48, height: 48, borderRadius: 12, background: "var(--brand-primary)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", marginBottom: 16 }}>
@@ -2338,33 +2337,6 @@ const LandingPage = memo(() => {
                     ))}
                   </div>
 
-                  {/* Platform Previews Grid */}
-                  <div style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-                    gap: 32,
-                    marginTop: 48,
-                    alignItems: "start",
-                  }}>
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                      whileInView={{ opacity: 1, scale: 1, y: 0 }}
-                      transition={{ duration: 0.6, delay: 0.1 }}
-                      viewport={{ once: true }}
-                    >
-                      <ChatPreview styles={styles} cx={cx} />
-                    </motion.div>
-
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                      whileInView={{ opacity: 1, scale: 1, y: 0 }}
-                      transition={{ duration: 0.6, delay: 0.3 }}
-                      viewport={{ once: true }}
-                      style={{ display: "flex", justifyContent: "center" }}
-                    >
-                      <PlatformPreview styles={styles} cx={cx} />
-                    </motion.div>
-                  </div>
                 </div>
               </motion.section>
 

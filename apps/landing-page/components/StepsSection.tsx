@@ -18,6 +18,7 @@ import {
     Users,
     ArrowRight
 } from "lucide-react";
+import { WhatsAppLogo, GoogleCalendarLogo, GmailLogo, IntercomLogo } from "@/components/Logos";
 
 // Animation variants
 const containerVariants = {
@@ -144,15 +145,17 @@ const DescribeAnimation = () => {
     );
 };
 
+
+
 // Step 2: Skills selection animation
 const SkillsAnimation = () => {
     const [activeIndex, setActiveIndex] = useState(0);
 
     const skills = [
-        { icon: <MessageSquare size={16} />, color: "#25d366", label: "WhatsApp" },
-        { icon: <Calendar size={16} />, color: "#6366f1", label: "Calendrier" },
-        { icon: <Mail size={16} />, color: "#ef4444", label: "Emails" },
-        { icon: <Headphones size={16} />, color: "#ec4899", label: "Support" },
+        { icon: <WhatsAppLogo size={16} />, color: "#25d366", label: "WhatsApp" },
+        { icon: <GoogleCalendarLogo size={16} />, color: "#4285F4", label: "Calendrier" },
+        { icon: <GmailLogo size={16} />, color: "#EA4335", label: "Gmail" },
+        { icon: <IntercomLogo size={16} />, color: "#1F8CEB", label: "Support" },
     ];
 
     useEffect(() => {
@@ -208,9 +211,9 @@ const SkillsAnimation = () => {
                         <motion.div
                             key={skill.label}
                             animate={{
-                                background: isActive ? `${skill.color}15` : "#f9fafb",
-                                borderColor: isActive ? skill.color : "rgba(0,0,0,0.06)",
-                                scale: index === activeIndex ? [1, 1.05, 1] : 1,
+                                background: isActive ? `${skill.color}15` : "rgba(247, 248, 251, 0.984)",
+                                borderColor: isActive ? skill.color : "rgba(13, 13, 31, 0.075)",
+                                scale: index === activeIndex ? [1, 1.003, 1] : 1,
                             }}
                             transition={{ duration: 0.3 }}
                             style={{
@@ -225,13 +228,15 @@ const SkillsAnimation = () => {
                             <div style={{
                                 color: isActive ? skill.color : "#9ca3af",
                                 transition: "color 0.3s",
+                                display: "flex",
+                                alignItems: "center",
                             }}>
                                 {skill.icon}
                             </div>
                             <span style={{
                                 fontSize: 12,
                                 fontWeight: 500,
-                                color: isActive ? "#1f2937" : "#9ca3af",
+                                color: isActive ? "rgb(31, 41, 55)" : "rgb(156, 163, 175)",
                             }}>
                                 {skill.label}
                             </span>

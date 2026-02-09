@@ -239,29 +239,50 @@ export const PlatformPreview = ({ styles, cx }: { styles: any; cx: any }) => {
         { day: "Dim", shortDay: "D", active: false, startTime: "—", endTime: "—" },
     ]);
 
-    const [messages, setMessages] = useState<Message[]>([
+    // Conversation script for auto-play
+    const conversationScript: Message[] = [
         { id: 1, role: "assistant", content: "👋 Bonjour ! Je suis votre assistant Connect. Comment puis-je vous aider ?", timestamp: "10:30" },
         { id: 2, role: "user", content: "Je voudrais configurer mes horaires de disponibilité", timestamp: "10:31" },
-    ]);
+        { id: 3, role: "assistant", content: "Parfait ! J'ai préparé vos horaires. Vous pouvez les modifier en cliquant sur l'onglet \"Horaires\" ci-dessus.", timestamp: "10:32" },
+        { id: 4, role: "user", content: "Super ! Et pour les jours fériés ?", timestamp: "10:33" },
+        { id: 5, role: "assistant", content: "Je peux aussi gérer les jours fériés automatiquement ! Voulez-vous que je les désactive ? 🗓️", timestamp: "10:34" },
+    ];
 
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
     const [isTyping, setIsTyping] = useState(false);
 
-    // Simulate typing effect
+    // Auto-play conversation in loop
     useEffect(() => {
-        if (messages.length === 2) {
-            setIsTyping(true);
-            const timeout = setTimeout(() => {
-                setIsTyping(false);
-                setMessages(prev => [...prev, {
-                    id: 3,
-                    role: "assistant",
-                    content: "Parfait ! J'ai préparé vos horaires. Vous pouvez les modifier en cliquant sur l'onglet \"Horaires\" ci-dessus.",
-                    timestamp: "10:32"
-                }]);
-            }, 2000);
-            return () => clearTimeout(timeout);
+        if (currentMessageIndex >= conversationScript.length) {
+            // Reset after pause
+            const resetTimer = setTimeout(() => {
+                setMessages([]);
+                setCurrentMessageIndex(0);
+            }, 4000);
+            return () => clearTimeout(resetTimer);
         }
-    }, [messages.length]);
+
+        const nextMessage = conversationScript[currentMessageIndex];
+
+        if (nextMessage.role === "assistant") {
+            // Show typing indicator before assistant messages
+            setIsTyping(true);
+            const typingTimer = setTimeout(() => {
+                setIsTyping(false);
+                setMessages(prev => [...prev, nextMessage]);
+                setCurrentMessageIndex(prev => prev + 1);
+            }, 1500);
+            return () => clearTimeout(typingTimer);
+        } else {
+            // User messages appear after delay
+            const messageTimer = setTimeout(() => {
+                setMessages(prev => [...prev, nextMessage]);
+                setCurrentMessageIndex(prev => prev + 1);
+            }, 2000);
+            return () => clearTimeout(messageTimer);
+        }
+    }, [currentMessageIndex]);
 
     const toggleDay = (index: number) => {
         setScheduleData(prev => prev.map((item, i) =>

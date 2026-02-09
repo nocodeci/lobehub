@@ -201,7 +201,7 @@ export default {
   'profile.usernameRule': 'Username can only contain letters, numbers, or underscores',
   'profile.usernameUpdateFailed': 'Failed to update username, please try again later',
   'signin.subtitle': 'Sign up or log in to your {{appName}} account',
-  'signin.title': 'Agent teammates that grow with you',
+  'signin.title': 'Connect : Des assistants IA qui grandissent avec vous',
   'signout': 'Log Out',
   'signup': 'Sign Up',
   'stats.aiheatmaps': 'Activity Index',

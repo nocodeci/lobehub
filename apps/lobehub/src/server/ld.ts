@@ -68,15 +68,15 @@ export class Ld {
         this.genWebSite(),
         article?.enable && this.genArticle({ ...article, date, description, locale, title, url }),
         webpage?.enable &&
-          this.genWebPage({
-            ...webpage,
-            date,
-            description,
-            image,
-            locale,
-            title,
-            url,
-          }),
+        this.genWebPage({
+          ...webpage,
+          date,
+          description,
+          image,
+          locale,
+          title,
+          url,
+        }),
         image && this.genImageObject({ image, url }),
         this.genOrganization(),
       ].filter(Boolean),
@@ -94,8 +94,8 @@ export class Ld {
         'email': BRANDING_EMAIL.support,
       },
       'description':
-        'Agent teammates that grow with you\n' +
-        'LobeHub is a work-and-lifestyle space to find, build, and collaborate with agent teams that grow with you.',
+        'Connect : Des assistants IA qui grandissent avec vous\n' +
+        'Connect est un espace de travail et de vie pour trouver, créer et collaborer avec des équipes d\'agents IA qui évoluent à vos côtés.',
       'email': BRANDING_EMAIL.business,
       'founders': [this.getAuthors(['arvinxx']), this.getAuthors(['canisminor'])],
       'image': urlJoin(OFFICIAL_SITE, '/icon-512x512.png'),

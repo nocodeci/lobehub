@@ -20,6 +20,7 @@ import {
     Cpu,
     ArrowRight
 } from "lucide-react";
+import { WhatsAppLogo, GoogleCalendarLogo, GoogleSheetsLogo, GmailLogo, ChromeLogo, IntercomLogo } from "@/components/Logos";
 
 // Animation variants
 const containerVariants = {
@@ -250,13 +251,14 @@ export const AgentBuilderPreview = ({ styles: _styles, cx: _cx }: { styles: any;
     const [isTyping, setIsTyping] = useState(false);
     const [animatingSkillId, setAnimatingSkillId] = useState<string | null>(null);
 
+
     const [skills, setSkills] = useState<Skill[]>([
-        { id: "whatsapp", name: "WhatsApp", icon: <MessageSquare size={16} />, color: "#25d366", enabled: false },
-        { id: "calendar", name: "Calendrier", icon: <Calendar size={16} />, color: "#6366f1", enabled: false },
-        { id: "database", name: "Base de données", icon: <Database size={16} />, color: "#f59e0b", enabled: false },
-        { id: "email", name: "Emails", icon: <Mail size={16} />, color: "#ef4444", enabled: false },
-        { id: "web", name: "Navigation Web", icon: <Globe size={16} />, color: "#3b82f6", enabled: false },
-        { id: "support", name: "Support Client", icon: <Headphones size={16} />, color: "#ec4899", enabled: false },
+        { id: "whatsapp", name: "WhatsApp", icon: <WhatsAppLogo size={16} />, color: "#25d366", enabled: false },
+        { id: "calendar", name: "Calendrier Google", icon: <GoogleCalendarLogo size={16} />, color: "#4285F4", enabled: false },
+        { id: "database", name: "Google Sheets", icon: <GoogleSheetsLogo size={16} />, color: "#0F9D58", enabled: false },
+        { id: "email", name: "Gmail", icon: <GmailLogo size={16} />, color: "#EA4335", enabled: false },
+        { id: "web", name: "Navigation Google", icon: <ChromeLogo size={16} />, color: "#4285F4", enabled: false },
+        { id: "support", name: "Support Intercom", icon: <IntercomLogo size={16} />, color: "#1F8CEB", enabled: false },
     ]);
 
     const [messages, setMessages] = useState<Message[]>([]);
