@@ -49,6 +49,9 @@ import {
   Calendar,
   CircleHelp,
   Atom,
+  Menu,
+  X,
+  Wand2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -67,6 +70,9 @@ import {
 import React, { memo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChatPreview } from "@/components/ChatPreview";
+import { PlatformPreview } from "@/components/PlatformPreview";
+import { AgentBuilderPreview } from "@/components/AgentBuilderPreview";
+import { StepsSection } from "@/components/StepsSection";
 
 declare global {
   namespace JSX {
@@ -272,9 +278,21 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     border: none !important;
     color: #fff !important;
     box-shadow: 0 4px 12px rgba(7, 94, 84, 0.3) !important;
-    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    transition: all 0.2s ease !important;
     height: 40px !important;
     font-size: 14px !important;
+    cursor: pointer !important;
+
+    &:hover {
+      background: #064a43 !important;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(7, 94, 84, 0.4) !important;
+    }
+
+    &:active {
+      transform: translateY(0) scale(0.98);
+      box-shadow: 0 2px 8px rgba(7, 94, 84, 0.3) !important;
+    }
 
     @media (min-width: 768px) {
       height: 48px !important;
@@ -1566,6 +1584,89 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     line-height: 1.4;
     color: #444;
   `,
+  expandedContent: css`
+    display: flex;
+    flex-direction: column;
+    gap: inherit;
+    width: 100%;
+    
+    @media (max-width: 768px) {
+      max-height: 0;
+      overflow: hidden;
+      transition: all 0.3s ease-in-out;
+      opacity: 0;
+      
+      &.expanded {
+        max-height: 2000px;
+        opacity: 1;
+        margin-top: 16px;
+      }
+    }
+  `,
+  showMoreBtn: css`
+    display: none;
+    @media (max-width: 768px) {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      width: 100%;
+      margin-top: 16px;
+      color: var(--brand-primary);
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 8px;
+      background: rgba(7, 94, 84, 0.05);
+      border: 1px dashed rgba(7, 94, 84, 0.2);
+      transition: all 0.2s ease;
+
+      &:active {
+        background: rgba(7, 94, 84, 0.1);
+        transform: scale(0.98);
+      }
+    }
+  `,
+  mobileMenuBtn: css`
+    display: flex;
+    @media (min-width: 1024px) {
+      display: none;
+    }
+  `,
+  mobileStartBtn: css`
+    display: block;
+    @media (min-width: 1024px) {
+      display: none;
+    }
+
+    button {
+      cursor: pointer !important;
+      transition: all 0.2s ease !important;
+
+      &:hover {
+        background: #064a43 !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(7, 94, 84, 0.3);
+      }
+
+      &:active {
+        transform: translateY(0) scale(0.98);
+      }
+    }
+  `,
+  desktopActions: css`
+    display: none;
+    @media (min-width: 1024px) {
+      display: flex;
+    }
+  `,
+  desktopNavLinks: css`
+    display: none;
+    @media (min-width: 1024px) {
+      display: block;
+    }
+  `,
   segmentedWrapper: css`
     background: #f5f5f5;
     padding: 2px;
@@ -1763,8 +1864,11 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     text-align: left;
 
     @media (max-width: 768px) {
-      height: 400px;
+      height: auto;
+      min-height: 450px;
       flex-direction: column;
+      border-radius: 16px;
+      margin-top: 24px;
     }
   `,
   chatSidebar: css`
@@ -1774,14 +1878,18 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     display: flex;
     flex-direction: column;
     padding: 12px;
+    flex-shrink: 0;
 
     @media (max-width: 768px) {
       width: 100%;
-      height: 60px;
+      height: auto;
+      min-height: 70px;
       flex-direction: row;
       border-right: none;
       border-bottom: 1px solid rgba(0, 0, 0, 0.05);
       overflow-x: auto;
+      gap: 8px;
+      padding: 10px 12px;
     }
   `,
   chatSidebarItem: css`
@@ -1790,6 +1898,12 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     cursor: pointer;
     transition: all 0.2s;
     margin-bottom: 4px;
+    flex-shrink: 0;
+
+    @media (max-width: 768px) {
+      margin-bottom: 0;
+      white-space: nowrap;
+    }
 
     &:hover {
       background: rgba(0, 0, 0, 0.03);
@@ -1807,6 +1921,7 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     flex-direction: column;
     background: #fff;
     position: relative;
+    min-height: 0;
   `,
   chatMessageList: css`
     flex: 1;
@@ -1815,11 +1930,20 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     display: flex;
     flex-direction: column;
     gap: 16px;
+
+    @media (max-width: 768px) {
+      padding: 16px;
+      gap: 12px;
+    }
   `,
   chatInputWrapper: css`
     padding: 16px 24px;
     border-top: 1px solid rgba(0, 0, 0, 0.05);
     background: #fff;
+
+    @media (max-width: 768px) {
+      padding: 12px 16px;
+    }
   `,
   footerSection: css`
     width: 100%;
@@ -1912,104 +2036,14 @@ const LandingPage = memo(() => {
   const [scrolled, setScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [billingCycle, setBillingCycle] = useState("yearly");
-
+  const [expandedPlans, setExpandedPlans] = useState<Record<string, boolean>>({});
   useEffect(() => {
     setMounted(true);
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
-    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const logo = (
-    <a href="/" style={{ textDecoration: "none", cursor: "pointer" }}>
-      <Flexbox horizontal align="center" gap={12}>
-        <img
-          src="/connect-logo.png"
-          alt="Connect Logo"
-          className={styles.logoImg}
-        />
-        <span className={styles.logoText}>Connect</span>
-      </Flexbox>
-    </a>
-  );
-
-  const actions = (
-    <Flexbox horizontal gap={16} align="center">
-      <div className="hidden sm:block">
-        <ActionIcon icon={Github} style={{ color: "#000" }} />
-      </div>
-      <ShadcnButton
-        onClick={() => (window.location.href = "https://connect.wozif.com")}
-        className={cn(styles.actionButton, "bg-[#075e54] text-white hover:bg-[#075e54]/90")}
-      >
-        Démarrer
-      </ShadcnButton>
-    </Flexbox>
-  );
-
-  const navLinks = (
-    <Flexbox horizontal className={styles.navLinks}>
-      <a
-        href="#features"
-        style={{
-          color: "rgba(0,0,0,0.85)",
-          fontWeight: 700,
-          fontSize: 15,
-          textDecoration: "none",
-          transition: "all 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = "#000")}
-        onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(0,0,0,0.85)")}
-      >
-        Concept
-      </a>
-      <a
-        href="#showcase"
-        style={{
-          color: "rgba(0,0,0,0.85)",
-          fontWeight: 700,
-          fontSize: 15,
-          textDecoration: "none",
-          transition: "all 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = "#000")}
-        onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(0,0,0,0.85)")}
-      >
-        Moteur
-      </a>
-      <a
-        href="/pricing"
-        style={{
-          color: "rgba(0,0,0,0.85)",
-          fontWeight: 700,
-          fontSize: 15,
-          textDecoration: "none",
-          transition: "all 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = "#000")}
-        onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(0,0,0,0.85)")}
-      >
-        Tarification
-      </a>
-      <a
-        href="#showcase"
-        style={{
-          color: "rgba(0,0,0,0.85)",
-          fontWeight: 700,
-          fontSize: 15,
-          textDecoration: "none",
-          transition: "all 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = "#000")}
-        onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(0,0,0,0.85)")}
-      >
-        Sécurité
-      </a>
-    </Flexbox>
-  );
+  const togglePlan = (id: string) => {
+    setExpandedPlans(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   if (!mounted) return null;
 
@@ -2033,29 +2067,6 @@ const LandingPage = memo(() => {
                 position: "relative"
               }}
             >
-              {/* Navigation */}
-              <div className={cx(styles.nav, scrolled && "scrolled")}>
-                <div className={styles.header}>
-                  <Flexbox
-                    horizontal
-                    align="center"
-                    justify="space-between"
-                    width="100%"
-                    height="100%"
-                    style={{ padding: '0 16px' }}
-                  >
-                    <Flexbox horizontal align="center">
-                      {logo}
-                    </Flexbox>
-                    <div className="hidden lg:block">
-                      {navLinks}
-                    </div>
-                    <Flexbox horizontal align="center">
-                      {actions}
-                    </Flexbox>
-                  </Flexbox>
-                </div>
-              </div>
 
               <Card className={cn(styles.heroWrapper, "bg-black border-white/20 shadow-2xl overflow-hidden")}>
                 {/* Decorative Blobs */}
@@ -2136,7 +2147,7 @@ const LandingPage = memo(() => {
                         size="large"
                         icon={<Rocket size={20} />}
                         onClick={() =>
-                          (window.location.href = "https://connect.wozif.com")
+                          (window.location.href = "https://app.connect.wozif.com")
                         }
                         className="h-13 sm:h-14 lg:h-16 px-10 sm:px-10 lg:px-12 text-base sm:text-lg lg:text-xl font-black rounded-xl sm:rounded-2xl lg:rounded-3xl !bg-[#085e54] hover:!bg-[#085e54]/90 !text-white border-none transition-all duration-300 shadow-[0_12px_24px_rgba(8,94,84,0.25)] sm:shadow-[0_16px_32px_rgba(8,94,84,0.28)] lg:shadow-[0_20px_40px_rgba(8,94,84,0.3)] hover:-translate-y-1 active:scale-95 w-full sm:w-auto"
                       >
@@ -2287,239 +2298,6 @@ const LandingPage = memo(() => {
                 </div>
               </section>
 
-              <motion.section
-                {...fadeInUp}
-                id="create"
-                className={styles.sectionWrapper}
-                style={{ background: "#fff" }}
-              >
-                <div className={styles.container}>
-                  <Center style={{ marginBottom: 64 }}>
-                    <div className={styles.tagBrand}>
-                      Créer
-                    </div>
-                    <h2 className={styles.sectionTitle}>
-                      Les agents comme unité de travail
-                    </h2>
-                  </Center>
-
-                  <div className={styles.agentBuilderGrid}>
-                    <div className={styles.agentControlBox}>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "flex-start",
-                        }}
-                      >
-                        <div style={{ alignSelf: "flex-start" }}>
-                          <Segmented
-                            size="large"
-                            options={["Créateur d’Agents"]}
-                            style={{ borderRadius: 12, padding: 4 }}
-                          />
-                        </div>
-                        <div
-                          style={{
-                            width: 100,
-                            height: 100,
-                            position: "relative",
-                          }}
-                        >
-                          <svg
-                            viewBox="0 0 100 100"
-                            fill="none"
-                            style={{ width: "100%", height: "100%" }}
-                          >
-                            <circle
-                              cx="50"
-                              cy="50"
-                              r="48"
-                              stroke="var(--brand-primary)"
-                              strokeWidth="0.5"
-                              strokeDasharray="4 4"
-                              opacity="0.3"
-                            />
-                            <motion.path
-                              d="M20 50 L80 50 M50 20 L50 80"
-                              stroke="var(--brand-primary)"
-                              strokeWidth="0.5"
-                              opacity="0.2"
-                              animate={{ rotate: 360 }}
-                              transition={{
-                                duration: 20,
-                                repeat: Infinity,
-                                ease: "linear",
-                              }}
-                              style={{ originX: "50px", originY: "50px" }}
-                            />
-                            <rect
-                              x="30"
-                              y="30"
-                              width="40"
-                              height="40"
-                              rx="12"
-                              fill="var(--brand-primary)"
-                              fillOpacity="0.05"
-                              stroke="var(--brand-primary)"
-                              strokeWidth="1.5"
-                            />
-                            <circle cx="43" cy="45" r="3" fill="var(--brand-primary)" />
-                            <circle cx="57" cy="45" r="3" fill="var(--brand-primary)" />
-                            <motion.path
-                              d="M40 60 Q50 65 60 60"
-                              stroke="var(--brand-primary)"
-                              strokeWidth="1.5"
-                              strokeLinecap="round"
-                              animate={{
-                                d: [
-                                  "M40 60 Q50 65 60 60",
-                                  "M40 62 Q50 58 60 62",
-                                  "M40 60 Q50 65 60 60",
-                                ],
-                              }}
-                              transition={{ duration: 3, repeat: Infinity }}
-                            />
-                          </svg>
-                        </div>
-                      </div>
-                      <h3
-                        style={{
-                          fontSize: 24,
-                          fontWeight: 800,
-                          lineHeight: 1.2,
-                          color: "#1a1a1a",
-                          letterSpacing: "-0.5px",
-                        }}
-                      >
-                        Créez des agents sans effort, avec un véritable contrôle
-                        des compétences
-                      </h3>
-
-                      <Collapse
-                        ghost
-                        accordion
-                        defaultActiveKey={["3"]}
-                        items={[
-                          {
-                            key: "1",
-                            label: (
-                              <span style={{ fontSize: 16, fontWeight: 600 }}>
-                                Une phrase pour commencer
-                              </span>
-                            ),
-                            children: (
-                              <div>
-                                <p
-                                  style={{
-                                    fontSize: 14,
-                                    color: "#666",
-                                    lineHeight: 1.5,
-                                  }}
-                                >
-                                  Les noms, rôles, compétences et comportements
-                                  sont configurés automatiquement.
-                                </p>
-                                <Divider style={{ margin: "16px 0 0" }} />
-                              </div>
-                            ),
-                          },
-                          {
-                            key: "2",
-                            label: (
-                              <span style={{ fontSize: 16, fontWeight: 600 }}>
-                                Auto-configuré par défaut
-                              </span>
-                            ),
-                            children: (
-                              <div>
-                                <p
-                                  style={{
-                                    fontSize: 14,
-                                    color: "#666",
-                                    lineHeight: 1.5,
-                                  }}
-                                >
-                                  Les noms, rôles, compétences et comportements
-                                  sont générés automatiquement pour vous.
-                                </p>
-                                <Divider style={{ margin: "16px 0 0" }} />
-                              </div>
-                            ),
-                          },
-                          {
-                            key: "3",
-                            label: (
-                              <span style={{ fontSize: 16, fontWeight: 600 }}>
-                                Utiliser immédiatement
-                              </span>
-                            ),
-                            children: (
-                              <p
-                                style={{
-                                  fontSize: 14,
-                                  color: "#666",
-                                  lineHeight: 1.5,
-                                }}
-                              >
-                                Mettez l’Agent au travail immédiatement — aucune
-                                étape supplémentaire.
-                              </p>
-                            ),
-                          },
-                        ]}
-                      />
-                    </div>
-
-                    <div className={styles.agentVideoBox}>
-                      <video
-                        loop
-                        muted
-                        autoPlay
-                        playsInline
-                        poster="https://hub-apac-1.lobeobjects.space/landing/images/home/agent-builder-light.webp"
-                        src="https://hub-apac-1.lobeobjects.space/landing/images/home/agent-builder-light.webm"
-                        style={{
-                          width: "100%",
-                          borderRadius: 16,
-                          boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className={styles.agentFeatureGrid}>
-                    <div className={styles.agentFeatureTile}>
-                      <div className={styles.featureTextWrapper}>
-                        <h3 className={styles.featureLabel}>
-                          10000+ compétences
-                        </h3>
-                        <h3 className={styles.featureDesc}>
-                          Connectez les Agents aux compétences que vous utilisez
-                        </h3>
-                      </div>
-                      <div className={`${styles.skillsImage} feature-image`} />
-                    </div>
-
-                    <div className={styles.agentFeatureTile}>
-                      <div className={styles.featureTextWrapper}>
-                        <h3 className={styles.featureLabel}>
-                          Intelligence unifiée
-                        </h3>
-                        <h3 className={styles.featureDesc}>
-                          N’importe quel modèle, n’importe quelle modalité —
-                          sous votre contrôle
-                        </h3>
-                      </div>
-                      <img
-                        className={`${styles.intelligenceImage} feature-image`}
-                        src="https://hub-apac-1.lobeobjects.space/landing/images/home/intelligence-light.webp"
-                        alt="Intelligence unifiée"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </motion.section>
 
               {/* AI Engine Section */}
               <motion.section
@@ -2560,12 +2338,93 @@ const LandingPage = memo(() => {
                     ))}
                   </div>
 
+                  {/* Platform Previews Grid */}
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                    gap: 32,
+                    marginTop: 48,
+                    alignItems: "start",
+                  }}>
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                      whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ duration: 0.6, delay: 0.1 }}
+                      viewport={{ once: true }}
+                    >
+                      <ChatPreview styles={styles} cx={cx} />
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                      whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ duration: 0.6, delay: 0.3 }}
+                      viewport={{ once: true }}
+                      style={{ display: "flex", justifyContent: "center" }}
+                    >
+                      <PlatformPreview styles={styles} cx={cx} />
+                    </motion.div>
+                  </div>
+                </div>
+              </motion.section>
+
+              {/* Steps Section - How to create your agent */}
+              <motion.section
+                {...fadeInUp}
+                id="how-it-works"
+                style={{
+                  width: "100%",
+                  padding: "80px 0",
+                  background: "#fafbfc",
+                }}
+              >
+                <div className={styles.container}>
+                  <Center style={{ marginBottom: 56 }}>
+                    <div className={styles.tagBrand}>
+                      <Sparkles size={14} /> Comment ça marche
+                    </div>
+                    <h2 className={styles.sectionTitle}>
+                      3 étapes pour créer votre agent.
+                    </h2>
+                    <p className={styles.sectionDesc}>
+                      De l'idée au déploiement en moins de 5 minutes.
+                    </p>
+                  </Center>
+
+                  <StepsSection />
+                </div>
+              </motion.section>
+
+              {/* Agent Builder Section */}
+              <motion.section
+                {...fadeInUp}
+                id="agent-builder"
+                style={{
+                  width: "100%",
+                  padding: "80px 0",
+                  background: "linear-gradient(180deg, #fff 0%, #f8faf9 100%)",
+                }}
+              >
+                <div className={styles.container}>
+                  <Center style={{ marginBottom: 48 }}>
+                    <div className={styles.tagBrand}>
+                      <Wand2 size={14} /> Créateur d'Agents
+                    </div>
+                    <h2 className={styles.sectionTitle}>
+                      Construisez votre agent en quelques clics.
+                    </h2>
+                    <p className={styles.sectionDesc}>
+                      Personnalisez les compétences de votre assistant IA et déployez-le instantanément sur WhatsApp.
+                    </p>
+                  </Center>
+
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.8, delay: 0.2 }}
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8 }}
+                    viewport={{ once: true }}
                   >
-                    <ChatPreview styles={styles} cx={cx} />
+                    <AgentBuilderPreview styles={styles} cx={cx} />
                   </motion.div>
                 </div>
               </motion.section>
@@ -3146,131 +3005,141 @@ const LandingPage = memo(() => {
                         </div>
                       </div>
 
-                      <Divider dashed style={{ margin: 0 }} />
+                      <div className={cx(styles.expandedContent, expandedPlans['base'] && 'expanded')}>
+                        <Divider dashed style={{ margin: 0 }} />
 
-                      <div className={styles.featureGroup}>
-                        <div
-                          style={{
-                            fontWeight: 600,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            marginBottom: 4,
-                            color: "#000",
-                          }}
-                        >
-                          Fichiers & Connaissance{" "}
-                          <CircleHelp size={14} style={{ opacity: 0.5 }} />
+                        <div className={styles.featureGroup}>
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              marginBottom: 4,
+                              color: "#000",
+                            }}
+                          >
+                            Fichiers & Connaissance{" "}
+                            <CircleHelp size={14} style={{ opacity: 0.5 }} />
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <Flexbox>
+                              <div style={{ fontWeight: 600, color: "#000" }}>
+                                Stockage de fichiers
+                              </div>
+                              <div style={{ fontSize: 14, color: "#000" }}>
+                                1.0 GB
+                              </div>
+                            </Flexbox>
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <Flexbox>
+                              <div style={{ fontWeight: 600, color: "#000" }}>
+                                Stockage de vecteurs
+                              </div>
+                              <div style={{ fontSize: 14, color: "#000" }}>
+                                5,000 entrées{" "}
+                                <span style={{ opacity: 0.5, fontSize: 12 }}>
+                                  (≈ 50MB)
+                                </span>
+                              </div>
+                            </Flexbox>
+                          </div>
                         </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <Flexbox>
-                            <div style={{ fontWeight: 600, color: "#000" }}>
-                              Stockage de fichiers
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <div className={styles.featureGroup}>
+                          <div style={{ fontWeight: 600, color: "#000" }}>
+                            Fournisseurs
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Utilisez vos propres clés API
                             </div>
-                            <div style={{ fontSize: 14, color: "#000" }}>
-                              1.0 GB
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Demandes de messages illimitées
                             </div>
-                          </Flexbox>
+                          </div>
                         </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <Flexbox>
-                            <div style={{ fontWeight: 600, color: "#000" }}>
-                              Stockage de vecteurs
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <div className={styles.featureGroup}>
+                          <div style={{ fontWeight: 600, color: "#000" }}>
+                            Services cloud
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Historique des conversations illimité
                             </div>
-                            <div style={{ fontSize: 14, color: "#000" }}>
-                              5,000 entrées{" "}
-                              <span style={{ opacity: 0.5, fontSize: 12 }}>
-                                (≈ 50MB)
-                              </span>
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Synchronisation cloud globale
                             </div>
-                          </Flexbox>
+                          </div>
+                        </div>
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <div className={styles.featureGroup}>
+                          <div style={{ fontWeight: 600, color: "#000" }}>
+                            Fonctionnalités avancées
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Points forts du Marché d’agents
+                            </div>
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Compétences premium
+                            </div>
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>Recherche web</div>
+                          </div>
+                        </div>
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <div className={styles.featureGroup}>
+                          <div style={{ fontWeight: 600, color: "#000" }}>
+                            Support client
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Support par e-mail prioritaire
+                            </div>
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Achat de forfaits de crédits supp.
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      <Divider dashed style={{ margin: 0 }} />
-
-                      <div className={styles.featureGroup}>
-                        <div style={{ fontWeight: 600, color: "#000" }}>
-                          Fournisseurs
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Utilisez vos propres clés API
-                          </div>
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Demandes de messages illimitées
-                          </div>
-                        </div>
-                      </div>
-
-                      <Divider dashed style={{ margin: 0 }} />
-
-                      <div className={styles.featureGroup}>
-                        <div style={{ fontWeight: 600, color: "#000" }}>
-                          Services cloud
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Historique des conversations illimité
-                          </div>
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Synchronisation cloud globale
-                          </div>
-                        </div>
-                      </div>
-
-                      <Divider dashed style={{ margin: 0 }} />
-
-                      <div className={styles.featureGroup}>
-                        <div style={{ fontWeight: 600, color: "#000" }}>
-                          Fonctionnalités avancées
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Points forts du Marché d’agents
-                          </div>
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Compétences premium
-                          </div>
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>Recherche web</div>
-                        </div>
-                      </div>
-
-                      <Divider dashed style={{ margin: 0 }} />
-
-                      <div className={styles.featureGroup}>
-                        <div style={{ fontWeight: 600, color: "#000" }}>
-                          Support client
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Support par e-mail prioritaire
-                          </div>
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Achat de forfaits de crédits supp.
-                          </div>
-                        </div>
+                      <div className={styles.showMoreBtn} onClick={() => togglePlan('base')}>
+                        {expandedPlans['base'] ? (
+                          <>Réduire <ChevronRight size={16} style={{ transform: 'rotate(-90deg)' }} /></>
+                        ) : (
+                          <>Voir plus de détails <ChevronRight size={16} style={{ transform: 'rotate(90deg)' }} /></>
+                        )}
                       </div>
                     </motion.div>
 
@@ -3505,131 +3374,141 @@ const LandingPage = memo(() => {
                         </div>
                       </div>
 
-                      <Divider dashed style={{ margin: 0 }} />
+                      <div className={cx(styles.expandedContent, expandedPlans['premium'] && 'expanded')}>
+                        <Divider dashed style={{ margin: 0 }} />
 
-                      <div className={styles.featureGroup}>
-                        <div
-                          style={{
-                            fontWeight: 600,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            marginBottom: 4,
-                            color: "#000",
-                          }}
-                        >
-                          Fichiers & Connaissance{" "}
-                          <CircleHelp size={14} style={{ opacity: 0.5 }} />
+                        <div className={styles.featureGroup}>
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              marginBottom: 4,
+                              color: "#000",
+                            }}
+                          >
+                            Fichiers & Connaissance{" "}
+                            <CircleHelp size={14} style={{ opacity: 0.5 }} />
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <Flexbox>
+                              <div style={{ fontWeight: 600, color: "#000" }}>
+                                Stockage de fichiers
+                              </div>
+                              <div style={{ fontSize: 14, color: "#000" }}>
+                                2.0 GB
+                              </div>
+                            </Flexbox>
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <Flexbox>
+                              <div style={{ fontWeight: 600, color: "#000" }}>
+                                Stockage de vecteurs
+                              </div>
+                              <div style={{ fontSize: 14, color: "#000" }}>
+                                10,000 entrées{" "}
+                                <span style={{ opacity: 0.5, fontSize: 12 }}>
+                                  (≈ 100MB)
+                                </span>
+                              </div>
+                            </Flexbox>
+                          </div>
                         </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <Flexbox>
-                            <div style={{ fontWeight: 600, color: "#000" }}>
-                              Stockage de fichiers
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <div className={styles.featureGroup}>
+                          <div style={{ fontWeight: 600, color: "#000" }}>
+                            Fournisseurs
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Utilisez vos propres clés API
                             </div>
-                            <div style={{ fontSize: 14, color: "#000" }}>
-                              2.0 GB
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Demandes de messages illimitées
                             </div>
-                          </Flexbox>
+                          </div>
                         </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <Flexbox>
-                            <div style={{ fontWeight: 600, color: "#000" }}>
-                              Stockage de vecteurs
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <div className={styles.featureGroup}>
+                          <div style={{ fontWeight: 600, color: "#000" }}>
+                            Services cloud
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Historique des conversations illimité
                             </div>
-                            <div style={{ fontSize: 14, color: "#000" }}>
-                              10,000 entrées{" "}
-                              <span style={{ opacity: 0.5, fontSize: 12 }}>
-                                (≈ 100MB)
-                              </span>
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Synchronisation cloud globale
                             </div>
-                          </Flexbox>
+                          </div>
+                        </div>
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <div className={styles.featureGroup}>
+                          <div style={{ fontWeight: 600, color: "#000" }}>
+                            Fonctionnalités avancées
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Points forts du Marché d’agents
+                            </div>
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Compétences premium
+                            </div>
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>Recherche web</div>
+                          </div>
+                        </div>
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <div className={styles.featureGroup}>
+                          <div style={{ fontWeight: 600, color: "#000" }}>
+                            Support client
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Support par e-mail prioritaire
+                            </div>
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Achat de forfaits de crédits supp.
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      <Divider dashed style={{ margin: 0 }} />
-
-                      <div className={styles.featureGroup}>
-                        <div style={{ fontWeight: 600, color: "#000" }}>
-                          Fournisseurs
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Utilisez vos propres clés API
-                          </div>
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Demandes de messages illimitées
-                          </div>
-                        </div>
-                      </div>
-
-                      <Divider dashed style={{ margin: 0 }} />
-
-                      <div className={styles.featureGroup}>
-                        <div style={{ fontWeight: 600, color: "#000" }}>
-                          Services cloud
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Historique des conversations illimité
-                          </div>
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Synchronisation cloud globale
-                          </div>
-                        </div>
-                      </div>
-
-                      <Divider dashed style={{ margin: 0 }} />
-
-                      <div className={styles.featureGroup}>
-                        <div style={{ fontWeight: 600, color: "#000" }}>
-                          Fonctionnalités avancées
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Points forts du Marché d’agents
-                          </div>
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Compétences premium
-                          </div>
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>Recherche web</div>
-                        </div>
-                      </div>
-
-                      <Divider dashed style={{ margin: 0 }} />
-
-                      <div className={styles.featureGroup}>
-                        <div style={{ fontWeight: 600, color: "#000" }}>
-                          Support client
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Support par e-mail prioritaire
-                          </div>
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Achat de forfaits de crédits supp.
-                          </div>
-                        </div>
+                      <div className={styles.showMoreBtn} onClick={() => togglePlan('premium')}>
+                        {expandedPlans['premium'] ? (
+                          <>Réduire <ChevronRight size={16} style={{ transform: 'rotate(-90deg)' }} /></>
+                        ) : (
+                          <>Voir plus de détails <ChevronRight size={16} style={{ transform: 'rotate(90deg)' }} /></>
+                        )}
                       </div>
                     </motion.div>
 
@@ -3864,131 +3743,141 @@ const LandingPage = memo(() => {
                         </div>
                       </div>
 
-                      <Divider dashed style={{ margin: 0 }} />
+                      <div className={cx(styles.expandedContent, expandedPlans['ultimate'] && 'expanded')}>
+                        <Divider dashed style={{ margin: 0 }} />
 
-                      <div className={styles.featureGroup}>
-                        <div
-                          style={{
-                            fontWeight: 600,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 4,
-                            marginBottom: 4,
-                            color: "#000",
-                          }}
-                        >
-                          Fichiers & Connaissance{" "}
-                          <CircleHelp size={14} style={{ opacity: 0.5 }} />
+                        <div className={styles.featureGroup}>
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              marginBottom: 4,
+                              color: "#000",
+                            }}
+                          >
+                            Fichiers & Connaissance{" "}
+                            <CircleHelp size={14} style={{ opacity: 0.5 }} />
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <Flexbox>
+                              <div style={{ fontWeight: 600, color: "#000" }}>
+                                Stockage de fichiers
+                              </div>
+                              <div style={{ fontSize: 14, color: "#000" }}>
+                                4.0 GB
+                              </div>
+                            </Flexbox>
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <Flexbox>
+                              <div style={{ fontWeight: 600, color: "#000" }}>
+                                Stockage de vecteurs
+                              </div>
+                              <div style={{ fontSize: 14, color: "#000" }}>
+                                20,000 entrées{" "}
+                                <span style={{ opacity: 0.5, fontSize: 12 }}>
+                                  (≈ 200MB)
+                                </span>
+                              </div>
+                            </Flexbox>
+                          </div>
                         </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <Flexbox>
-                            <div style={{ fontWeight: 600, color: "#000" }}>
-                              Stockage de fichiers
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <div className={styles.featureGroup}>
+                          <div style={{ fontWeight: 600, color: "#000" }}>
+                            Fournisseurs
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Utilisez vos propres clés API
                             </div>
-                            <div style={{ fontSize: 14, color: "#000" }}>
-                              4.0 GB
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Demandes de messages illimitées
                             </div>
-                          </Flexbox>
+                          </div>
                         </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <Flexbox>
-                            <div style={{ fontWeight: 600, color: "#000" }}>
-                              Stockage de vecteurs
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <div className={styles.featureGroup}>
+                          <div style={{ fontWeight: 600, color: "#000" }}>
+                            Services cloud
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Historique des conversations illimité
                             </div>
-                            <div style={{ fontSize: 14, color: "#000" }}>
-                              20,000 entrées{" "}
-                              <span style={{ opacity: 0.5, fontSize: 12 }}>
-                                (≈ 200MB)
-                              </span>
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Synchronisation cloud globale
                             </div>
-                          </Flexbox>
+                          </div>
+                        </div>
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <div className={styles.featureGroup}>
+                          <div style={{ fontWeight: 600, color: "#000" }}>
+                            Fonctionnalités avancées
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Points forts du Marché d’agents
+                            </div>
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Compétences premium
+                            </div>
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>Recherche web</div>
+                          </div>
+                        </div>
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <div className={styles.featureGroup}>
+                          <div style={{ fontWeight: 600, color: "#000" }}>
+                            Support client
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Support par e-mail prioritaire
+                            </div>
+                          </div>
+                          <div className={styles.featureItem}>
+                            <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                            <div style={{ color: "#000" }}>
+                              Achat de forfaits de crédits supp.
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      <Divider dashed style={{ margin: 0 }} />
-
-                      <div className={styles.featureGroup}>
-                        <div style={{ fontWeight: 600, color: "#000" }}>
-                          Fournisseurs
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Utilisez vos propres clés API
-                          </div>
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Demandes de messages illimitées
-                          </div>
-                        </div>
-                      </div>
-
-                      <Divider dashed style={{ margin: 0 }} />
-
-                      <div className={styles.featureGroup}>
-                        <div style={{ fontWeight: 600, color: "#000" }}>
-                          Services cloud
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Historique des conversations illimité
-                          </div>
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Synchronisation cloud globale
-                          </div>
-                        </div>
-                      </div>
-
-                      <Divider dashed style={{ margin: 0 }} />
-
-                      <div className={styles.featureGroup}>
-                        <div style={{ fontWeight: 600, color: "#000" }}>
-                          Fonctionnalités avancées
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Points forts du Marché d’agents
-                          </div>
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Compétences premium
-                          </div>
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>Recherche web</div>
-                        </div>
-                      </div>
-
-                      <Divider dashed style={{ margin: 0 }} />
-
-                      <div className={styles.featureGroup}>
-                        <div style={{ fontWeight: 600, color: "#000" }}>
-                          Support client
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Support par e-mail prioritaire
-                          </div>
-                        </div>
-                        <div className={styles.featureItem}>
-                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
-                          <div style={{ color: "#000" }}>
-                            Achat de forfaits de crédits supp.
-                          </div>
-                        </div>
+                      <div className={styles.showMoreBtn} onClick={() => togglePlan('ultimate')}>
+                        {expandedPlans['ultimate'] ? (
+                          <>Réduire <ChevronRight size={16} style={{ transform: 'rotate(-90deg)' }} /></>
+                        ) : (
+                          <>Voir plus de détails <ChevronRight size={16} style={{ transform: 'rotate(90deg)' }} /></>
+                        )}
                       </div>
                     </motion.div>
                   </motion.div>
@@ -4091,325 +3980,20 @@ const LandingPage = memo(() => {
                       size="large"
                       className="cta-btn-primary"
                       onClick={() =>
-                        (window.location.href = "https://connect.wozif.com")
+                        (window.location.href = "https://app.connect.wozif.com")
                       }
                     >
                       Commencez gratuitement
                     </Button>
-                    <Button
-                      size="large"
-                      className="cta-btn-secondary"
-                      icon={<Smartphone size={20} />}
-                      onClick={() => (window.location.href = "#")}
-                    >
-                      Télécharger la version macOS
-                    </Button>
                   </div>
                 </div>
               </section>
 
-              {/* Custom Footer inspired by CinetPay */}
-              <section className={styles.footerSection}>
-                <div className={styles.footerContainer}>
-                  {/* Newsletter CTA */}
-                  <div className={styles.footerNewsletter}>
-                    <Flexbox
-                      horizontal
-                      justify="space-between"
-                      align="center"
-                      gap={24}
-                      style={{
-                        maxWidth: 1200,
-                        margin: "0 auto",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <h2
-                        style={{
-                          fontWeight: 800,
-                          margin: 0,
-                          color: "#075e54",
-                          flex: "1 1 300px",
-                        }}
-                      >
-                        Recevez les dernières actualités IA & Automatisation
-                        directement dans votre boîte mail
-                      </h2>
-                      <Flexbox
-                        horizontal
-                        gap={8}
-                        className="newsletter-form"
-                        style={{ width: "100%" }}
-                      >
-                        <input
-                          type="email"
-                          placeholder="Votre adresse email"
-                          style={{
-                            flex: 1,
-                            height: 48,
-                            borderRadius: 12,
-                            border: "1px solid rgba(7, 94, 84, 0.2)",
-                            paddingInline: 16,
-                            fontSize: 14,
-                          }}
-                        />
-                        <Button
-                          type="primary"
-                          style={{
-                            height: 48,
-                            borderRadius: 12,
-                            background: "#075e54",
-                            fontWeight: 700,
-                            paddingInline: 16,
-                          }}
-                        >
-                          Souscrire
-                        </Button>
-                      </Flexbox>
-                    </Flexbox>
-                  </div>
 
-                  {/* Footer Content Widgets */}
-                  <div className={styles.footerMain}>
-                    <div className="footer-grid">
-                      {/* Logo Column */}
-                      <Flexbox gap={20} align="start">
-                        <div>
-                          <Flexbox horizontal align="center" gap={12}>
-                            <img
-                              src="https://framerusercontent.com/images/8WfVzYJ9pXQ5hZ3Z0zY7mYc.png"
-                              alt="Connect Logo"
-                              style={{
-                                width: 36,
-                                height: 36,
-                                objectFit: "contain",
-                              }}
-                            />
-                            <span
-                              style={{
-                                fontSize: 22,
-                                fontWeight: 900,
-                                color: "#000",
-                              }}
-                            >
-                              Connect
-                            </span>
-                          </Flexbox>
-                          <p
-                            style={{
-                              marginTop: 12,
-                              color: "#666",
-                              lineHeight: 1.5,
-                              fontSize: 14,
-                            }}
-                          >
-                            Réinventer l'automatisation, propulser votre
-                            croissance.
-                          </p>
-                        </div>
-                        <Button
-                          variant="text"
-                          icon={<Globe size={16} />}
-                          style={{
-                            color: "#075e54",
-                            fontWeight: 600,
-                            padding: 0,
-                            fontSize: 14,
-                          }}
-                        >
-                          Français{" "}
-                          <ChevronRight size={14} style={{ marginLeft: 4 }} />
-                        </Button>
-                      </Flexbox>
-
-                      {/* Products Column */}
-                      <Flexbox gap={16}>
-                        <span
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 800,
-                            textTransform: "uppercase",
-                            letterSpacing: 1,
-                            color: "#075e54",
-                            opacity: 0.6,
-                          }}
-                        >
-                          Produits
-                        </span>
-                        <Flexbox gap={10}>
-                          {[
-                            "Orchestrateur IA",
-                            "Agents WhatsApp",
-                            "WhatsApp Collect",
-                            "School Automation",
-                            "API Connect Direct"
-                          ].map(link => (
-                            <a
-                              key={link}
-                              href="#"
-                              style={{
-                                color: "#000",
-                                textDecoration: "none",
-                                fontWeight: 500,
-                                fontSize: 14,
-                              }}
-                            >
-                              {link}
-                            </a>
-                          ))}
-                        </Flexbox>
-                      </Flexbox>
-
-                      {/* Developers Column */}
-                      <Flexbox gap={16}>
-                        <span
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 800,
-                            textTransform: "uppercase",
-                            letterSpacing: 1,
-                            color: "#075e54",
-                            opacity: 0.6,
-                          }}
-                        >
-                          Développeurs
-                        </span>
-                        <Flexbox gap={10}>
-                          {[
-                            "Bien démarrer",
-                            "Bibliothèque SDK",
-                            "Tutoriels",
-                            "Documentation API",
-                            "Statut Système"
-                          ].map(link => (
-                            <a
-                              key={link}
-                              href="#"
-                              style={{
-                                color: "#000",
-                                textDecoration: "none",
-                                fontWeight: 500,
-                                fontSize: 14,
-                              }}
-                            >
-                              {link}
-                            </a>
-                          ))}
-                        </Flexbox>
-                      </Flexbox>
-
-                      {/* Resources Column */}
-                      <Flexbox gap={16}>
-                        <span
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 800,
-                            textTransform: "uppercase",
-                            letterSpacing: 1,
-                            color: "#075e54",
-                            opacity: 0.6,
-                          }}
-                        >
-                          Ressources
-                        </span>
-                        <Flexbox gap={10}>
-                          {[
-                            "Études de cas",
-                            "Actualités IA",
-                            "Recrutement",
-                            "Démo Live"
-                          ].map(link => (
-                            <a
-                              key={link}
-                              href="#"
-                              style={{
-                                color: "#000",
-                                textDecoration: "none",
-                                fontWeight: 500,
-                                fontSize: 14,
-                              }}
-                            >
-                              {link}
-                            </a>
-                          ))}
-                        </Flexbox>
-                      </Flexbox>
-
-                      {/* Connect Column */}
-                      <Flexbox gap={16}>
-                        <span
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 800,
-                            textTransform: "uppercase",
-                            letterSpacing: 1,
-                            color: "#075e54",
-                            opacity: 0.6,
-                          }}
-                        >
-                          Connect
-                        </span>
-                        <Flexbox gap={10}>
-                          {[
-                            "À propos",
-                            "Nous contacter",
-                            "Conditions",
-                            "Confidentialité",
-                            "CGU Services"
-                          ].map(link => (
-                            <a
-                              key={link}
-                              href="#"
-                              style={{
-                                color: "#000",
-                                textDecoration: "none",
-                                fontWeight: 500,
-                                fontSize: 14,
-                              }}
-                            >
-                              {link}
-                            </a>
-                          ))}
-                        </Flexbox>
-                      </Flexbox>
-                    </div>
-                  </div>
-
-                  {/* Bottom Bar */}
-                  <div className={styles.footerBottom}>
-                    <Flexbox
-                      horizontal
-                      justify="space-between"
-                      align="center"
-                      gap={20}
-                      style={{ flexWrap: "wrap" }}
-                    >
-                      <p style={{ color: "#666", margin: 0, fontSize: 13 }}>
-                        © 2016 - 2026 Connect. Tous droits réservés par Wozif
-                        Innovation.
-                      </p>
-                      <Flexbox horizontal gap={20}>
-                        <a href="#" style={{ color: "#075e54" }}>
-                          <Linkedin size={18} />
-                        </a>
-                        <a href="#" style={{ color: "#075e54" }}>
-                          <Facebook size={18} />
-                        </a>
-                        <a href="#" style={{ color: "#075e54" }}>
-                          <Twitter size={18} />
-                        </a>
-                        <a href="#" style={{ color: "#075e54" }}>
-                          <Github size={18} />
-                        </a>
-                      </Flexbox>
-                    </Flexbox>
-                  </div>
-                </div>
-              </section>
             </div>
-          </motion.main>
+          </motion.main >
         )}
-      </AnimatePresence>
+      </AnimatePresence >
       <Script
         src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"
         strategy="afterInteractive"

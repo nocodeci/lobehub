@@ -1,50 +1,25 @@
 'use client';
 
 import {
-    Header,
-    Footer,
     Flexbox,
-    ActionIcon,
     Button,
-    Center,
-    Icon,
-    Video
 } from '@lobehub/ui';
-import { Typography, Segmented, Tag, Table as AntTable, Divider } from 'antd';
+import { Typography, Segmented, Tag, Table as AntTable, Divider, Tooltip } from 'antd';
 import { createStyles } from 'antd-style';
 import {
-    CheckCircle2,
-    Github,
     Zap,
     Sparkle,
     Atom,
     Gift,
-    ChevronDown,
-    CircleHelp,
-    Book,
-    Terminal,
-    Layers,
-    Search,
-    MessageSquare,
-    Linkedin,
-    Facebook,
-    Twitter,
     Check,
-    Globe,
-    ChevronRight
+    CircleHelp,
+    ChevronDown,
 } from 'lucide-react';
 import {
     OpenAI,
     Anthropic,
-    Google,
-    DeepSeek,
-    Groq,
-    Mistral,
-    Meta,
-    Ollama
 } from '@lobehub/icons';
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
 
 const { Title, Text } = Typography;
 
@@ -63,34 +38,10 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     padding: 0 24px;
     display: flex;
     flex-direction: column;
-    item-align: center;
-  `,
-    nav: css`
-    position: fixed;
-    top: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1000;
-    width: calc(100% - 32px);
-    max-width: 1000px;
-    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-    
-    &.scrolled {
-      top: 8px;
-      max-width: 850px;
-      filter: drop-shadow(0 12px 24px rgba(0,0,0,0.1));
-      
-      .ant-layout-header {
-        height: 64px !important;
-        background: rgba(236, 229, 221, 0.8) !important;
-        backdrop-filter: blur(20px) saturate(180%) !important;
-        border-radius: 20px !important;
-        border: 1px solid rgba(7, 94, 84, 0.1) !important;
-      }
-    }
+    margin: 0 auto;
   `,
     heroWrapper: css`
-    padding: 114px 0 96px;
+    padding: 120px 0 80px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -106,15 +57,6 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     width: 600px;
     height: 400px;
     background: radial-gradient(circle, rgba(7, 94, 84, 0.05) 0%, transparent 70%);
-    z-index: 0;
-  `,
-    heroGlow2: css`
-    position: absolute;
-    top: 100px;
-    right: 10%;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(37, 211, 102, 0.05) 0%, transparent 70%);
     z-index: 0;
   `,
     heroTitle: css`
@@ -142,78 +84,120 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     pricingGrid: css`
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
+    gap: 16px;
     width: 100%;
     margin-bottom: 48px;
+    align-items: start;
     @media (max-width: 1024px) {
       grid-template-columns: 1fr;
     }
   `,
     card: css`
     background: #f8f9fa;
-    border-radius: 12px;
-    padding: 24px;
+    border-radius: 24px;
+    padding: 32px 24px;
     display: flex;
     flex-direction: column;
-    gap: 32px;
-    border: 1px solid transparent;
-    transition: all 0.2s ease;
+    gap: 20px;
+    border: 1px solid rgba(0,0,0,0.04);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     &:hover {
-      border-color: rgba(0,0,0,0.1);
+      border-color: rgba(7, 94, 84, 0.1);
       background: #fff;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.05);
     }
   `,
     featuredCard: css`
     background: #fff;
     border: 2px solid #000;
-    &:hover {
-      background: #fff;
-      border-color: #000;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+    position: relative;
+    transform: scale(1.02);
+    z-index: 2;
+    @media (max-width: 1024px) {
+        transform: scale(1);
     }
   `,
     planIcon: css`
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: linear-gradient(45deg, #c57948, #803718);
     color: #ffc385;
     border: 2px solid #ffc385;
+    margin-bottom: 8px;
   `,
     priceValue: css`
-    font-size: 24px;
-    font-weight: 800;
+    font-size: 40px;
+    font-weight: 900;
     display: flex;
     align-items: baseline;
-    gap: 2px;
-    &::before { content: '$'; font-size: 0.8em; }
+    gap: 4px;
+    color: #000;
+    &::before { content: '$'; font-size: 0.6em; }
   `,
-    featureGroup: css`
-     display: flex;
-     flex-direction: column;
-     gap: 12px;
-     font-size: 15px;
-  `,
+    sectionTitle: css`
+        font-size: 13px;
+        font-weight: 700;
+        color: #000;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
+    `,
+    featureList: css`
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    `,
     featureItem: css`
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    line-height: 1.4;
-  `,
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    `,
+    checkIcon: css`
+        flex-shrink: 0;
+        margin-top: 2px;
+        color: #52c41a;
+        fill: #52c41a;
+        stroke: #fff;
+    `,
+    modelInfo: css`
+        display: flex;
+        flex-direction: column;
+        line-height: 1.4;
+        .name { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 4px; color: #000; }
+        .desc { font-size: 12px; opacity: 0.6; color: #000; }
+    `,
+    viewMore: css`
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        padding: 12px;
+        margin-top: 16px;
+        font-size: 14px;
+        font-weight: 700;
+        color: rgba(0,0,0,0.4);
+        cursor: pointer;
+        transition: color 0.2s;
+        &:hover { color: #075e54; }
+    `,
     enterpriseBar: css`
     width: 100%;
     padding: 32px;
     background: #fdfdfd;
-    border-radius: 16px;
+    border-radius: 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
     gap: 24px;
-    margin-bottom: 80px;
+    margin: 40px 0 80px;
     border: 1px solid rgba(0, 0, 0, 0.05);
   `,
     tableSection: css`
@@ -222,167 +206,60 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
   `,
 }));
 
-const PricingReproduction = () => {
+const PricingPage = () => {
     const { styles, cx } = useStyles();
     const [billingCycle, setBillingCycle] = useState('yearly');
-    const [scrolled, setScrolled] = useState(false);
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        const handleScroll = () => {
-            setScrolled(window.scrollY > 50);
-        };
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        return () => window.removeEventListener('scroll', handleScroll);
+        setMounted(true);
     }, []);
 
-    const logo = (
-        <a href="/" style={{ textDecoration: 'none', cursor: 'pointer' }}>
-            <Flexbox horizontal align="center" gap={scrolled ? 8 : 12}>
-                <img
-                    src="/connect-logo.png"
-                    alt="Connect Logo"
-                    style={{
-                        width: scrolled ? 32 : 40,
-                        height: scrolled ? 32 : 40,
-                        objectFit: 'contain',
-                        transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)'
-                    }}
-                />
-                <span style={{
-                    fontSize: scrolled ? 20 : 24,
-                    fontWeight: 900,
-                    letterSpacing: '-0.5px',
-                    color: '#000',
-                    transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)'
-                }}>
-                    Connect
-                </span>
-            </Flexbox>
-        </a>
+    if (!mounted) return null;
+
+    const FeatureSection = ({ title, showHelp = false, children }: { title: string, showHelp?: boolean, children: React.ReactNode }) => (
+        <div style={{ marginBottom: 8 }}>
+            <div className={styles.sectionTitle}>
+                {title} {showHelp && <CircleHelp size={14} style={{ opacity: 0.5 }} />}
+            </div>
+            {children}
+        </div>
     );
 
-    const navLinks = (
-        <Flexbox horizontal gap={scrolled ? 32 : 48}>
-            <a href="/#features" style={{ color: 'rgba(0,0,0,0.7)', fontWeight: 700, fontSize: 16, textDecoration: 'none', transition: 'color 0.3s' }} onMouseEnter={(e) => e.currentTarget.style.color = '#000'} onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(0,0,0,0.7)'}>Concept</a>
-            <a href="/#showcase" style={{ color: 'rgba(0,0,0,0.7)', fontWeight: 700, fontSize: 16, textDecoration: 'none', transition: 'color 0.3s' }} onMouseEnter={(e) => e.currentTarget.style.color = '#000'} onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(0,0,0,0.7)'}>Moteur</a>
-            <a href="/pricing" style={{ color: '#000', fontWeight: 800, fontSize: 16, textDecoration: 'none' }}>Tarification</a>
-            <a href="/#showcase" style={{ color: 'rgba(0,0,0,0.7)', fontWeight: 700, fontSize: 16, textDecoration: 'none', transition: 'color 0.3s' }} onMouseEnter={(e) => e.currentTarget.style.color = '#000'} onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(0,0,0,0.7)'}>Sécurité</a>
-        </Flexbox>
+    const FeatureLine = ({ label, subLabel, icon = true }: { label: string | React.ReactNode, subLabel?: string, icon?: boolean }) => (
+        <div className={styles.featureItem}>
+            {icon && <Check size={16} className={styles.checkIcon} />}
+            <div className={styles.modelInfo}>
+                <div className="name">{label}</div>
+                {subLabel && <div className="desc">{subLabel}</div>}
+            </div>
+        </div>
     );
-
-    const actions = (
-        <Flexbox horizontal gap={scrolled ? 12 : 16} align="center">
-            <ActionIcon icon={Github} size={scrolled ? "middle" : "large"} style={{ color: '#000' }} />
-            <Button
-                type="primary"
-                size={scrolled ? "middle" : "large"}
-                onClick={() => window.location.href = 'https://connect.wozif.com'}
-                style={{
-                    borderRadius: scrolled ? 12 : 16,
-                    fontWeight: 800,
-                    paddingInline: scrolled ? 20 : 32,
-                    background: '#075e54',
-                    border: 'none',
-                    color: '#fff',
-                    boxShadow: '0 4px 12px rgba(7, 94, 84, 0.3)'
-                }}
-            >
-                Démarrer
-            </Button>
-        </Flexbox>
-    );
-
-    const modelColumns = [
-        {
-            title: 'Modals',
-            dataIndex: 'model',
-            key: 'model',
-            render: (text: string, record: any) => (
-                <Flexbox horizontal align="center" gap={12}>
-                    <div style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: '50%',
-                        background: record.iconBg,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#fff'
-                    }}>
-                        {record.icon}
-                    </div>
-                    <span style={{ fontWeight: 500 }}>{text}</span>
-                </Flexbox>
-            )
-        },
-        {
-            title: <Flexbox horizontal align="center" gap={4} justify="flex-end">Input <Tag style={{ margin: 0 }}>1M Tokens</Tag></Flexbox>,
-            dataIndex: 'input',
-            key: 'input',
-            align: 'right' as const,
-            render: (text: string) => <Flexbox horizontal align="center" gap={8} justify="flex-end"><span style={{ fontWeight: 600 }}>{text.split(' ')[0]}</span> <Tag style={{ margin: 0 }}>Credits</Tag></Flexbox>
-        },
-        {
-            title: <Flexbox horizontal align="center" gap={4} justify="flex-end">Output <Tag style={{ margin: 0 }}>1M Tokens</Tag></Flexbox>,
-            dataIndex: 'output',
-            key: 'output',
-            align: 'right' as const,
-            render: (text: string) => <Flexbox horizontal align="center" gap={8} justify="flex-end"><span style={{ fontWeight: 600 }}>{text.split(' ')[0]}</span> <Tag style={{ margin: 0 }}>Credits</Tag></Flexbox>
-        },
-    ];
-
-    const modelData = [
-        { key: '1', model: 'GPT-4.1 (1M)', input: '2M', output: '8M', iconBg: '#ab68ff', icon: <OpenAI.Avatar size={14} /> },
-        { key: '2', model: 'GPT-4.1 mini (1M)', input: '0.4M', output: '1.6M', iconBg: '#ab68ff', icon: <OpenAI.Avatar size={14} /> },
-        { key: '3', model: 'GPT-4o mini (128K)', input: '0.15M', output: '0.6M', iconBg: '#ab68ff', icon: <OpenAI.Avatar size={14} /> },
-        { key: '4', model: 'GPT-4o (128K)', input: '2.5M', output: '10M', iconBg: '#ab68ff', icon: <OpenAI.Avatar size={14} /> },
-        { key: '5', model: 'Claude 3.7 Sonnet (200K)', input: '3M', output: '15M', iconBg: '#d97757', icon: <Anthropic.Avatar size={14} /> },
-    ];
 
     return (
         <main className={styles.main}>
-            <div className={cx(styles.nav, scrolled && 'scrolled')}>
-                <Header
-                    logo={logo}
-                    nav={navLinks}
-                    actions={actions}
-                    style={{
-                        height: scrolled ? 56 : 72,
-                        background: 'rgba(236, 229, 221, 0.8)',
-                        backdropFilter: 'blur(24px) saturate(180%)',
-                        border: '1px solid rgba(7, 94, 84, 0.1)',
-                        borderRadius: 20,
-                        padding: '0 32px',
-                        width: '100%',
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05)',
-                        transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)'
-                    }}
-                />
-            </div>
-
             <div className={styles.container}>
                 <section className={styles.heroWrapper}>
                     <div className={styles.heroGlow1} />
-                    <div className={styles.heroGlow2} />
-
                     <h1 className={styles.heroTitle}>Plans et tarifs</h1>
                     <p className={styles.heroSubtitle}>
-                        Commencez un essai gratuit de GPT / Claude / Gemini 500,000 Credits. <br />
+                        Commencez un essai gratuit de GPT / Claude / Gemini avec 500,000 Credits. <br />
                         Aucune carte de crédit requise.
                     </p>
 
                     <Button
                         size="large"
-                        block={false}
+                        type="primary"
                         icon={<Gift size={20} />}
-                        onClick={() => window.location.href = 'https://connect.wozif.com'}
+                        onClick={() => window.location.href = 'https://app.connect.wozif.com'}
                         style={{
-                            fontWeight: 500,
+                            fontWeight: 700,
                             minWidth: 240,
-                            height: 48,
-                            borderRadius: 12,
+                            height: 56,
+                            borderRadius: 16,
                             marginBottom: 48,
-                            zIndex: 1
+                            zIndex: 1,
+                            background: '#075e54'
                         }}
                     >
                         Commencer gratuitement
@@ -394,7 +271,6 @@ const PricingReproduction = () => {
                             options={[
                                 { label: <Flexbox horizontal align="center" gap={6} style={{ padding: '0 12px' }}>Paiement annuel <Tag color="success" style={{ background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a', margin: 0 }}>Remise de 23%</Tag></Flexbox>, value: 'yearly' },
                                 { label: <div style={{ padding: '0 12px' }}>Paiement mensuel</div>, value: 'monthly' },
-                                { label: <Flexbox horizontal align="center" gap={6} style={{ padding: '0 12px' }}>Paiement unique <img src="https://api.iconify.design/ri:m-coin-line.svg" style={{ width: 16 }} /></Flexbox>, value: 'one-time' },
                             ]}
                             value={billingCycle}
                             onChange={setBillingCycle as any}
@@ -404,338 +280,285 @@ const PricingReproduction = () => {
                 </section>
 
                 <section className={styles.pricingGrid}>
-                    {/* Version de base */}
+                    {/* Basic Plan */}
                     <div className={styles.card}>
                         <Flexbox gap={16}>
-                            <div className={styles.planIcon} style={{ background: 'linear-gradient(45deg, #c57948, #803718)', borderColor: '#ffc385', color: '#ffc385' }}>
+                            <div className={styles.planIcon}>
                                 <Sparkle size={18} fill="currentColor" />
                             </div>
                             <div>
                                 <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Version de base</h2>
-                                <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Pour une utilisation plus légère et occasionnelle</p>
+                                <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Pour une utilisation légère et occasionnelle</p>
                             </div>
                             <div>
-                                <div className={styles.priceValue}>9.9</div>
-                                <div style={{ fontSize: 13, opacity: 0.5 }}>/ Par mois (Paiement annuel)</div>
+                                <div className={styles.priceValue}>{billingCycle === 'yearly' ? '9.9' : '12.9'}</div>
+                                <div style={{ fontSize: 13, opacity: 0.5 }}>/ Par mois ({billingCycle === 'yearly' ? 'Paiement annuel' : 'Paiement mensuel'})</div>
                             </div>
-                            <Flexbox horizontal gap={4} align="center">
-                                <span style={{ fontSize: 12, opacity: 0.5 }}>$118.8 / Par an</span>
-                                <Tag color="success" style={{ margin: 0, fontSize: 11, background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a' }}>Remise de 23%</Tag>
-                            </Flexbox>
-                            <Button type="primary" block style={{ fontWeight: 500, height: 40, borderRadius: 8, background: '#075e54', border: 'none' }}>Commencer</Button>
+                            {billingCycle === 'yearly' && (
+                                <Flexbox horizontal align="center" gap={4}>
+                                    <span style={{ fontSize: 12, opacity: 0.5 }}>$118.8 / Par an</span>
+                                    <Tag color="success" style={{ margin: 0, fontSize: 11, background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a' }}>Remise de 23%</Tag>
+                                </Flexbox>
+                            )}
+                            <Button type="primary" block style={{ fontWeight: 700, height: 48, borderRadius: 12, background: '#075e54', border: 'none' }}>Commencer</Button>
                         </Flexbox>
 
                         <Divider dashed style={{ margin: 0 }} />
 
-                        <div className={styles.featureGroup}>
-                            <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                                Calcul des crédits <CircleHelp size={14} style={{ opacity: 0.5 }} />
+                        <FeatureSection title="Calcul des crédits" showHelp>
+                            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>5,000,000 / Par mois</div>
+                            <div className={styles.featureList}>
+                                <FeatureLine label="GPT-4o mini" subLabel="Environ 7,000 messages" />
+                                <FeatureLine label="DeepSeek R1" subLabel="Environ 1,900 messages" />
+                                <FeatureLine label="Claude 3.5 Sonnet New" subLabel="Environ 300 messages" />
+                                <FeatureLine label="Gemini 1.5 Flash" subLabel="Environ 7,000 messages" />
+                                <div style={{ opacity: 0.5, fontSize: 12, display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 28 }}>Voir plus de modèles...</div>
                             </div>
-                            <div style={{ fontSize: 14, fontWeight: 700 }}>5,000,000 / Par mois</div>
-
-                            <div className={styles.featureItem}>
-                                <Check size={16} color="#52c41a" />
-                                <Flexbox>
-                                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>GPT-4o mini <CircleHelp size={12} style={{ opacity: 0.5 }} /></div>
-                                    <div style={{ fontSize: 12, opacity: 0.6 }}>Environ 7,000 messages</div>
-                                </Flexbox>
-                            </div>
-
-                            <div className={styles.featureItem}>
-                                <Check size={16} color="#52c41a" />
-                                <Flexbox>
-                                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>DeepSeek R1 <CircleHelp size={12} style={{ opacity: 0.5 }} /></div>
-                                    <div style={{ fontSize: 12, opacity: 0.6 }}>Environ 1,900 messages</div>
-                                </Flexbox>
-                            </div>
-
-                            <div className={styles.featureItem}>
-                                <Check size={16} color="#52c41a" />
-                                <Flexbox>
-                                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>Claude 3.5 Sonnet New <CircleHelp size={12} style={{ opacity: 0.5 }} /></div>
-                                    <div style={{ fontSize: 12, opacity: 0.6 }}>Environ 300 messages</div>
-                                </Flexbox>
-                            </div>
-
-                            <div className={styles.featureItem}>
-                                <Check size={16} color="#52c41a" />
-                                <div style={{ opacity: 0.8 }}>Voir plus de modèles...</div>
-                            </div>
-                        </div>
+                        </FeatureSection>
 
                         <Divider dashed style={{ margin: 0 }} />
 
-                        <div className={styles.featureGroup}>
-                            <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                                Fichiers & Connaissance <CircleHelp size={14} style={{ opacity: 0.5 }} />
+                        <FeatureSection title="Fichiers & Connaissance" showHelp>
+                            <div className={styles.featureList}>
+                                <FeatureLine label="Stockage de fichiers" subLabel="1.0 GB" />
+                                <FeatureLine label="Stockage de vecteurs" subLabel="5,000 entrées (≈ 50MB)" />
                             </div>
-                            <div className={styles.featureItem}>
-                                <Check size={16} color="#52c41a" />
-                                <Flexbox>
-                                    <div style={{ fontWeight: 600 }}>Stockage de fichiers</div>
-                                    <div style={{ fontSize: 14 }}>1.0 GB</div>
-                                </Flexbox>
+                        </FeatureSection>
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <FeatureSection title="Fournisseurs">
+                            <div className={styles.featureList}>
+                                <FeatureLine label="Utilisez vos propres clés API" />
+                                <FeatureLine label="Demandes de messages illimitées" />
                             </div>
-                            <div className={styles.featureItem}>
-                                <Check size={16} color="#52c41a" />
-                                <Flexbox>
-                                    <div style={{ fontWeight: 600 }}>Stockage de vecteurs</div>
-                                    <div style={{ fontSize: 14 }}>5,000 entrées <span style={{ opacity: 0.5, fontSize: 12 }}>(≈ 50MB)</span></div>
-                                </Flexbox>
+                        </FeatureSection>
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <FeatureSection title="Services cloud">
+                            <div className={styles.featureList}>
+                                <FeatureLine label="Historique des conversations illimité" />
+                                <FeatureLine label="Synchronisation cloud globale" />
                             </div>
+                        </FeatureSection>
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <FeatureSection title="Fonctionnalités avancées">
+                            <div className={styles.featureList}>
+                                <FeatureLine label="Points forts du Marché d'agents" />
+                                <FeatureLine label="Compétences premium" />
+                                <FeatureLine label="Recherche web" />
+                            </div>
+                        </FeatureSection>
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <FeatureSection title="Support client">
+                            <div className={styles.featureList}>
+                                <FeatureLine label="Support par e-mail prioritaire" />
+                                <FeatureLine label="Achat de forfaits de crédits supp." />
+                            </div>
+                        </FeatureSection>
+
+                        <div className={styles.viewMore}>
+                            Voir plus de détails <ChevronDown size={14} />
                         </div>
                     </div>
 
-                    {/* Premium */}
+                    {/* Premium Plan */}
                     <div className={cx(styles.card, styles.featuredCard)}>
                         <Flexbox gap={16}>
-                            <div className={styles.planIcon} style={{ background: 'linear-gradient(45deg, #a5b4c2, #606e7b)', borderColor: '#fcfdff', color: '#fcfdff' }}>
-                                <Zap size={18} fill="currentColor" />
+                            <div className={styles.planIcon} style={{ background: 'linear-gradient(45deg, #075e54, #128c7e)', borderColor: '#fff' }}>
+                                <Zap size={18} fill="currentColor" color="#fff" />
                             </div>
                             <div>
-                                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Premium</h2>
-                                <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Pour les professionnels exigeants</p>
+                                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Premium Pro</h2>
+                                <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Pour les professionnels et les équipes exigeantes</p>
                             </div>
                             <div>
-                                <div className={styles.priceValue}>19.9</div>
-                                <div style={{ fontSize: 13, opacity: 0.5 }}>/ Par mois (Paiement annuel)</div>
+                                <div className={styles.priceValue}>{billingCycle === 'yearly' ? '19.9' : '24.9'}</div>
+                                <div style={{ fontSize: 13, opacity: 0.5 }}>/ Par mois ({billingCycle === 'yearly' ? 'Paiement annuel' : 'Paiement mensuel'})</div>
                             </div>
-                            <Flexbox horizontal gap={4} align="center">
-                                <span style={{ fontSize: 12, opacity: 0.5 }}>$238.8 / Par an</span>
-                                <Tag color="success" style={{ margin: 0, fontSize: 11, background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a' }}>Remise de 20%</Tag>
-                            </Flexbox>
-                            <Button type="primary" block style={{ fontWeight: 500, height: 40, borderRadius: 8, background: '#075e54', border: 'none' }}>Commencer</Button>
+                            {billingCycle === 'yearly' && (
+                                <Flexbox horizontal align="center" gap={4}>
+                                    <span style={{ fontSize: 12, opacity: 0.5 }}>$238.8 / Par an</span>
+                                    <Tag color="success" style={{ margin: 0, fontSize: 11, background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a' }}>Remise de 20%</Tag>
+                                </Flexbox>
+                            )}
+                            <Button type="primary" block style={{ fontWeight: 700, height: 56, borderRadius: 16, background: '#000', color: '#fff', border: 'none' }}>Commencer</Button>
                         </Flexbox>
 
-                        <Divider dashed style={{ margin: 0 }} />
+                        <Divider dashed style={{ margin: 0, borderColor: 'rgba(0,0,0,0.1)' }} />
 
-                        <div className={styles.featureGroup}>
-                            <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                                Calcul des crédits <CircleHelp size={14} style={{ opacity: 0.5 }} />
+                        <FeatureSection title="Calcul des crédits" showHelp>
+                            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>15,000,000 / Par mois</div>
+                            <div className={styles.featureList}>
+                                <FeatureLine label="GPT-4o mini" subLabel="Environ 21,000 messages" />
+                                <FeatureLine label="DeepSeek R1" subLabel="Environ 6,000 messages" />
+                                <FeatureLine label="Claude 3.5 Sonnet New" subLabel="Environ 1,000 messages" />
+                                <FeatureLine label="GPT-3.5 Turbo" subLabel="Messages illimités" />
+                                <div style={{ opacity: 0.5, fontSize: 12, display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 28 }}>Tous les modèles du Pack Base inclus</div>
                             </div>
-                            <div style={{ fontSize: 14, fontWeight: 700 }}>15,000,000 / Par mois</div>
-
-                            <div className={styles.featureItem}>
-                                <Check size={16} color="#52c41a" />
-                                <Flexbox>
-                                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>GPT-4o mini <CircleHelp size={12} style={{ opacity: 0.5 }} /></div>
-                                    <div style={{ fontSize: 12, opacity: 0.6 }}>Environ 21,100 messages</div>
-                                </Flexbox>
-                            </div>
-
-                            <div className={styles.featureItem}>
-                                <Check size={16} color="#52c41a" />
-                                <Flexbox>
-                                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>DeepSeek R1 <CircleHelp size={12} style={{ opacity: 0.5 }} /></div>
-                                    <div style={{ fontSize: 12, opacity: 0.6 }}>Environ 5,800 messages</div>
-                                </Flexbox>
-                            </div>
-
-                            <div className={styles.featureItem}>
-                                <Check size={16} color="#52c41a" />
-                                <Flexbox>
-                                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>Claude 3.5 Sonnet New <CircleHelp size={12} style={{ opacity: 0.5 }} /></div>
-                                    <div style={{ fontSize: 12, opacity: 0.6 }}>Environ 900 messages</div>
-                                </Flexbox>
-                            </div>
-                        </div>
+                        </FeatureSection>
 
                         <Divider dashed style={{ margin: 0 }} />
 
-                        <div className={styles.featureGroup}>
-                            <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                                Fichiers & Connaissance <CircleHelp size={14} style={{ opacity: 0.5 }} />
+                        <FeatureSection title="Fichiers & Connaissance" showHelp>
+                            <div className={styles.featureList}>
+                                <FeatureLine label="Stockage de fichiers" subLabel="5.0 GB (+400%)" />
+                                <FeatureLine label="Stockage de vecteurs" subLabel="25,000 entrées (≈ 250MB)" />
+                                <FeatureLine label="OCR & Analyse de documents" />
                             </div>
-                            <div className={styles.featureItem}>
-                                <Check size={16} color="#52c41a" />
-                                <Flexbox>
-                                    <div style={{ fontWeight: 600 }}>Stockage de fichiers</div>
-                                    <div style={{ fontSize: 14 }}>2.0 GB</div>
-                                </Flexbox>
+                        </FeatureSection>
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <FeatureSection title="Fournisseurs & Multi-Agents">
+                            <div className={styles.featureList}>
+                                <FeatureLine label="Jusqu'à 10 agents simultanés" />
+                                <FeatureLine label="Connecteurs CRM Natifs" />
+                                <FeatureLine label="Accès API Direct" />
                             </div>
-                            <div className={styles.featureItem}>
-                                <Check size={16} color="#52c41a" />
-                                <Flexbox>
-                                    <div style={{ fontWeight: 600 }}>Stockage de vecteurs</div>
-                                    <div style={{ fontSize: 14 }}>10,000 entrées <span style={{ opacity: 0.5, fontSize: 12 }}>(≈ 100MB)</span></div>
-                                </Flexbox>
+                        </FeatureSection>
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <FeatureSection title="Services Expert">
+                            <div className={styles.featureList}>
+                                <FeatureLine label="Workflows d'automatisation complexes" />
+                                <FeatureLine label="Aperçu des fichiers dans le chat" />
+                                <FeatureLine label="Mode confidentiel entreprise" />
                             </div>
+                        </FeatureSection>
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <FeatureSection title="Support Premium">
+                            <div className={styles.featureList}>
+                                <FeatureLine label="Support Chat & Email 24/7" />
+                                <FeatureLine label="Onboarding personnalisé (Zoom)" />
+                            </div>
+                        </FeatureSection>
+
+                        <div className={styles.viewMore} style={{ color: '#000' }}>
+                            Tout ce qui est dans Base, et plus... <ChevronDown size={14} />
                         </div>
                     </div>
 
-                    {/* Ultimate */}
+                    {/* Ultimate Plan */}
                     <div className={styles.card}>
                         <Flexbox gap={16}>
-                            <div className={styles.planIcon} style={{ background: 'linear-gradient(45deg, #f7a82f, #bb7227)', borderColor: '#fcfa6e', color: '#fcfa6e' }}>
-                                <Atom size={18} />
+                            <div className={styles.planIcon} style={{ background: 'linear-gradient(45deg, #f7a82f, #bb7227)', borderColor: '#fff' }}>
+                                <Atom size={18} color="#fff" />
                             </div>
                             <div>
-                                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Ultimate</h2>
-                                <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Pour une utilisation intensive</p>
+                                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Utilisation intensive</h2>
+                                <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Pour les entreprises qui ne veulent aucune limite</p>
                             </div>
                             <div>
-                                <div className={styles.priceValue}>39.9</div>
-                                <div style={{ fontSize: 13, opacity: 0.5 }}>/ Par mois (Paiement annuel)</div>
+                                <div className={styles.priceValue}>{billingCycle === 'yearly' ? '39.9' : '49.9'}</div>
+                                <div style={{ fontSize: 13, opacity: 0.5 }}>/ Par mois ({billingCycle === 'yearly' ? 'Paiement annuel' : 'Paiement mensuel'})</div>
                             </div>
-                            <Flexbox horizontal gap={4} align="center">
-                                <span style={{ fontSize: 12, opacity: 0.5 }}>$478.8 / Par an</span>
-                                <Tag color="success" style={{ margin: 0, fontSize: 11, background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a' }}>Remise de 20%</Tag>
-                            </Flexbox>
-                            <Button type="primary" block style={{ fontWeight: 500, height: 40, borderRadius: 8, background: '#075e54', border: 'none' }}>Commencer</Button>
+                            {billingCycle === 'yearly' && (
+                                <Flexbox horizontal align="center" gap={4}>
+                                    <span style={{ fontSize: 12, opacity: 0.5 }}>$478.8 / Par an</span>
+                                    <Tag color="success" style={{ margin: 0, fontSize: 11, background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a' }}>Remise de 20%</Tag>
+                                </Flexbox>
+                            )}
+                            <Button type="primary" block style={{ fontWeight: 700, height: 48, borderRadius: 12, background: '#075e54', border: 'none' }}>Commencer</Button>
                         </Flexbox>
 
                         <Divider dashed style={{ margin: 0 }} />
 
-                        <div className={styles.featureGroup}>
-                            <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                                Calcul des crédits <CircleHelp size={14} style={{ opacity: 0.5 }} />
+                        <FeatureSection title="Calcul des crédits" showHelp>
+                            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>35,000,000 / Par mois</div>
+                            <div className={styles.featureList}>
+                                <FeatureLine label="Accès prioritaire GPT-4o" subLabel="≈ 5,000 messages" />
+                                <FeatureLine label="Claude 3.5 Opus" subLabel="Inclus" />
+                                <FeatureLine label="Génération d'images (DALL-E 3)" subLabel="Inclus" />
+                                <FeatureLine label="Modèles personnalisés (Fine-tuned)" />
                             </div>
-                            <div style={{ fontSize: 14, fontWeight: 700 }}>35,000,000 / Par mois</div>
-
-                            <div className={styles.featureItem}>
-                                <Check size={16} color="#52c41a" />
-                                <Flexbox>
-                                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>GPT-4o mini <CircleHelp size={12} style={{ opacity: 0.5 }} /></div>
-                                    <div style={{ fontSize: 12, opacity: 0.6 }}>Environ 49,100 messages</div>
-                                </Flexbox>
-                            </div>
-
-                            <div className={styles.featureItem}>
-                                <Check size={16} color="#52c41a" />
-                                <Flexbox>
-                                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>DeepSeek R1 <CircleHelp size={12} style={{ opacity: 0.5 }} /></div>
-                                    <div style={{ fontSize: 12, opacity: 0.6 }}>Environ 13,400 messages</div>
-                                </Flexbox>
-                            </div>
-
-                            <div className={styles.featureItem}>
-                                <Check size={16} color="#52c41a" />
-                                <Flexbox>
-                                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>Claude 3.5 Sonnet New <CircleHelp size={12} style={{ opacity: 0.5 }} /></div>
-                                    <div style={{ fontSize: 12, opacity: 0.6 }}>Environ 2,100 messages</div>
-                                </Flexbox>
-                            </div>
-                        </div>
+                        </FeatureSection>
 
                         <Divider dashed style={{ margin: 0 }} />
 
-                        <div className={styles.featureGroup}>
-                            <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                                Fichiers & Connaissance <CircleHelp size={14} style={{ opacity: 0.5 }} />
+                        <FeatureSection title="Fichiers & Connaissance" showHelp>
+                            <div className={styles.featureList}>
+                                <FeatureLine label="Stockage de fichiers" subLabel="20.0 GB" />
+                                <FeatureLine label="Stockage de vecteurs" subLabel="Illimité" />
+                                <FeatureLine label="Auto-indexing de sites web" />
                             </div>
-                            <div className={styles.featureItem}>
-                                <Check size={16} color="#52c41a" />
-                                <Flexbox>
-                                    <div style={{ fontWeight: 600 }}>Stockage de fichiers</div>
-                                    <div style={{ fontSize: 14 }}>4.0 GB</div>
-                                </Flexbox>
+                        </FeatureSection>
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <FeatureSection title="Entreprise & Sécurité">
+                            <div className={styles.featureList}>
+                                <FeatureLine label="Agents WhatsApp illimités" />
+                                <FeatureLine label="Multi-utilisateurs & Rôles (RBAC)" />
+                                <FeatureLine label="Conformité RGPD Enterprise" />
+                                <FeatureLine label="SSO & Logs d'audit" />
                             </div>
-                            <div className={styles.featureItem}>
-                                <Check size={16} color="#52c41a" />
-                                <Flexbox>
-                                    <div style={{ fontWeight: 600 }}>Stockage de vecteurs</div>
-                                    <div style={{ fontSize: 14 }}>20,000 entrées <span style={{ opacity: 0.5, fontSize: 12 }}>(≈ 200MB)</span></div>
-                                </Flexbox>
+                        </FeatureSection>
+
+                        <Divider dashed style={{ margin: 0 }} />
+
+                        <FeatureSection title="Support White-Glove">
+                            <div className={styles.featureList}>
+                                <FeatureLine label="Account Manager dédié" />
+                                <FeatureLine label="Support technique via WhatsApp" />
+                                <FeatureLine label="Garantie de disponibilité (SLA) 99.9%" />
                             </div>
+                        </FeatureSection>
+
+                        <div className={styles.viewMore}>
+                            La solution ultime pour passer à l'échelle <ChevronDown size={14} />
                         </div>
                     </div>
                 </section>
 
                 <section className={styles.enterpriseBar}>
                     <div>
-                        <h2 style={{ fontSize: 24, fontWeight: 900, margin: 0 }}>Enterprise Edition</h2>
-                        <p style={{ fontSize: 14, color: '#666', margin: '4px 0 0' }}>Pour les équipes qui ont besoin d’un déploiement privé ou de solutions personnalisées</p>
+                        <h2 style={{ fontSize: 24, fontWeight: 900, margin: 0 }}>Connect Enterprise</h2>
+                        <p style={{ fontSize: 14, color: '#666', margin: '4px 0 0' }}>Déploiement privé, formation sur site et solutions sur mesure pour les grandes organisations.</p>
                     </div>
-
-                    <Flexbox horizontal gap={32} style={{ flex: 1, padding: '0 32px' }}>
-                        <Flexbox gap={8}>
-                            <div className={styles.featureItem}><Check size={14} color="#52c41a" /><span style={{ fontSize: 13, fontWeight: 600 }}>Licence commerciale</span></div>
-                            <div className={styles.featureItem}><Check size={14} color="#52c41a" /><span style={{ fontSize: 13, fontWeight: 600 }}>Personnalisation de la marque</span></div>
-                            <div className={styles.featureItem}><Check size={14} color="#52c41a" /><span style={{ fontSize: 13, fontWeight: 600 }}>Gestion des utilisateurs</span></div>
-                        </Flexbox>
-                        <Flexbox gap={8}>
-                            <div className={styles.featureItem}><Check size={14} color="#52c41a" /><span style={{ fontSize: 13, fontWeight: 600 }}>Fournisseur auto-hébergé</span></div>
-                            <div className={styles.featureItem}><Check size={14} color="#52c41a" /><span style={{ fontSize: 13, fontWeight: 600 }}>Modèles privés</span></div>
-                            <div className={styles.featureItem}><Check size={14} color="#52c41a" /><span style={{ fontSize: 13, fontWeight: 600 }}>Intégration & Support</span></div>
-                        </Flexbox>
-                    </Flexbox>
-
-                    <Button type="primary" size="large" style={{ borderRadius: 12, fontWeight: 600, background: '#075e54', border: 'none' }}>Contact</Button>
+                    <Button type="primary" size="large" style={{ borderRadius: 12, fontWeight: 700, background: '#075e54' }}>Contactez-nous</Button>
                 </section>
 
                 <section className={styles.tableSection}>
-                    <Flexbox horizontal gap={48} align="start">
-                        <div style={{ flex: 1 }}>
-                            <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 16 }}>Tarification des modèles de texte</h2>
-                            <p style={{ color: '#666', fontSize: 15, lineHeight: 1.6 }}>
-                                LobeHub Cloud utilise des crédits pour mesurer l’utilisation des modèles (associée aux tokens).
-                                Le tableau indique les tarifs par 1 M de tokens et la manière dont les crédits sont calculés.
-                            </p>
-                            <Button icon={<Book size={16} />} size="large" style={{ borderRadius: 12, fontWeight: 600, background: '#f5f5f5', border: 'none', marginTop: 16 }}>
-                                Consulter la documentation
-                            </Button>
-                        </div>
-
-                        <div style={{ flex: 2, width: '100%' }}>
-                            <AntTable
-                                columns={modelColumns}
-                                dataSource={modelData}
-                                pagination={false}
-                                size="middle"
-                                style={{
-                                    borderRadius: 20,
-                                    overflow: 'hidden',
-                                    border: '1px solid rgba(0,0,0,0.05)',
-                                    background: '#fff'
-                                }}
-                            />
-                        </div>
-                    </Flexbox>
+                    <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 32 }}>Consommation par modèle</h2>
+                    <AntTable
+                        dataSource={[
+                            { key: '1', model: 'GPT-4o mini', input: '0.15M', output: '0.6M', iconBg: '#ab68ff', icon: <OpenAI.Avatar size={14} /> },
+                            { key: '2', model: 'GPT-4o', input: '2.5M', output: '10M', iconBg: '#ab68ff', icon: <OpenAI.Avatar size={14} /> },
+                            { key: '3', model: 'Claude 3.5 Sonnet', input: '3M', output: '15M', iconBg: '#d97757', icon: <Anthropic.Avatar size={14} /> },
+                            { key: '4', model: 'DeepSeek R1', input: '2M', output: '8M', iconBg: '#52c41a', icon: <OpenAI.Avatar size={14} /> },
+                        ]}
+                        columns={[
+                            {
+                                title: 'Modèle',
+                                dataIndex: 'model',
+                                key: 'model',
+                                render: (text: string, record: any) => (
+                                    <Flexbox horizontal align="center" gap={12}>
+                                        <div style={{ width: 24, height: 24, borderRadius: '50%', background: record.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}> {record.icon} </div>
+                                        <span style={{ fontWeight: 500 }}>{text}</span>
+                                    </Flexbox>
+                                )
+                            },
+                            { title: 'Entrée / 1M Tokens', dataIndex: 'input', key: 'input', align: 'right' as const, render: (text: string) => <Flexbox horizontal align="center" gap={8} justify="flex-end"><span style={{ fontWeight: 600 }}>{text}</span> <Tag style={{ margin: 0 }}>Crédits</Tag></Flexbox> },
+                            { title: 'Sortie / 1M Tokens', dataIndex: 'output', key: 'output', align: 'right' as const, render: (text: string) => <Flexbox horizontal align="center" gap={8} justify="flex-end"><span style={{ fontWeight: 600 }}>{text}</span> <Tag style={{ margin: 0 }}>Crédits</Tag></Flexbox> },
+                        ]}
+                        pagination={false}
+                        size="large"
+                        style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(0,0,0,0.05)' }}
+                    />
                 </section>
             </div>
-
-            <Footer
-                columns={[
-                    {
-                        title: 'Offres et tarifs',
-                        items: [
-                            { title: 'Quoi de neuf', url: '#' },
-                            { title: 'Téléchargements', url: '#' },
-                            { title: 'Marché des assistants', url: '#' },
-                            { title: 'Édition Communautaire', url: '#' },
-                        ],
-                    },
-                    {
-                        title: 'Ressources',
-                        items: [
-                            { title: 'Documentation', url: '#' },
-                            { title: 'API Reference', url: '#' },
-                            { title: 'Blog', url: '#' },
-                            { title: 'AI Icons', url: '#' },
-                        ],
-                    },
-                    {
-                        title: 'Produits',
-                        items: [
-                            { title: 'Lobe Chat', url: '#' },
-                            { title: 'Lobe UI', url: '#' },
-                            { title: 'Lobe Icons', url: '#' },
-                            { title: 'Lobe TTS', url: '#' },
-                        ],
-                    },
-                    {
-                        title: 'À propos',
-                        items: [
-                            { title: 'Conditions', url: '#' },
-                            { title: 'Confidentialité', url: '#' },
-                            { title: 'Contact', url: '#' },
-                        ],
-                    },
-                ]}
-                style={{ width: '100%', maxWidth: 1200, padding: '80px 24px' }}
-            />
         </main>
     );
 };
 
-export default PricingReproduction;
+export default PricingPage;

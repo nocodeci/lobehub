@@ -95,18 +95,20 @@ export const ChatPreview = ({ styles, cx }: { styles: any; cx: any }) => {
                             key={i}
                             style={{
                                 alignSelf: m.role === "user" ? "flex-end" : "flex-start",
-                                maxWidth: "80%",
+                                maxWidth: "min(80%, 400px)",
                             }}
                         >
                             <div
                                 style={{
-                                    padding: "12px 16px",
+                                    padding: "10px 14px",
                                     borderRadius: 16,
-                                    fontSize: 14,
+                                    fontSize: 13,
+                                    lineHeight: 1.5,
                                     background:
                                         m.role === "user" ? "var(--brand-primary)" : "#f0f0f0",
                                     color: m.role === "user" ? "#fff" : "#000",
                                     boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+                                    wordBreak: "break-word",
                                 }}
                             >
                                 {m.content}
@@ -115,7 +117,7 @@ export const ChatPreview = ({ styles, cx }: { styles: any; cx: any }) => {
                     ))}
                 </div>
                 <div className={styles.chatInputWrapper}>
-                    <Flexbox horizontal gap={12}>
+                    <Flexbox horizontal gap={8} style={{ flexWrap: 'nowrap' }}>
                         <input
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
@@ -123,20 +125,25 @@ export const ChatPreview = ({ styles, cx }: { styles: any; cx: any }) => {
                             placeholder="Écrire à l'agent..."
                             style={{
                                 flex: 1,
+                                minWidth: 0,
                                 border: "1px solid #eee",
-                                borderRadius: 12,
-                                padding: "0 16px",
-                                height: 44,
+                                borderRadius: 10,
+                                padding: "0 12px",
+                                height: 40,
                                 outline: "none",
+                                fontSize: 14,
                             }}
                         />
                         <Button
                             type="primary"
                             onClick={handleSend}
                             style={{
-                                height: 44,
-                                borderRadius: 12,
+                                height: 40,
+                                borderRadius: 10,
                                 background: "var(--brand-primary)",
+                                paddingInline: 16,
+                                flexShrink: 0,
+                                fontSize: 13,
                             }}
                         >
                             Envoyer
