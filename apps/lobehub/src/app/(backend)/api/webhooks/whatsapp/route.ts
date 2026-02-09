@@ -415,7 +415,14 @@ async function generateAgentResponse(
         const messages = buildMessagesWithHistory(agent.systemRole, history, currentMessage, webContext);
         console.log(`[WhatsApp Webhook] Sending ${messages.length} messages to OpenAI`);
 
-        const isReasoningModel = agent.model.includes('o1') || agent.model.includes('o3');
+        const modelName = (agent.model || '').toLowerCase();
+        const isReasoningModel = modelName.includes('o1') ||
+            modelName.includes('o3') ||
+            modelName.startsWith('o1') ||
+            modelName.startsWith('o3');
+
+        console.log(`[WhatsApp Webhook] Model original: ${agent.model}, Model normalized: ${modelName}, isReasoning: ${isReasoningModel}`);
+
         const apiBody: any = {
             messages,
             model: agent.model,
@@ -423,11 +430,12 @@ async function generateAgentResponse(
 
         if (isReasoningModel) {
             apiBody.max_completion_tokens = 1000;
-            // Reasoning models typically don't support temperature or other sampling parameters
         } else {
             apiBody.max_tokens = 1000;
             apiBody.temperature = 0.7;
         }
+
+        console.log('[WhatsApp Webhook] Request body:', JSON.stringify({ ...apiBody, messages: '...' }));
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             body: JSON.stringify(apiBody),
