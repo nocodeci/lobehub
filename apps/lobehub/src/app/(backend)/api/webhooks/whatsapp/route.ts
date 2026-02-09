@@ -288,11 +288,7 @@ async function getActiveWhatsAppAgent(): Promise<{
             })
             .from(agents)
             .where(
-                and(
-                    isNotNull(agents.marketIdentifier),
-                    ne(agents.marketIdentifier, ''),
-                    like(sql`${agents.plugins}::text`, '%lobe-whatsapp-local%')
-                )
+                like(sql`${agents.plugins}::text`, '%lobe-whatsapp-local%')
             )
             .limit(1);
 
