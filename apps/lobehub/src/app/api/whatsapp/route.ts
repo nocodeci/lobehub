@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sql } from 'drizzle-orm';
 
 import { UserModel } from '@/database/models/user';
 import { getServerDB } from '@/database/core/db-adaptor';
 import { getSessionUser } from '@/libs/trusted-client/getSessionUser';
+import { userSettings } from '@lobechat/database';
 
 // WhatsApp Bridge server URL - single bridge with multi-session support
 const WHATSAPP_BRIDGE_URL = process.env.WHATSAPP_BRIDGE_URL || 'http://localhost:8080';
@@ -137,6 +139,58 @@ export async function GET(req: NextRequest) {
                     });
                 }
 
+            case 'check-phone': {
+                // Check if a WhatsApp phone number is already registered by any user
+                const phoneToCheck = searchParams.get('phone');
+                if (!phoneToCheck) {
+                    return NextResponse.json(
+                        { success: false, error: 'Missing phone parameter' },
+                        { status: 400 }
+                    );
+                }
+
+                // Normalize: strip everything except digits and leading +
+                const normalizedPhone = phoneToCheck.replace(/[^\d+]/g, '');
+                const digitsOnly = normalizedPhone.replace(/^\+/, '');
+
+                // Get current user ID
+                const sessionUser = await getSessionUser();
+                const currentUserId = sessionUser?.userId;
+
+                // Query all user_settings where tool->'whatsapp'->'accounts' contains any account with this phone
+                // Uses PostgreSQL jsonb_array_elements to unnest the accounts array and check
+                const db = await getServerDB();
+                const result = await db.execute(
+                    sql`SELECT us.id AS user_id
+                        FROM user_settings us,
+                             jsonb_array_elements(us.tool->'whatsapp'->'accounts') AS account
+                        WHERE account->>'phone' IS NOT NULL
+                          AND REPLACE(REPLACE(account->>'phone', '+', ''), ' ', '') LIKE ${'%' + digitsOnly + '%'}
+                        LIMIT 1`
+                );
+
+                if (result.rows && result.rows.length > 0) {
+                    const ownerUserId = (result.rows[0] as any).user_id;
+                    const isSameUser = ownerUserId === currentUserId;
+
+                    return NextResponse.json({
+                        success: true,
+                        data: {
+                            exists: true,
+                            sameUser: isSameUser,
+                            message: isSameUser
+                                ? 'Ce numéro WhatsApp est déjà enregistré sur l\'un de vos comptes.'
+                                : 'Ce numéro WhatsApp est déjà utilisé par un autre utilisateur. Veuillez contacter le service client pour le transférer.',
+                        },
+                    });
+                }
+
+                return NextResponse.json({
+                    success: true,
+                    data: { exists: false },
+                });
+            }
+
             case 'contacts':
                 // Get WhatsApp contacts
                 const contactsResponse = await fetch(buildBridgeUrl('/api/contacts', sessionId));
@@ -158,7 +212,7 @@ export async function GET(req: NextRequest) {
 
             default:
                 return NextResponse.json(
-                    { success: false, error: 'Invalid action. Use: qr, status, contacts, groups, group-info' },
+                    { success: false, error: 'Invalid action. Use: qr, status, check-phone, contacts, groups, group-info' },
                     { status: 400 }
                 );
         }

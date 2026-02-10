@@ -63,6 +63,7 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
     const [qrData, setQrData] = useState<WhatsAppQRData | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [duplicateError, setDuplicateError] = useState<string | null>(null);
     const [bridgeOnline, setBridgeOnline] = useState(true);
     const [scanningAccountId, setScanningAccountId] = useState<string | null>(null);
     const [accountsStatus, setAccountsStatus] = useState<Record<string, boolean>>({});
@@ -90,26 +91,91 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
         [accounts, persistAccounts],
     );
 
+    // Check if a phone number is already in use by any user (cross-account protection)
+    const checkPhoneDuplicate = useCallback(async (phone: string, accountId: string): Promise<boolean> => {
+        if (!phone) return false;
+        try {
+            const response = await fetch(`/api/whatsapp?action=check-phone&phone=${encodeURIComponent(phone)}`);
+            const data = await response.json();
+            if (data.success && data.data.exists) {
+                // Phone is already in use! Force disconnect this account
+                setDuplicateError(data.data.message);
+
+                // Auto-logout the just-connected account
+                try {
+                    await fetch(`/api/whatsapp?action=logout&accountId=${encodeURIComponent(accountId)}`, {
+                        method: 'POST',
+                    });
+                } catch {
+                    // Ignore logout errors
+                }
+
+                // Remove the account from the list
+                const nextAccounts = accounts.filter((a) => a.id !== accountId);
+                if (nextAccounts.length === 0) {
+                    const defaultAccount: WhatsAppAccount = {
+                        id: 'whatsapp-1',
+                        name: 'WhatsApp 1',
+                        isConnected: false,
+                    };
+                    await persistAccounts({ accounts: [defaultAccount], activeAccountId: defaultAccount.id });
+                } else {
+                    await persistAccounts({ accounts: nextAccounts });
+                }
+
+                // Update status
+                setAccountsStatus((prev) => {
+                    const next = { ...prev };
+                    delete next[accountId];
+                    return next;
+                });
+
+                // Go back to list
+                setScanningAccountId(null);
+                setQrData(null);
+                setStep('list');
+
+                return true; // Duplicate found
+            }
+        } catch {
+            // If check fails, allow the connection (fail-open for UX)
+        }
+        return false;
+    }, [accounts, persistAccounts]);
+
     const checkAllAccountsStatus = useCallback(async () => {
         if (accounts.length === 0) return;
-        
+
         const statusMap: Record<string, boolean> = {};
         let anyConnected = false;
-        
+
         for (const account of accounts) {
             try {
                 const response = await fetch(`/api/whatsapp?action=status&accountId=${encodeURIComponent(account.id)}`);
                 const data = await response.json();
-                
+
                 if (data.success) {
                     statusMap[account.id] = data.data.connected;
                     if (data.data.connected) {
                         anyConnected = true;
-                        if (data.data.phone || data.data.jid) {
-                            await updateAccountMeta(account.id, { 
-                                phone: data.data.phone, 
-                                jid: data.data.jid,
-                                isConnected: true 
+                        const phone = data.data.phone || '';
+                        const jid = data.data.jid || '';
+
+                        // Check for duplicate phone number (cross-account)
+                        if (phone && !account.phone) {
+                            // This is a newly connected account - verify the phone isn't taken
+                            const isDuplicate = await checkPhoneDuplicate(phone, account.id);
+                            if (isDuplicate) {
+                                statusMap[account.id] = false;
+                                continue;
+                            }
+                        }
+
+                        if (phone || jid) {
+                            await updateAccountMeta(account.id, {
+                                phone,
+                                jid,
+                                isConnected: true
                             });
                         }
                     }
@@ -122,15 +188,16 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
                 setBridgeOnline(false);
             }
         }
-        
+
         setAccountsStatus(statusMap);
         if (anyConnected && onConnected) onConnected();
-    }, [accounts, onConnected, updateAccountMeta]);
+    }, [accounts, onConnected, updateAccountMeta, checkPhoneDuplicate]);
 
     useEffect(() => {
         if (!open) return;
-        
+
         setError(null);
+        setDuplicateError(null);
         setQrData(null);
         setScanningAccountId(null);
         setStep('list');
@@ -143,7 +210,7 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
                 };
                 await persistAccounts({ accounts: [defaultAccount], activeAccountId: defaultAccount.id });
             }
-            
+
             setLoading(true);
             await checkAllAccountsStatus();
             setLoading(false);
@@ -233,6 +300,21 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
             if (data.success) {
                 setQrData(data.data);
                 if (data.data.paired) {
+                    // Before confirming, check if the phone number is a duplicate
+                    // Get the status to retrieve the phone number
+                    try {
+                        const statusRes = await fetch(`/api/whatsapp?action=status&accountId=${encodeURIComponent(accountId)}`);
+                        const statusData = await statusRes.json();
+                        if (statusData.success && statusData.data.phone) {
+                            const isDuplicate = await checkPhoneDuplicate(statusData.data.phone, accountId);
+                            if (isDuplicate) {
+                                return; // checkPhoneDuplicate already handles cleanup
+                            }
+                        }
+                    } catch {
+                        // Continue even if check fails
+                    }
+
                     await checkAllAccountsStatus();
                     setStep('list');
                     if (onConnected) onConnected();
@@ -258,7 +340,7 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
 
         const interval = setInterval(async () => {
             if (qrData?.paired) return;
-            
+
             try {
                 const response = await fetch(`/api/whatsapp?action=qr&accountId=${encodeURIComponent(scanningAccountId)}`);
                 const data = await response.json();
@@ -266,6 +348,20 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
                 if (data.success) {
                     setQrData(data.data);
                     if (data.data.paired) {
+                        // Check for duplicate phone before confirming
+                        try {
+                            const statusRes = await fetch(`/api/whatsapp?action=status&accountId=${encodeURIComponent(scanningAccountId)}`);
+                            const statusData = await statusRes.json();
+                            if (statusData.success && statusData.data.phone) {
+                                const isDuplicate = await checkPhoneDuplicate(statusData.data.phone, scanningAccountId);
+                                if (isDuplicate) {
+                                    return; // Cleanup handled by checkPhoneDuplicate
+                                }
+                            }
+                        } catch {
+                            // Continue even if check fails
+                        }
+
                         await checkAllAccountsStatus();
                         setStep('list');
                         if (onConnected) onConnected();
@@ -296,7 +392,7 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
 
     const renderAccountCard = (account: WhatsAppAccount) => {
         const isConnected = accountsStatus[account.id] || false;
-        
+
         return (
             <Card key={account.id} size="small" style={{ marginBottom: 12 }}>
                 <Flexbox align="center" gap={12} horizontal justify="space-between">
@@ -322,11 +418,11 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
                             </Flexbox>
                         </Flexbox>
                     </Flexbox>
-                    
+
                     <Flexbox gap={8} horizontal>
                         {!isConnected && (
-                            <Button 
-                                type="primary" 
+                            <Button
+                                type="primary"
                                 icon={<QrCode size={16} />}
                                 onClick={() => startQRScan(account.id)}
                                 size="small"
@@ -334,10 +430,10 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
                                 Scanner QR
                             </Button>
                         )}
-                        
+
                         {accounts.length > 1 && (
-                            <ActionIcon 
-                                icon={Trash2} 
+                            <ActionIcon
+                                icon={Trash2}
                                 size="small"
                                 onClick={() => deleteAccount(account.id)}
                                 title="Supprimer"
@@ -368,6 +464,24 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
                 />
             )}
 
+            {duplicateError && (
+                <Alert
+                    message="Numéro WhatsApp déjà utilisé"
+                    description={
+                        <Flexbox gap={8}>
+                            <Text>{duplicateError}</Text>
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                                📧 Contactez le service client : support@wozif.com
+                            </Text>
+                        </Flexbox>
+                    }
+                    type="warning"
+                    showIcon
+                    closable
+                    onClose={() => setDuplicateError(null)}
+                />
+            )}
+
             {loading ? (
                 <Flexbox align="center" gap={12} style={{ padding: 24 }}>
                     <Spin indicator={<Loader2 className="animate-spin" size={32} />} />
@@ -379,8 +493,8 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
                         {accounts.map(renderAccountCard)}
                     </Flexbox>
 
-                    <Button 
-                        icon={<Plus size={16} />} 
+                    <Button
+                        icon={<Plus size={16} />}
                         onClick={addAccount}
                         style={{ alignSelf: 'flex-start' }}
                     >
@@ -403,7 +517,7 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
 
     const renderQRStep = () => {
         const scanningAccount = accounts.find((a) => a.id === scanningAccountId);
-        
+
         if (loading && !qrData?.qr) {
             return (
                 <Flexbox align="center" gap={12} style={{ padding: 24 }}>
@@ -419,7 +533,7 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
                     <ActionIcon icon={ArrowLeft} onClick={() => setStep('list')} title="Retour" />
                     <Title level={4} style={{ margin: 0 }}>Scanner le QR Code</Title>
                 </Flexbox>
-                
+
                 <Text type="secondary">
                     Compte : <strong>{scanningAccount?.name || scanningAccountId}</strong>
                 </Text>
