@@ -6,10 +6,10 @@ import {
   RECOMMENDED_SKILLS,
   RecommendedSkillType,
 } from '@lobechat/const';
-import { Avatar, Flexbox, Icon, type ItemType } from '@lobehub/ui';
+import { Avatar, Checkbox, Flexbox, Icon, type ItemType } from '@lobehub/ui';
 import { cssVar } from 'antd-style';
 import isEqual from 'fast-deep-equal';
-import { ToyBrick } from 'lucide-react';
+import { SquareArrowOutUpRight, ToyBrick } from 'lucide-react';
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -234,21 +234,49 @@ export const useControls = ({
     [isLobehubSkillEnabled, allLobehubSkillServers, installedLobehubIds, recommendedLobehubIds],
   );
 
-  // Créer les éléments de compte WhatsApp (avec indentation visuelle)
-  // Doit être déclaré AVANT builtinItems car utilisé dans celui-ci
+  // Créer les éléments de compte WhatsApp — même pattern que KlavisServerItem
   const whatsappAccountItems = useMemo(() => {
     if (whatsappAccounts.length === 0) return [];
 
-    // Vérifier si WhatsApp (Bridge) est activé
     const isWhatsAppEnabled = checked.includes(WHATSAPP_TOOL_ID);
 
     return whatsappAccounts.map((a) => {
       const isActive = a.id === activeWhatsAppAccountId;
       const isConnected = (a as any).isConnected || false;
-
-      // Si WhatsApp n'est pas activé, griser les comptes
       const isDisabled = !isWhatsAppEnabled;
-      const opacityValue = isDisabled ? 0.35 : (isActive ? 1 : 0.6);
+
+      const renderRightControl = () => {
+        if (isDisabled) return null;
+
+        // Non connecté → lien "Scanner QR" (comme Klavis "Connect")
+        if (!isConnected) {
+          return (
+            <Flexbox
+              align="center"
+              gap={4}
+              horizontal
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenWhatsAppSetup?.();
+              }}
+              style={{ cursor: 'pointer', opacity: 0.65 }}
+            >
+              Scanner QR
+              <Icon icon={SquareArrowOutUpRight} size="small" />
+            </Flexbox>
+          );
+        }
+
+        // Connecté → Checkbox (comme Klavis quand connecté)
+        return (
+          <Checkbox
+            checked={isActive}
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          />
+        );
+      };
 
       return {
         icon: (
@@ -264,7 +292,7 @@ export const useControls = ({
               size={SKILL_ICON_SIZE - 4}
               style={{
                 flex: 'none',
-                opacity: opacityValue,
+                opacity: isDisabled ? 0.35 : 1,
                 borderRadius: '33%',
                 filter: isDisabled ? 'grayscale(1)' : 'none',
               }}
@@ -275,99 +303,34 @@ export const useControls = ({
         label: (
           <Flexbox
             align={'center'}
-            gap={8}
+            gap={24}
             horizontal
             justify={'space-between'}
-            style={{
-              width: '100%',
-              opacity: isDisabled ? 0.5 : 1,
-              cursor: isDisabled ? 'not-allowed' : 'pointer',
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isDisabled || !isConnected) return;
+              setSettings({
+                tool: {
+                  ...(userSettings.tool as any),
+                  whatsapp: {
+                    ...whatsappSettings,
+                    activeAccountId: a.id,
+                  },
+                },
+              } as any);
             }}
           >
-            <Flexbox align={'center'} gap={6} horizontal>
-              <span style={{
-                fontSize: 12,
-                fontWeight: isActive && !isDisabled ? 600 : 400,
-                color: isDisabled ? cssVar.colorTextQuaternary : (isActive ? cssVar.colorText : cssVar.colorTextSecondary),
-              }}>
-                {a.name || a.id}
-              </span>
+            <Flexbox align={'center'} gap={8} horizontal>
+              {a.name || a.id}
               {a.phone && (
-                <span style={{
-                  fontSize: 10,
-                  color: cssVar.colorTextQuaternary,
-                }}>
+                <span style={{ fontSize: 10, color: cssVar.colorTextQuaternary }}>
                   {a.phone}
                 </span>
               )}
             </Flexbox>
-            <Flexbox align={'center'} gap={4} horizontal>
-              {!isDisabled && isConnected && (
-                <span style={{
-                  fontSize: 9,
-                  color: cssVar.colorSuccess,
-                  backgroundColor: `${cssVar.colorSuccess}15`,
-                  padding: '1px 5px',
-                  borderRadius: 3,
-                  fontWeight: 500,
-                }}>
-                  ✓ Connecté
-                </span>
-              )}
-              {!isDisabled && !isConnected && (
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenWhatsAppSetup?.();
-                  }}
-                  style={{
-                    fontSize: 9,
-                    color: cssVar.colorWarning,
-                    backgroundColor: `${cssVar.colorWarning}15`,
-                    padding: '1px 5px',
-                    borderRadius: 3,
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                  }}
-                >
-                  ⚡ Scanner QR
-                </span>
-              )}
-              {isActive && isConnected && !isDisabled && (
-                <span style={{
-                  fontSize: 9,
-                  color: cssVar.colorPrimary,
-                  backgroundColor: `${cssVar.colorPrimary}15`,
-                  padding: '1px 5px',
-                  borderRadius: 3,
-                  fontWeight: 500,
-                }}>
-                  Actif
-                </span>
-              )}
-              {isDisabled && (
-                <span style={{
-                  fontSize: 9,
-                  color: cssVar.colorTextQuaternary,
-                  padding: '1px 5px',
-                }}>
-                  Désactivé
-                </span>
-              )}
-            </Flexbox>
+            {renderRightControl()}
           </Flexbox>
         ),
-        onClick: isDisabled ? undefined : async () => {
-          await setSettings({
-            tool: {
-              ...(userSettings.tool as any),
-              whatsapp: {
-                ...whatsappSettings,
-                activeAccountId: a.id,
-              },
-            },
-          } as any);
-        },
       };
     });
   }, [activeWhatsAppAccountId, checked, onOpenWhatsAppSetup, setSettings, userSettings.tool, whatsappAccounts, whatsappSettings]);
@@ -375,14 +338,9 @@ export const useControls = ({
   // Builtin 工具列表项（不包含 Klavis 和 LobeHub Skill）
   const builtinItems = useMemo(
     () => {
-      console.log('[useControls] filteredBuiltinList:', filteredBuiltinList.map(i => i.identifier));
-      console.log('[useControls] whatsappAccounts:', whatsappAccounts);
       return filteredBuiltinList.flatMap((item) => {
         const isWhatsAppTool =
           item.identifier === WHATSAPP_TOOL_ID || item.meta?.title === 'WhatsApp (Bridge)';
-        if (isWhatsAppTool) {
-          console.log('[useControls] Found WhatsApp tool:', item.identifier, 'accounts:', whatsappAccounts.length);
-        }
         const baseToolItem = {
           icon: (
             <Avatar
@@ -409,43 +367,8 @@ export const useControls = ({
 
         if (!isWhatsAppTool) return [baseToolItem];
 
-        // Pour WhatsApp, afficher le badge de compteur sur l'élément principal
-        const connectedCount = whatsappAccounts.filter((a) => (a as any).isConnected).length;
-        const totalCount = whatsappAccounts.length;
-
         // Retourner l'élément WhatsApp principal suivi des comptes
-        const whatsAppMainItem = {
-          ...baseToolItem,
-          label: (
-            <ToolItem
-              checked={checked.includes(item.identifier)}
-              id={item.identifier}
-              label={
-                <>
-                  <span>{item.meta?.title || item.identifier}</span>
-                  <span style={{
-                    fontSize: 11,
-                    color: connectedCount > 0 ? cssVar.colorSuccess : cssVar.colorError,
-                    backgroundColor: connectedCount > 0 ? `${cssVar.colorSuccess}15` : `${cssVar.colorError}15`,
-                    padding: '2px 6px',
-                    borderRadius: 4,
-                    fontWeight: 500,
-                  }}>
-                    {connectedCount > 0 ? `${connectedCount}/${totalCount}` : '✗ Déconnecté'}
-                  </span>
-                </>
-              }
-              onUpdate={async () => {
-                setUpdating(true);
-                await togglePlugin(item.identifier);
-                setUpdating(false);
-              }}
-            />
-          ),
-        };
-
-        // Ajouter les comptes WhatsApp directement après
-        return [whatsAppMainItem, ...whatsappAccountItems] as any;
+        return [baseToolItem, ...whatsappAccountItems] as any;
       });
     },
     [
@@ -457,9 +380,6 @@ export const useControls = ({
       whatsappAccountItems,
     ],
   );
-
-  // Debug: log builtinItems count
-  console.log('[useControls] builtinItems total:', builtinItems.length, builtinItems.map((i: any) => i.key));
 
 
   // Skills 列表项（包含 LobeHub Skill 和 Klavis）
