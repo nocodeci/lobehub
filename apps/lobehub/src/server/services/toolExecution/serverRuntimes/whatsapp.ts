@@ -102,6 +102,23 @@ const buildBridgeUrl = (endpoint: string, sessionId: string, extraParams?: Recor
     return url.toString();
 };
 
+// Check if a session is actually connected/paired on the bridge
+const checkSessionConnected = async (sessionId: string): Promise<{ connected: boolean; error?: string }> => {
+    try {
+        const response = await fetch(buildBridgeUrl('/api/status', sessionId));
+        if (!response.ok) {
+            return { connected: false, error: 'Bridge WhatsApp non disponible' };
+        }
+        const data = await parseResponse(response);
+        if (!data.paired) {
+            return { connected: false, error: 'WhatsApp n\'est pas connecté. Veuillez scanner le QR code dans les paramètres WhatsApp avant d\'utiliser cet outil.' };
+        }
+        return { connected: true };
+    } catch {
+        return { connected: false, error: 'Impossible de vérifier le statut de la session WhatsApp' };
+    }
+};
+
 /**
  * WhatsApp Server Runtime
  */
@@ -139,6 +156,10 @@ export const whatsappRuntime: ServerRuntimeRegistration = {
             },
             whatsapp_send_message: async (args: { message: string; recipient: string }) => {
                 const sessionId = await resolveSessionId(context);
+                const sessionCheck = await checkSessionConnected(sessionId);
+                if (!sessionCheck.connected) {
+                    return { content: sessionCheck.error || 'WhatsApp non connecté', success: false };
+                }
                 try {
                     const response = await fetch(buildBridgeUrl('/api/send', sessionId), {
                         body: JSON.stringify({
@@ -166,6 +187,10 @@ export const whatsappRuntime: ServerRuntimeRegistration = {
                 media_path?: string;
             }) => {
                 const sessionId = await resolveSessionId(context);
+                const sessionCheck = await checkSessionConnected(sessionId);
+                if (!sessionCheck.connected) {
+                    return { content: sessionCheck.error || 'WhatsApp non connecté', success: false };
+                }
                 let tempPath: string | undefined;
                 try {
                     const mediaPath = args.media_path || (args.media_url ? await downloadToTempFile(args.media_url, 'whatsapp_media') : '');
@@ -203,6 +228,10 @@ export const whatsappRuntime: ServerRuntimeRegistration = {
             },
             whatsapp_send_voice: async (args: { recipient: string; audio_url?: string; audio_path?: string }) => {
                 const sessionId = await resolveSessionId(context);
+                const sessionCheck = await checkSessionConnected(sessionId);
+                if (!sessionCheck.connected) {
+                    return { content: sessionCheck.error || 'WhatsApp non connecté', success: false };
+                }
                 let tempPath: string | undefined;
                 try {
                     const audioPath = args.audio_path || (args.audio_url ? await downloadToTempFile(args.audio_url, 'whatsapp_voice') : '');

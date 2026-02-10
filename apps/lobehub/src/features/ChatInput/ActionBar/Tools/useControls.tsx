@@ -300,7 +300,7 @@ export const useControls = ({
               )}
             </Flexbox>
             <Flexbox align={'center'} gap={4} horizontal>
-              {isConnected && !isDisabled && (
+              {!isDisabled && isConnected && (
                 <span style={{
                   fontSize: 9,
                   color: cssVar.colorSuccess,
@@ -310,6 +310,18 @@ export const useControls = ({
                   fontWeight: 500,
                 }}>
                   ✓ Connecté
+                </span>
+              )}
+              {!isDisabled && !isConnected && (
+                <span style={{
+                  fontSize: 9,
+                  color: cssVar.colorError,
+                  backgroundColor: `${cssVar.colorError}15`,
+                  padding: '1px 5px',
+                  borderRadius: 3,
+                  fontWeight: 500,
+                }}>
+                  ✗ Non connecté
                 </span>
               )}
               {isActive && !isDisabled && (
@@ -404,13 +416,13 @@ export const useControls = ({
                   <span>{item.meta?.title || item.identifier}</span>
                   <span style={{
                     fontSize: 11,
-                    color: connectedCount > 0 ? cssVar.colorSuccess : cssVar.colorTextTertiary,
-                    backgroundColor: connectedCount > 0 ? `${cssVar.colorSuccess}15` : cssVar.colorFillQuaternary,
+                    color: connectedCount > 0 ? cssVar.colorSuccess : cssVar.colorError,
+                    backgroundColor: connectedCount > 0 ? `${cssVar.colorSuccess}15` : `${cssVar.colorError}15`,
                     padding: '2px 6px',
                     borderRadius: 4,
                     fontWeight: 500,
                   }}>
-                    {connectedCount}/{totalCount}
+                    {connectedCount > 0 ? `${connectedCount}/${totalCount}` : '✗ Déconnecté'}
                   </span>
                 </>
               }

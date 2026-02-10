@@ -499,6 +499,28 @@ export async function POST(req: NextRequest) {
             `[WhatsApp Webhook] Processing message from ${sender}: "${content.substring(0, 50)}..."`
         );
 
+        // Verify the WhatsApp session is actually connected before processing
+        try {
+            let statusUrl = `${bridgeUrl}/api/status`;
+            if (sessionId) {
+                statusUrl += `?sessionId=${encodeURIComponent(sessionId)}`;
+            }
+            const statusRes = await fetch(statusUrl);
+            if (statusRes.ok) {
+                const statusData = await statusRes.json();
+                if (!statusData.paired) {
+                    console.warn(`[WhatsApp Webhook] Session ${sessionId || 'default'} is NOT paired/connected. Skipping response.`);
+                    return NextResponse.json({ status: 'session_not_connected' });
+                }
+            } else {
+                console.warn('[WhatsApp Webhook] Could not verify session status, bridge may be down. Skipping.');
+                return NextResponse.json({ status: 'bridge_unreachable' });
+            }
+        } catch (statusError) {
+            console.warn('[WhatsApp Webhook] Failed to check session status:', statusError);
+            return NextResponse.json({ status: 'bridge_unreachable' });
+        }
+
         // Get the active WhatsApp agent
         const agent = await getActiveWhatsAppAgent();
 
