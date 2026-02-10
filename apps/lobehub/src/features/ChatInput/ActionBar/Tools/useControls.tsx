@@ -83,8 +83,10 @@ const LobehubSkillIcon = memo<Pick<LobehubSkillProviderType, 'icon' | 'label'>>(
 LobehubSkillIcon.displayName = 'LobehubSkillIcon';
 
 export const useControls = ({
+  onOpenWhatsAppSetup,
   setUpdating,
 }: {
+  onOpenWhatsAppSetup?: () => void;
   setUpdating: (updating: boolean) => void;
 }) => {
   const { t } = useTranslation('setting');
@@ -313,18 +315,25 @@ export const useControls = ({
                 </span>
               )}
               {!isDisabled && !isConnected && (
-                <span style={{
-                  fontSize: 9,
-                  color: cssVar.colorError,
-                  backgroundColor: `${cssVar.colorError}15`,
-                  padding: '1px 5px',
-                  borderRadius: 3,
-                  fontWeight: 500,
-                }}>
-                  ✗ Non connecté
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenWhatsAppSetup?.();
+                  }}
+                  style={{
+                    fontSize: 9,
+                    color: cssVar.colorWarning,
+                    backgroundColor: `${cssVar.colorWarning}15`,
+                    padding: '1px 5px',
+                    borderRadius: 3,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ⚡ Scanner QR
                 </span>
               )}
-              {isActive && !isDisabled && (
+              {isActive && isConnected && !isDisabled && (
                 <span style={{
                   fontSize: 9,
                   color: cssVar.colorPrimary,
@@ -361,7 +370,7 @@ export const useControls = ({
         },
       };
     });
-  }, [activeWhatsAppAccountId, checked, setSettings, userSettings.tool, whatsappAccounts, whatsappSettings]);
+  }, [activeWhatsAppAccountId, checked, onOpenWhatsAppSetup, setSettings, userSettings.tool, whatsappAccounts, whatsappSettings]);
 
   // Builtin 工具列表项（不包含 Klavis 和 LobeHub Skill）
   const builtinItems = useMemo(

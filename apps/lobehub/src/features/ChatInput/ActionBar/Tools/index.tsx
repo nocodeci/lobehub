@@ -3,6 +3,7 @@ import { Suspense, memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { createSkillStoreModal } from '@/features/SkillStore';
+import { WhatsAppSetupModal } from '@/features/WhatsApp';
 import { useModelSupportToolUse } from '@/hooks/useModelSupportToolUse';
 import { useAgentStore } from '@/store/agent';
 import { agentByIdSelectors } from '@/store/agent/selectors';
@@ -15,7 +16,9 @@ import { useControls } from './useControls';
 const Tools = memo(() => {
   const { t } = useTranslation('setting');
   const [updating, setUpdating] = useState(false);
+  const [whatsAppModalOpen, setWhatsAppModalOpen] = useState(false);
   const { marketItems } = useControls({
+    onOpenWhatsAppSetup: () => setWhatsAppModalOpen(true),
     setUpdating,
   });
 
@@ -33,6 +36,7 @@ const Tools = memo(() => {
     return <Action disabled icon={Blocks} showTooltip={true} title={t('tools.disabled')} />;
 
   return (
+    <>
     <Suspense fallback={<Action disabled icon={Blocks} title={t('tools.title')} />}>
       <Action
         icon={Blocks}
@@ -51,6 +55,11 @@ const Tools = memo(() => {
         title={t('tools.title')}
       />
     </Suspense>
+    <WhatsAppSetupModal
+      onClose={() => setWhatsAppModalOpen(false)}
+      open={whatsAppModalOpen}
+    />
+    </>
   );
 });
 
