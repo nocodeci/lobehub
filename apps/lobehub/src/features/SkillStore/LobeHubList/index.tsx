@@ -2,7 +2,7 @@
 
 import { KLAVIS_SERVER_TYPES, LOBEHUB_SKILL_PROVIDERS } from '@lobechat/const';
 import isEqual from 'fast-deep-equal';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 
 import { createIntegrationDetailModal } from '@/features/IntegrationDetailModal';
 import { WhatsAppSkillCard } from '@/features/WhatsApp';
@@ -25,7 +25,6 @@ export const LobeHubList = memo<LobeHubListProps>(({ keywords }) => {
   const isKlavisEnabled = useServerConfigStore(serverConfigSelectors.enableKlavis);
   const allLobehubSkillServers = useToolStore(lobehubSkillStoreSelectors.getServers, isEqual);
   const allKlavisServers = useToolStore(klavisStoreSelectors.getServers, isEqual);
-  const [whatsappConnected, setWhatsappConnected] = useState(false);
 
   const [useFetchLobehubSkillConnections, useFetchUserKlavisServers] = useToolStore((s) => [
     s.useFetchLobehubSkillConnections,
@@ -97,9 +96,7 @@ export const LobeHubList = memo<LobeHubListProps>(({ keywords }) => {
         if (item.type === 'whatsapp') {
           return (
             <WhatsAppSkillCard
-              isConnected={whatsappConnected}
               key="whatsapp-skill"
-              onConnect={() => setWhatsappConnected(true)}
             />
           );
         }
