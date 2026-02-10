@@ -291,13 +291,13 @@ const PricingPage = () => {
                                 <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Pour une utilisation légère et occasionnelle</p>
                             </div>
                             <div>
-                                <div className={styles.priceValue}>{billingCycle === 'yearly' ? '9.9' : '12.9'}</div>
+                                <div className={styles.priceValue}>{billingCycle === 'yearly' ? '15' : '19'}</div>
                                 <div style={{ fontSize: 13, opacity: 0.5 }}>/ Par mois ({billingCycle === 'yearly' ? 'Paiement annuel' : 'Paiement mensuel'})</div>
                             </div>
                             {billingCycle === 'yearly' && (
                                 <Flexbox horizontal align="center" gap={4}>
-                                    <span style={{ fontSize: 12, opacity: 0.5 }}>$118.8 / Par an</span>
-                                    <Tag color="success" style={{ margin: 0, fontSize: 11, background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a' }}>Remise de 23%</Tag>
+                                    <span style={{ fontSize: 12, opacity: 0.5 }}>$180 / Par an</span>
+                                    <Tag color="success" style={{ margin: 0, fontSize: 11, background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a' }}>Remise de 21%</Tag>
                                 </Flexbox>
                             )}
                             <Button type="primary" block style={{ fontWeight: 700, height: 48, borderRadius: 12, background: '#075e54', border: 'none' }}>Commencer</Button>
@@ -306,12 +306,12 @@ const PricingPage = () => {
                         <Divider dashed style={{ margin: 0 }} />
 
                         <FeatureSection title="Calcul des crédits" showHelp>
-                            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>5,000,000 / Par mois</div>
+                            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>10,000,000 / Par mois</div>
                             <div className={styles.featureList}>
-                                <FeatureLine label="GPT-4o mini" subLabel="Environ 7,000 messages" />
-                                <FeatureLine label="DeepSeek R1" subLabel="Environ 1,900 messages" />
-                                <FeatureLine label="Claude 3.5 Sonnet New" subLabel="Environ 300 messages" />
-                                <FeatureLine label="Gemini 1.5 Flash" subLabel="Environ 7,000 messages" />
+                                <FeatureLine label="GPT-4o mini" subLabel="Environ 14,000 messages" />
+                                <FeatureLine label="DeepSeek R1" subLabel="Environ 3,800 messages" />
+                                <FeatureLine label="Claude 3.5 Sonnet New" subLabel="Environ 600 messages" />
+                                <FeatureLine label="Gemini 1.5 Flash" subLabel="Environ 14,000 messages" />
                                 <div style={{ opacity: 0.5, fontSize: 12, display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 28 }}>Voir plus de modèles...</div>
                             </div>
                         </FeatureSection>
@@ -320,8 +320,8 @@ const PricingPage = () => {
 
                         <FeatureSection title="Fichiers & Connaissance" showHelp>
                             <div className={styles.featureList}>
-                                <FeatureLine label="Stockage de fichiers" subLabel="1.0 GB" />
-                                <FeatureLine label="Stockage de vecteurs" subLabel="5,000 entrées (≈ 50MB)" />
+                                <FeatureLine label="Stockage de fichiers" subLabel="2.0 GB" />
+                                <FeatureLine label="Stockage de vecteurs" subLabel="10,000 entrées (≈ 100MB)" />
                             </div>
                         </FeatureSection>
 
@@ -378,13 +378,13 @@ const PricingPage = () => {
                                 <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Pour les professionnels et les équipes exigeantes</p>
                             </div>
                             <div>
-                                <div className={styles.priceValue}>{billingCycle === 'yearly' ? '19.9' : '24.9'}</div>
+                                <div className={styles.priceValue}>{billingCycle === 'yearly' ? '39' : '50'}</div>
                                 <div style={{ fontSize: 13, opacity: 0.5 }}>/ Par mois ({billingCycle === 'yearly' ? 'Paiement annuel' : 'Paiement mensuel'})</div>
                             </div>
                             {billingCycle === 'yearly' && (
                                 <Flexbox horizontal align="center" gap={4}>
-                                    <span style={{ fontSize: 12, opacity: 0.5 }}>$238.8 / Par an</span>
-                                    <Tag color="success" style={{ margin: 0, fontSize: 11, background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a' }}>Remise de 20%</Tag>
+                                    <span style={{ fontSize: 12, opacity: 0.5 }}>$468 / Par an</span>
+                                    <Tag color="success" style={{ margin: 0, fontSize: 11, background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a' }}>Remise de 22%</Tag>
                                 </Flexbox>
                             )}
                             <Button type="primary" block style={{ fontWeight: 700, height: 56, borderRadius: 16, background: '#000', color: '#fff', border: 'none' }}>Commencer</Button>
@@ -393,11 +393,11 @@ const PricingPage = () => {
                         <Divider dashed style={{ margin: 0, borderColor: 'rgba(0,0,0,0.1)' }} />
 
                         <FeatureSection title="Calcul des crédits" showHelp>
-                            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>15,000,000 / Par mois</div>
+                            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>40,000,000 / Par mois</div>
                             <div className={styles.featureList}>
-                                <FeatureLine label="GPT-4o mini" subLabel="Environ 21,000 messages" />
-                                <FeatureLine label="DeepSeek R1" subLabel="Environ 6,000 messages" />
-                                <FeatureLine label="Claude 3.5 Sonnet New" subLabel="Environ 1,000 messages" />
+                                <FeatureLine label="GPT-4o mini" subLabel="Environ 56,000 messages" />
+                                <FeatureLine label="DeepSeek R1" subLabel="Environ 15,000 messages" />
+                                <FeatureLine label="Claude 3.5 Sonnet New" subLabel="Environ 2,400 messages" />
                                 <FeatureLine label="GPT-3.5 Turbo" subLabel="Messages illimités" />
                                 <div style={{ opacity: 0.5, fontSize: 12, display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 28 }}>Tous les modèles du Pack Base inclus</div>
                             </div>
@@ -407,8 +407,8 @@ const PricingPage = () => {
 
                         <FeatureSection title="Fichiers & Connaissance" showHelp>
                             <div className={styles.featureList}>
-                                <FeatureLine label="Stockage de fichiers" subLabel="5.0 GB (+400%)" />
-                                <FeatureLine label="Stockage de vecteurs" subLabel="25,000 entrées (≈ 250MB)" />
+                                <FeatureLine label="Stockage de fichiers" subLabel="10.0 GB" />
+                                <FeatureLine label="Stockage de vecteurs" subLabel="50,000 entrées (≈ 500MB)" />
                                 <FeatureLine label="OCR & Analyse de documents" />
                             </div>
                         </FeatureSection>
@@ -458,13 +458,13 @@ const PricingPage = () => {
                                 <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Pour les entreprises qui ne veulent aucune limite</p>
                             </div>
                             <div>
-                                <div className={styles.priceValue}>{billingCycle === 'yearly' ? '39.9' : '49.9'}</div>
+                                <div className={styles.priceValue}>{billingCycle === 'yearly' ? '99' : '120'}</div>
                                 <div style={{ fontSize: 13, opacity: 0.5 }}>/ Par mois ({billingCycle === 'yearly' ? 'Paiement annuel' : 'Paiement mensuel'})</div>
                             </div>
                             {billingCycle === 'yearly' && (
                                 <Flexbox horizontal align="center" gap={4}>
-                                    <span style={{ fontSize: 12, opacity: 0.5 }}>$478.8 / Par an</span>
-                                    <Tag color="success" style={{ margin: 0, fontSize: 11, background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a' }}>Remise de 20%</Tag>
+                                    <span style={{ fontSize: 12, opacity: 0.5 }}>$1,188 / Par an</span>
+                                    <Tag color="success" style={{ margin: 0, fontSize: 11, background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a' }}>Remise de 18%</Tag>
                                 </Flexbox>
                             )}
                             <Button type="primary" block style={{ fontWeight: 700, height: 48, borderRadius: 12, background: '#075e54', border: 'none' }}>Commencer</Button>
@@ -473,9 +473,9 @@ const PricingPage = () => {
                         <Divider dashed style={{ margin: 0 }} />
 
                         <FeatureSection title="Calcul des crédits" showHelp>
-                            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>35,000,000 / Par mois</div>
+                            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>100,000,000 / Par mois</div>
                             <div className={styles.featureList}>
-                                <FeatureLine label="Accès prioritaire GPT-4o" subLabel="≈ 5,000 messages" />
+                                <FeatureLine label="Accès prioritaire GPT-4o" subLabel="≈ 14,000 messages" />
                                 <FeatureLine label="Claude 3.5 Opus" subLabel="Inclus" />
                                 <FeatureLine label="Génération d'images (DALL-E 3)" subLabel="Inclus" />
                                 <FeatureLine label="Modèles personnalisés (Fine-tuned)" />
@@ -486,7 +486,7 @@ const PricingPage = () => {
 
                         <FeatureSection title="Fichiers & Connaissance" showHelp>
                             <div className={styles.featureList}>
-                                <FeatureLine label="Stockage de fichiers" subLabel="20.0 GB" />
+                                <FeatureLine label="Stockage de fichiers" subLabel="50.0 GB" />
                                 <FeatureLine label="Stockage de vecteurs" subLabel="Illimité" />
                                 <FeatureLine label="Auto-indexing de sites web" />
                             </div>

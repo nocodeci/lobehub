@@ -2780,7 +2780,7 @@ const LandingPage = memo(() => {
                         </div>
                         <div>
                           <div className={styles.priceValue}>
-                            {billingCycle === "yearly" ? "9.9" : "12.9"}
+                            {billingCycle === "yearly" ? "15" : "19"}
                           </div>
                           <div
                             style={{
@@ -2804,7 +2804,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              $118.8 / Par an
+                              $180 / Par an
                             </span>
                             <Tag
                               color="success"
@@ -2816,7 +2816,7 @@ const LandingPage = memo(() => {
                                 color: "#52c41a",
                               }}
                             >
-                              Remise de 23%
+                              Remise de 21%
                             </Tag>
                           </Flexbox>
                         )}
@@ -2858,7 +2858,7 @@ const LandingPage = memo(() => {
                             color: "#000",
                           }}
                         >
-                          5,000,000 / Par mois
+                          10,000,000 / Par mois
                         </div>
 
                         <div className={styles.featureItem}>
@@ -2883,7 +2883,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              Environ 7,000 messages
+                              Environ 14,000 messages
                             </div>
                           </Flexbox>
                         </div>
@@ -2910,7 +2910,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              Environ 1,900 messages
+                              Environ 3,800 messages
                             </div>
                           </Flexbox>
                         </div>
@@ -2937,7 +2937,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              Environ 300 messages
+                              Environ 600 messages
                             </div>
                           </Flexbox>
                         </div>
@@ -2964,7 +2964,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              Environ 7,000 messages
+                              Environ 14,000 messages
                             </div>
                           </Flexbox>
                         </div>
@@ -3001,7 +3001,7 @@ const LandingPage = memo(() => {
                                 Stockage de fichiers
                               </div>
                               <div style={{ fontSize: 14, color: "#000" }}>
-                                1.0 GB
+                                2.0 GB
                               </div>
                             </Flexbox>
                           </div>
@@ -3012,9 +3012,9 @@ const LandingPage = memo(() => {
                                 Stockage de vecteurs
                               </div>
                               <div style={{ fontSize: 14, color: "#000" }}>
-                                5,000 entrées{" "}
+                                10,000 entrées{" "}
                                 <span style={{ opacity: 0.5, fontSize: 12 }}>
-                                  (≈ 50MB)
+                                  (≈ 100MB)
                                 </span>
                               </div>
                             </Flexbox>
@@ -3156,7 +3156,7 @@ const LandingPage = memo(() => {
                         </div>
                         <div>
                           <div className={styles.priceValue}>
-                            {billingCycle === "yearly" ? "19.9" : "24.9"}
+                            {billingCycle === "yearly" ? "39" : "50"}
                           </div>
                           <div
                             style={{
@@ -3180,7 +3180,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              $238.8 / Par an
+                              $468 / Par an
                             </span>
                             <Tag
                               color="success"
@@ -3192,7 +3192,7 @@ const LandingPage = memo(() => {
                                 color: "#52c41a",
                               }}
                             >
-                              Remise de 20%
+                              Remise de 22%
                             </Tag>
                           </Flexbox>
                         )}
@@ -3234,7 +3234,7 @@ const LandingPage = memo(() => {
                             color: "#000",
                           }}
                         >
-                          15,000,000 / Par mois
+                          40,000,000 / Par mois
                         </div>
 
                         <div className={styles.featureItem}>
@@ -3259,7 +3259,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              Environ 21,100 messages
+                              Environ 56,000 messages
                             </div>
                           </Flexbox>
                         </div>
@@ -3286,7 +3286,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              Environ 5,800 messages
+                              Environ 15,000 messages
                             </div>
                           </Flexbox>
                         </div>
@@ -3313,7 +3313,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              Environ 900 messages
+                              Environ 2,400 messages
                             </div>
                           </Flexbox>
                         </div>
@@ -3340,7 +3340,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              Environ 21,100 messages
+                              Environ 56,000 messages
                             </div>
                           </Flexbox>
                         </div>
@@ -3370,7 +3370,7 @@ const LandingPage = memo(() => {
                                 Stockage de fichiers
                               </div>
                               <div style={{ fontSize: 14, color: "#000" }}>
-                                2.0 GB
+                                10.0 GB
                               </div>
                             </Flexbox>
                           </div>
@@ -3381,9 +3381,9 @@ const LandingPage = memo(() => {
                                 Stockage de vecteurs
                               </div>
                               <div style={{ fontSize: 14, color: "#000" }}>
-                                10,000 entrées{" "}
+                                50,000 entrées{" "}
                                 <span style={{ opacity: 0.5, fontSize: 12 }}>
-                                  (≈ 100MB)
+                                  (≈ 500MB)
                                 </span>
                               </div>
                             </Flexbox>
@@ -3525,7 +3525,7 @@ const LandingPage = memo(() => {
                         </div>
                         <div>
                           <div className={styles.priceValue}>
-                            {billingCycle === "yearly" ? "39.9" : "49.9"}
+                            {billingCycle === "yearly" ? "99" : "120"}
                           </div>
                           <div
                             style={{
@@ -3549,7 +3549,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              $478.8 / Par an
+                              $1,188 / Par an
                             </span>
                             <Tag
                               color="success"
@@ -3561,7 +3561,7 @@ const LandingPage = memo(() => {
                                 color: "#52c41a",
                               }}
                             >
-                              Remise de 20%
+                              Remise de 18%
                             </Tag>
                           </Flexbox>
                         )}
@@ -3603,7 +3603,7 @@ const LandingPage = memo(() => {
                             color: "#000",
                           }}
                         >
-                          35,000,000 / Par mois
+                          100,000,000 / Par mois
                         </div>
 
                         <div className={styles.featureItem}>
@@ -3628,7 +3628,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              Environ 49,100 messages
+                              Environ 140,000 messages
                             </div>
                           </Flexbox>
                         </div>
@@ -3655,7 +3655,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              Environ 13,400 messages
+                              Environ 38,000 messages
                             </div>
                           </Flexbox>
                         </div>
@@ -3682,7 +3682,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              Environ 2,100 messages
+                              Environ 6,000 messages
                             </div>
                           </Flexbox>
                         </div>
@@ -3709,7 +3709,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              Environ 49,100 messages
+                              Environ 140,000 messages
                             </div>
                           </Flexbox>
                         </div>
@@ -3739,7 +3739,7 @@ const LandingPage = memo(() => {
                                 Stockage de fichiers
                               </div>
                               <div style={{ fontSize: 14, color: "#000" }}>
-                                4.0 GB
+                                50.0 GB
                               </div>
                             </Flexbox>
                           </div>
@@ -3750,9 +3750,9 @@ const LandingPage = memo(() => {
                                 Stockage de vecteurs
                               </div>
                               <div style={{ fontSize: 14, color: "#000" }}>
-                                20,000 entrées{" "}
+                                Illimité{" "}
                                 <span style={{ opacity: 0.5, fontSize: 12 }}>
-                                  (≈ 200MB)
+
                                 </span>
                               </div>
                             </Flexbox>
