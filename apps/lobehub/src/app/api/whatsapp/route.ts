@@ -4,13 +4,12 @@ import { sql } from 'drizzle-orm';
 import { UserModel } from '@/database/models/user';
 import { getServerDB } from '@/database/core/db-adaptor';
 import { getSessionUser } from '@/libs/trusted-client/getSessionUser';
-import { userSettings } from '@lobechat/database';
 
 // WhatsApp Bridge server URL - single bridge with multi-session support
 const WHATSAPP_BRIDGE_URL = process.env.WHATSAPP_BRIDGE_URL || 'http://localhost:8080';
 
 interface WhatsAppAccountsSettings {
-    accounts?: { id: string; name?: string }[];
+    accounts?: { id: string; name?: string; bridgeUrl?: string }[];
     activeAccountId?: string;
 }
 
@@ -259,7 +258,7 @@ export async function POST(req: NextRequest) {
             case 'logout':
                 // Logout/disconnect WhatsApp
                 try {
-                    const logoutResponse = await fetch(buildBridgeUrl('/api/logout', sessionId), {
+                    const logoutResponse = await fetch(buildBridgeUrl(bridgeUrl, '/api/logout', sessionId), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                     });
@@ -293,7 +292,7 @@ export async function POST(req: NextRequest) {
                     );
                 }
                 const leaveResponse = await fetch(
-                    buildBridgeUrl('/api/group/leave', sessionId, { jid: groupJidToLeave }),
+                    buildBridgeUrl(bridgeUrl, '/api/group/leave', sessionId, { jid: groupJidToLeave }),
                     {
                         method: 'POST',
                     },

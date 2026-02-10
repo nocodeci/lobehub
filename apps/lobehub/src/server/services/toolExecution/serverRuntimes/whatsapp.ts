@@ -72,6 +72,7 @@ const downloadToTempFile = async (url: string, prefix: string) => {
 };
 
 // Resolve the sessionId to use for the bridge (from user's active account)
+// IMPORTANT: sessionId MUST be prefixed with userId for multi-user isolation
 const resolveSessionId = async (context: any): Promise<string> => {
     try {
         if (!context?.serverDB || !context?.userId) return 'default';
@@ -82,7 +83,8 @@ const resolveSessionId = async (context: any): Promise<string> => {
         const tool = (settings?.tool || {}) as any;
         const whatsapp = (tool?.whatsapp || {}) as WhatsAppAccountsSettings;
 
-        return whatsapp.activeAccountId || 'default';
+        const accountId = whatsapp.activeAccountId || 'whatsapp-1';
+        return `${context.userId}_${accountId}`;
     } catch {
         return 'default';
     }
@@ -379,7 +381,8 @@ export const whatsappRuntime: ServerRuntimeRegistration = {
                     // Vérifier le statut de connexion de chaque compte
                     const accountsWithStatus = await Promise.all(accounts.map(async (account: any) => {
                         try {
-                            const response = await fetch(buildBridgeUrl('/api/status', account.id));
+                            const userSessionId = `${context.userId}_${account.id}`;
+                            const response = await fetch(buildBridgeUrl('/api/status', userSessionId));
                             const statusData = await parseResponse(response);
                             return {
                                 id: account.id,
@@ -457,7 +460,8 @@ export const whatsappRuntime: ServerRuntimeRegistration = {
                     // Vérifier le statut de connexion du nouveau compte
                     let isConnected = false;
                     try {
-                        const response = await fetch(buildBridgeUrl('/api/status', args.account_id));
+                        const userSessionId = `${context.userId}_${args.account_id}`;
+                        const response = await fetch(buildBridgeUrl('/api/status', userSessionId));
                         const statusData = await parseResponse(response);
                         isConnected = response.ok && statusData?.connected === true;
                     } catch {
