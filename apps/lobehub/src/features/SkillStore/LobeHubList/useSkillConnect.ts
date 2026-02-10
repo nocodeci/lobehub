@@ -163,10 +163,11 @@ export const useSkillConnect = ({ identifier, serverName, type }: UseSkillConnec
         oauthWindowRef.current = oauthWindow;
         startWindowMonitor(oauthWindow, serverIdOrName);
       } else {
-        startFallbackPolling(serverIdOrName);
+        // Popup was blocked by the browser — navigate directly instead
+        window.location.href = oauthUrl;
       }
     },
-    [cleanup, startWindowMonitor, startFallbackPolling],
+    [cleanup, startWindowMonitor],
   );
 
   // Handle connect for LobeHub
