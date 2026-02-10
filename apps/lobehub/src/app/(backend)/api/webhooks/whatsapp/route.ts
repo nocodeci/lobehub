@@ -423,15 +423,15 @@ async function generateAgentResponse(
 
         console.log(`[WhatsApp Webhook] Model original: ${agent.model}, Model normalized: ${modelName}, isReasoning: ${isReasoningModel}`);
 
+        // Use max_completion_tokens for ALL models (OpenAI deprecated max_tokens for newer models)
         const apiBody: any = {
+            max_completion_tokens: 1000,
             messages,
             model: agent.model,
         };
 
-        if (isReasoningModel) {
-            apiBody.max_completion_tokens = 1000;
-        } else {
-            apiBody.max_tokens = 1000;
+        // Reasoning models (o1, o3) don't support temperature
+        if (!isReasoningModel) {
             apiBody.temperature = 0.7;
         }
 
