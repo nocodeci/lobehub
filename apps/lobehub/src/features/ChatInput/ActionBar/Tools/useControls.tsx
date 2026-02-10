@@ -367,13 +367,50 @@ export const useControls = ({
 
         if (!isWhatsAppTool) return [baseToolItem];
 
-        // Retourner l'élément WhatsApp principal suivi des comptes
+        // WhatsApp: même pattern que KlavisServerItem
+        const hasConnectedAccount = whatsappAccounts.some((a) => (a as any).isConnected);
+
+        if (!hasConnectedAccount) {
+          // Non connecté → afficher "Scanner QR" link (comme Klavis "Connect")
+          return [{
+            icon: baseToolItem.icon,
+            key: item.identifier,
+            label: (
+              <Flexbox
+                align={'center'}
+                gap={24}
+                horizontal
+                justify={'space-between'}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenWhatsAppSetup?.();
+                }}
+              >
+                <Flexbox align={'center'} gap={8} horizontal>
+                  {item.meta?.title || item.identifier}
+                </Flexbox>
+                <Flexbox
+                  align="center"
+                  gap={4}
+                  horizontal
+                  style={{ cursor: 'pointer', opacity: 0.65 }}
+                >
+                  Scanner QR
+                  <Icon icon={SquareArrowOutUpRight} size="small" />
+                </Flexbox>
+              </Flexbox>
+            ),
+          }];
+        }
+
+        // Connecté → checkbox + sous-comptes
         return [baseToolItem, ...whatsappAccountItems] as any;
       });
     },
     [
       checked,
       filteredBuiltinList,
+      onOpenWhatsAppSetup,
       setUpdating,
       togglePlugin,
       whatsappAccounts,
