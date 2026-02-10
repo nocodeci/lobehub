@@ -153,10 +153,19 @@ export class AiAgentService {
       throw new Error(`Agent not found: ${identifier}`);
     }
 
+    // 1.1 Check if the agent is activated (marketIdentifier must be set and non-empty)
+    // When the user clicks "Désactivé" (PowerOff), marketIdentifier is cleared to ''
+    // A deactivated agent should not execute for ANY trigger (tRPC, API, cron, WhatsApp)
+    const isActivated = agentConfig.marketIdentifier && agentConfig.marketIdentifier.trim() !== '';
+    if (!isActivated) {
+      log('execAgent: agent %s (%s) is DEACTIVATED, refusing to execute', agentConfig.title || identifier, agentConfig.id);
+      throw new Error(`Agent "${agentConfig.title || identifier}" is deactivated. Please activate it using the power button before running.`);
+    }
+
     // Use actual agent ID from config for subsequent operations
     const resolvedAgentId = agentConfig.id;
 
-    log('execAgent: got agent config for %s (id: %s)', identifier, resolvedAgentId);
+    log('execAgent: got agent config for %s (id: %s, activated: %s)', identifier, resolvedAgentId, !!isActivated);
 
     // 2. Handle topic creation: if no topicId provided, create a new topic; otherwise reuse existing
     let topicId = appContext?.topicId;
