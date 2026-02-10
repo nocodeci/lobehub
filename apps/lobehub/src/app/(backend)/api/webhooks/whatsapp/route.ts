@@ -290,14 +290,24 @@ async function getActiveWhatsAppAgent(): Promise<{
             .where(
                 like(sql`${agents.plugins}::text`, '%lobe-whatsapp-local%')
             )
-            .limit(1);
+            .limit(5);
 
         if (result.length === 0) {
-            console.log('[WhatsApp Webhook] No active WhatsApp agent found');
+            console.log('[WhatsApp Webhook] No WhatsApp agent found (no agent has the lobe-whatsapp-local plugin)');
             return null;
         }
 
-        const agent = result[0];
+        // Filter only ACTIVATED agents (marketIdentifier is set and not empty)
+        const activeAgents = result.filter(a => a.marketIdentifier && a.marketIdentifier.trim() !== '');
+
+        if (activeAgents.length === 0) {
+            const deactivatedNames = result.map(a => a.title || a.id).join(', ');
+            console.log(`[WhatsApp Webhook] Found ${result.length} agent(s) with WhatsApp plugin but ALL are DEACTIVATED: ${deactivatedNames}. Please activate an agent using the power button.`);
+            return null;
+        }
+
+        const agent = activeAgents[0];
+        console.log(`[WhatsApp Webhook] Found active agent: ${agent.title} (${agent.id}), marketId: ${agent.marketIdentifier}`);
         return {
             id: agent.id,
             model: agent.model || 'gpt-4o-mini',
