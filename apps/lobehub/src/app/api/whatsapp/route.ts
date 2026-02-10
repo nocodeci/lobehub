@@ -14,13 +14,16 @@ interface WhatsAppAccountsSettings {
     activeAccountId?: string;
 }
 
-// Resolve the sessionId to use for the bridge (accountId or activeAccountId)
-const resolveSessionId = async (accountId?: string | null): Promise<string> => {
-    if (accountId) return accountId;
-
+// Resolve the account config for the given accountId or the active account
+const resolveAccountConfig = async (accountId?: string | null): Promise<{ bridgeUrl: string; sessionId: string }> => {
     try {
         const sessionUser = await getSessionUser();
-        if (!sessionUser?.userId) return 'default';
+        if (!sessionUser?.userId) {
+            return {
+                bridgeUrl: WHATSAPP_BRIDGE_URL,
+                sessionId: 'default',
+            };
+        }
 
         const db = await getServerDB();
         const userModel = new UserModel(db, sessionUser.userId);
@@ -29,15 +32,27 @@ const resolveSessionId = async (accountId?: string | null): Promise<string> => {
         const tool = (settings?.tool || {}) as any;
         const whatsapp = (tool?.whatsapp || {}) as WhatsAppAccountsSettings;
 
-        return whatsapp.activeAccountId || 'default';
+        const id = accountId || whatsapp.activeAccountId || 'whatsapp-1';
+        const account = whatsapp.accounts?.find((a: any) => a.id === id);
+
+        // Include userId in sessionId for perfect isolation in multi-user environments
+        const sessionId = `${sessionUser.userId}_${id}`;
+        const bridgeUrl = account?.bridgeUrl || WHATSAPP_BRIDGE_URL;
+
+        return { bridgeUrl, sessionId };
     } catch {
-        return 'default';
+        return {
+            bridgeUrl: WHATSAPP_BRIDGE_URL,
+            sessionId: 'default',
+        };
     }
 };
 
 // Build bridge API URL with sessionId query param
-const buildBridgeUrl = (endpoint: string, sessionId: string, extraParams?: Record<string, string>): string => {
-    const url = new URL(`${WHATSAPP_BRIDGE_URL}${endpoint}`);
+const buildBridgeUrl = (baseUrl: string, endpoint: string, sessionId: string, extraParams?: Record<string, string>): string => {
+    // Ensure baseUrl is clean
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const url = new URL(`${cleanBaseUrl}${endpoint}`);
     url.searchParams.set('sessionId', sessionId);
     if (extraParams) {
         for (const [key, value] of Object.entries(extraParams)) {
@@ -55,13 +70,13 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const action = searchParams.get('action');
     const accountId = searchParams.get('accountId');
-    const sessionId = await resolveSessionId(accountId);
+    const { bridgeUrl, sessionId } = await resolveAccountConfig(accountId);
 
     try {
         switch (action) {
             case 'qr':
                 // Get QR code for WhatsApp authentication
-                const qrResponse = await fetch(buildBridgeUrl('/api/qr', sessionId), {
+                const qrResponse = await fetch(buildBridgeUrl(bridgeUrl, '/api/qr', sessionId), {
                     method: 'GET',
                     headers: { 'Content-Type': 'application/json' },
                 });
@@ -82,7 +97,7 @@ export async function GET(req: NextRequest) {
             case 'status':
                 // Check WhatsApp connection status
                 try {
-                    const statusResponse = await fetch(buildBridgeUrl('/api/status', sessionId), {
+                    const statusResponse = await fetch(buildBridgeUrl(bridgeUrl, '/api/status', sessionId), {
                         method: 'GET',
                         headers: { 'Content-Type': 'application/json' },
                     });
@@ -105,7 +120,7 @@ export async function GET(req: NextRequest) {
                         });
                     }
 
-                    const fallbackResponse = await fetch(buildBridgeUrl('/api/qr', sessionId), {
+                    const fallbackResponse = await fetch(buildBridgeUrl(bridgeUrl, '/api/qr', sessionId), {
                         method: 'GET',
                         headers: { 'Content-Type': 'application/json' },
                     });
@@ -193,20 +208,20 @@ export async function GET(req: NextRequest) {
 
             case 'contacts':
                 // Get WhatsApp contacts
-                const contactsResponse = await fetch(buildBridgeUrl('/api/contacts', sessionId));
+                const contactsResponse = await fetch(buildBridgeUrl(bridgeUrl, '/api/contacts', sessionId));
                 const contactsData = await contactsResponse.json();
                 return NextResponse.json({ success: true, data: contactsData });
 
             case 'groups':
                 // Get joined groups
-                const groupsResponse = await fetch(buildBridgeUrl('/api/groups', sessionId));
+                const groupsResponse = await fetch(buildBridgeUrl(bridgeUrl, '/api/groups', sessionId));
                 const groupsData = await groupsResponse.json();
                 return NextResponse.json({ success: true, data: groupsData });
 
             case 'group-info':
                 // Get info for a specific group
                 const groupJid = searchParams.get('jid');
-                const infoResponse = await fetch(buildBridgeUrl('/api/group/info', sessionId, { jid: groupJid || '' }));
+                const infoResponse = await fetch(buildBridgeUrl(bridgeUrl, '/api/group/info', sessionId, { jid: groupJid || '' }));
                 const infoData = await infoResponse.json();
                 return NextResponse.json({ success: true, data: infoData });
 
@@ -236,7 +251,7 @@ export async function POST(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const action = searchParams.get('action');
     const accountId = searchParams.get('accountId');
-    const sessionId = await resolveSessionId(accountId);
+    const { bridgeUrl, sessionId } = await resolveAccountConfig(accountId);
 
     try {
         // Handle actions that don't require a body first
@@ -296,7 +311,7 @@ export async function POST(req: NextRequest) {
         switch (action) {
             case 'send': {
                 // Send a WhatsApp message
-                const sendResponse = await fetch(buildBridgeUrl('/api/send', sessionId), {
+                const sendResponse = await fetch(buildBridgeUrl(bridgeUrl, '/api/send', sessionId), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

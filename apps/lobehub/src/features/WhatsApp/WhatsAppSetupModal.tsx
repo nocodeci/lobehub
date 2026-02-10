@@ -147,23 +147,27 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
         if (accounts.length === 0) return;
 
         const statusMap: Record<string, boolean> = {};
+        const updatedAccounts = [...accounts];
+        let hasChanges = false;
         let anyConnected = false;
 
-        for (const account of accounts) {
+        for (let i = 0; i < updatedAccounts.length; i++) {
+            const account = updatedAccounts[i];
             try {
                 const response = await fetch(`/api/whatsapp?action=status&accountId=${encodeURIComponent(account.id)}`);
                 const data = await response.json();
 
                 if (data.success) {
-                    statusMap[account.id] = data.data.connected;
-                    if (data.data.connected) {
+                    const isConnected = !!data.data.connected;
+                    statusMap[account.id] = isConnected;
+
+                    if (isConnected) {
                         anyConnected = true;
                         const phone = data.data.phone || '';
                         const jid = data.data.jid || '';
 
                         // Check for duplicate phone number (cross-account)
                         if (phone && !account.phone) {
-                            // This is a newly connected account - verify the phone isn't taken
                             const isDuplicate = await checkPhoneDuplicate(phone, account.id);
                             if (isDuplicate) {
                                 statusMap[account.id] = false;
@@ -171,27 +175,44 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
                             }
                         }
 
-                        if (phone || jid) {
-                            await updateAccountMeta(account.id, {
+                        if ((phone && phone !== account.phone) || (jid && jid !== account.jid) || account.isConnected !== true) {
+                            updatedAccounts[i] = {
+                                ...account,
                                 phone,
                                 jid,
                                 isConnected: true
-                            });
+                            };
+                            hasChanges = true;
                         }
+                    } else if (account.isConnected) {
+                        updatedAccounts[i] = { ...account, isConnected: false };
+                        hasChanges = true;
                     }
                     setBridgeOnline(data.data.bridgeRunning);
                 } else {
                     statusMap[account.id] = false;
+                    if (account.isConnected) {
+                        updatedAccounts[i] = { ...account, isConnected: false };
+                        hasChanges = true;
+                    }
                 }
             } catch {
                 statusMap[account.id] = false;
                 setBridgeOnline(false);
+                if (account.isConnected) {
+                    updatedAccounts[i] = { ...account, isConnected: false };
+                    hasChanges = true;
+                }
             }
+        }
+
+        if (hasChanges) {
+            await persistAccounts({ accounts: updatedAccounts });
         }
 
         setAccountsStatus(statusMap);
         if (anyConnected && onConnected) onConnected();
-    }, [accounts, onConnected, updateAccountMeta, checkPhoneDuplicate]);
+    }, [accounts, onConnected, persistAccounts, checkPhoneDuplicate]);
 
     useEffect(() => {
         if (!open) return;
@@ -377,17 +398,12 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
 
     const WHATSAPP_TOOLS = [
         'whatsapp_send_message',
-        'whatsapp_send_media',
-        'whatsapp_send_voice',
-        'whatsapp_read_messages',
-        'whatsapp_list_chats',
         'whatsapp_status',
         'whatsapp_download_media',
         'whatsapp_list_contacts',
         'whatsapp_list_groups',
         'whatsapp_get_group_info',
         'whatsapp_leave_group',
-        'whatsapp_logout',
     ];
 
     const renderAccountCard = (account: WhatsAppAccount) => {
