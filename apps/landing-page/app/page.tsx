@@ -68,6 +68,7 @@ import {
   Ollama,
 } from "@lobehub/icons";
 import React, { memo, useState, useEffect } from "react";
+import { useStripeCheckout } from "@/lib/useStripeCheckout";
 import { motion, AnimatePresence } from "framer-motion";
 import { AgentBuilderPreview } from "@/components/AgentBuilderPreview";
 import { StepsSection } from "@/components/StepsSection";
@@ -2036,6 +2037,7 @@ const LandingPage = memo(() => {
   const [mounted, setMounted] = useState(false);
   const [billingCycle, setBillingCycle] = useState("yearly");
   const [expandedPlans, setExpandedPlans] = useState<Record<string, boolean>>({});
+  const { checkout, isLoading } = useStripeCheckout();
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -2823,6 +2825,8 @@ const LandingPage = memo(() => {
                         <Button
                           type="primary"
                           block
+                          loading={isLoading("base")}
+                          onClick={() => checkout("base", billingCycle as "monthly" | "yearly")}
                           style={{
                             fontWeight: 500,
                             height: 40,
@@ -3199,6 +3203,8 @@ const LandingPage = memo(() => {
                         <Button
                           type="primary"
                           block
+                          loading={isLoading("premium")}
+                          onClick={() => checkout("premium", billingCycle as "monthly" | "yearly")}
                           style={{
                             fontWeight: 500,
                             height: 40,
@@ -3568,6 +3574,8 @@ const LandingPage = memo(() => {
                         <Button
                           type="primary"
                           block
+                          loading={isLoading("ultimate")}
+                          onClick={() => checkout("ultimate", billingCycle as "monthly" | "yearly")}
                           style={{
                             fontWeight: 500,
                             height: 40,

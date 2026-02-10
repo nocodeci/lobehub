@@ -20,6 +20,7 @@ import {
     Anthropic,
 } from '@lobehub/icons';
 import React, { useState, useEffect } from 'react';
+import { useStripeCheckout } from '@/lib/useStripeCheckout';
 
 const { Title, Text } = Typography;
 
@@ -210,6 +211,7 @@ const PricingPage = () => {
     const { styles, cx } = useStyles();
     const [billingCycle, setBillingCycle] = useState('yearly');
     const [mounted, setMounted] = useState(false);
+    const { checkout, isLoading } = useStripeCheckout();
 
     useEffect(() => {
         setMounted(true);
@@ -300,7 +302,7 @@ const PricingPage = () => {
                                     <Tag color="success" style={{ margin: 0, fontSize: 11, background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a' }}>Remise de 21%</Tag>
                                 </Flexbox>
                             )}
-                            <Button type="primary" block style={{ fontWeight: 700, height: 48, borderRadius: 12, background: '#075e54', border: 'none' }}>Commencer</Button>
+                            <Button type="primary" block loading={isLoading('base')} onClick={() => checkout('base', billingCycle as 'monthly' | 'yearly')} style={{ fontWeight: 700, height: 48, borderRadius: 12, background: '#075e54', border: 'none' }}>Commencer</Button>
                         </Flexbox>
 
                         <Divider dashed style={{ margin: 0 }} />
@@ -387,7 +389,7 @@ const PricingPage = () => {
                                     <Tag color="success" style={{ margin: 0, fontSize: 11, background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a' }}>Remise de 22%</Tag>
                                 </Flexbox>
                             )}
-                            <Button type="primary" block style={{ fontWeight: 700, height: 56, borderRadius: 16, background: '#000', color: '#fff', border: 'none' }}>Commencer</Button>
+                            <Button type="primary" block loading={isLoading('premium')} onClick={() => checkout('premium', billingCycle as 'monthly' | 'yearly')} style={{ fontWeight: 700, height: 56, borderRadius: 16, background: '#000', color: '#fff', border: 'none' }}>Commencer</Button>
                         </Flexbox>
 
                         <Divider dashed style={{ margin: 0, borderColor: 'rgba(0,0,0,0.1)' }} />
@@ -467,7 +469,7 @@ const PricingPage = () => {
                                     <Tag color="success" style={{ margin: 0, fontSize: 11, background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a' }}>Remise de 18%</Tag>
                                 </Flexbox>
                             )}
-                            <Button type="primary" block style={{ fontWeight: 700, height: 48, borderRadius: 12, background: '#075e54', border: 'none' }}>Commencer</Button>
+                            <Button type="primary" block loading={isLoading('ultimate')} onClick={() => checkout('ultimate', billingCycle as 'monthly' | 'yearly')} style={{ fontWeight: 700, height: 48, borderRadius: 12, background: '#075e54', border: 'none' }}>Commencer</Button>
                         </Flexbox>
 
                         <Divider dashed style={{ margin: 0 }} />
