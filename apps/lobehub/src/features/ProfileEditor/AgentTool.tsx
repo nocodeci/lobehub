@@ -396,7 +396,7 @@ const AgentTool = memo<AgentToolProps>(
                     ✓ Connecté
                   </span>
                 )}
-                {isActive && !isDisabled && (
+                {isActive && !isDisabled && isConnected && (
                   <span style={{
                     fontSize: 9,
                     color: cssVar.colorPrimary,
@@ -406,6 +406,18 @@ const AgentTool = memo<AgentToolProps>(
                     fontWeight: 500,
                   }}>
                     Actif
+                  </span>
+                )}
+                {isActive && !isDisabled && !isConnected && (
+                  <span style={{
+                    fontSize: 9,
+                    color: cssVar.colorWarning,
+                    backgroundColor: `${cssVar.colorWarning}15`,
+                    padding: '1px 5px',
+                    borderRadius: 3,
+                    fontWeight: 500,
+                  }}>
+                    ⚠️ Non connecté
                   </span>
                 )}
                 {isDisabled && (
