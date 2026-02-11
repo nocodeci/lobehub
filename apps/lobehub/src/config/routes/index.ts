@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   BrainCircuit,
   CreditCard,
   FilePenIcon,
@@ -104,6 +105,15 @@ export const NAVIGATION_ROUTES: NavigationRoute[] = [
     keywords: ['subscription', 'billing', 'plan', 'payment', 'abonnement'],
     path: '/subscription',
     pathPrefix: '/subscription',
+  },
+  {
+    cmdkKey: 'cmdk.usage',
+    electronKey: 'navigation.usage',
+    icon: BarChart3,
+    id: 'usage',
+    keywords: ['usage', 'statistics', 'consumption', 'credits', 'quota'],
+    path: '/usage',
+    pathPrefix: '/usage',
   },
 ];
 

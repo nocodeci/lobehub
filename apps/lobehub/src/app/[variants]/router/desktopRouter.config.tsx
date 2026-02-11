@@ -376,6 +376,25 @@ export const desktopRoutes: RouteConfig[] = [
         path: 'image',
       },
 
+      // Usage routes
+      {
+        children: [
+          {
+            element: dynamicElement(
+              () => import('../(main)/usage'),
+              'Desktop > Usage',
+            ),
+            index: true,
+          },
+        ],
+        element: dynamicElement(
+          () => import('../(main)/usage/_layout'),
+          'Desktop > Usage > Layout',
+        ),
+        errorElement: <ErrorBoundary resetPath="/usage" />,
+        path: 'usage',
+      },
+
       // Subscription routes
       {
         children: [

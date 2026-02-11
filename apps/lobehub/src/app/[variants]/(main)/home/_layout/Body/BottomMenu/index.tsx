@@ -25,6 +25,12 @@ const BottomMenu = memo(() => {
     () =>
       [
         {
+          icon: getRouteById('usage')!.icon,
+          key: SidebarTabKey.Usage,
+          title: t('tab.usage'),
+          url: '/usage',
+        },
+        {
           icon: getRouteById('subscription')!.icon,
           key: SidebarTabKey.Subscription,
           title: t('tab.subscription'),

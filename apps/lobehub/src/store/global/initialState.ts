@@ -17,6 +17,7 @@ export enum SidebarTabKey {
   Resource = 'resource',
   Setting = 'settings',
   Subscription = 'subscription',
+  Usage = 'usage',
 }
 
 export enum ChatSettingsTabs {

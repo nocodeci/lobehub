@@ -207,6 +207,25 @@ export const mobileRoutes: RouteConfig[] = [
         path: 'settings',
       },
 
+      // Usage routes
+      {
+        children: [
+          {
+            element: dynamicElement(
+              () => import('../../(main)/usage'),
+              'Mobile > Usage',
+            ),
+            index: true,
+          },
+        ],
+        element: dynamicElement(
+          () => import('../../(main)/usage/_layout'),
+          'Mobile > Usage > Layout',
+        ),
+        errorElement: <ErrorBoundary resetPath="/usage" />,
+        path: 'usage',
+      },
+
       // Subscription routes
       {
         children: [
