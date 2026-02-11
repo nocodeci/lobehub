@@ -11,7 +11,7 @@ import {
   Icon,
   Video,
 } from "@lobehub/ui";
-import { Typography, Segmented, Tag, Divider, Collapse } from "antd";
+import { Typography, Switch, Tag, Divider, Collapse } from "antd";
 import { createStyles, keyframes } from "antd-style";
 import {
   MessageSquare,
@@ -1667,53 +1667,7 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
       display: block;
     }
   `,
-  segmentedWrapper: css`
-    background: #f5f5f5;
-    padding: 2px;
-    border-radius: 12px;
-    margin-bottom: 24px;
-    z-index: 1;
-    max-width: 100%;
-    overflow-x: auto;
-    scrollbar-width: none;
-    &::-webkit-scrollbar {
-      display: none;
-    }
-
-    @media (min-width: 768px) {
-      padding: 4px;
-      border-radius: 16px;
-      margin-bottom: 48px;
-    }
-
-    .ant-segmented {
-      background: transparent !important;
-      @media (max-width: 480px) {
-        font-size: 13px;
-      }
-    }
-
-    .segmented-label {
-      padding: 0 4px;
-      font-weight: 600;
-      white-space: nowrap;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-
-      @media (min-width: 768px) {
-        padding: 0 12px;
-        gap: 8px;
-      }
-    }
-
-    .promo-tag {
-      @media (max-width: 480px) {
-        font-size: 9px !important;
-        padding-inline: 4px !important;
-      }
-    }
-  `,
+  // segmentedWrapper removed — replaced by Switch toggle
   agentCreateSection: css`
     padding: 60px 16px;
     width: 100%;
@@ -2035,7 +1989,7 @@ const LandingPage = memo(() => {
   const { styles, cx } = useStyles();
   const [scrolled, setScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [billingCycle, setBillingCycle] = useState("yearly");
+  const [billingCycle, setBillingCycle] = useState("monthly");
   const [expandedPlans, setExpandedPlans] = useState<Record<string, boolean>>({});
   const { checkout, isLoading } = useStripeCheckout();
   useEffect(() => {
@@ -2685,52 +2639,70 @@ const LandingPage = memo(() => {
                     </p>
                   </Center>
 
-                  <Center>
-                    <div className={styles.segmentedWrapper}>
-                      <Segmented
-                        size="large"
-                        options={[
-                          {
-                            label: (
-                              <Flexbox
-                                horizontal
-                                align="center"
-                                gap={4}
-                                className="segmented-label"
-                              >
-                                <span>Paiement annuel</span>
-                                <Tag
-                                  color="success"
-                                  className="promo-tag"
-                                  style={{
-                                    background: "rgba(82, 196, 26, 0.1)",
-                                    border: "none",
-                                    color: "#52c41a",
-                                    margin: 0,
-                                    fontSize: "10px",
-                                    lineHeight: "1.2",
-                                    paddingInline: "4px"
-                                  }}
-                                >
-                                  -23%
-                                </Tag>
-                              </Flexbox>
-                            ),
-                            value: "yearly",
-                          },
-                          {
-                            label: (
-                              <div className="segmented-label">
-                                Paiement mensuel
-                              </div>
-                            ),
-                            value: "monthly",
-                          },
-                        ]}
-                        value={billingCycle}
-                        onChange={setBillingCycle as any}
-                        style={{ background: "transparent" }}
-                      />
+                  <Center style={{ marginTop: 24, marginBottom: 16 }}>
+                    <div
+                      style={{
+                        background: '#f5f5f5',
+                        padding: '4px',
+                        borderRadius: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        border: '1px solid rgba(0,0,0,0.05)',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                      }}
+                    >
+                      <button
+                        onClick={() => setBillingCycle("monthly")}
+                        style={{
+                          padding: '8px 24px',
+                          borderRadius: '12px',
+                          border: 'none',
+                          background: billingCycle === "monthly" ? '#085e54' : 'transparent',
+                          color: billingCycle === "monthly" ? '#fff' : '#666',
+                          fontWeight: 700,
+                          fontSize: '14px',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          boxShadow: billingCycle === "monthly" ? '0 8px 16px rgba(8,94,84,0.2)' : 'none',
+                        }}
+                      >
+                        Mensuel
+                      </button>
+                      <button
+                        onClick={() => setBillingCycle("yearly")}
+                        style={{
+                          padding: '8px 24px',
+                          borderRadius: '12px',
+                          border: 'none',
+                          background: billingCycle === "yearly" ? '#085e54' : 'transparent',
+                          color: billingCycle === "yearly" ? '#fff' : '#666',
+                          fontWeight: 700,
+                          fontSize: '14px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          boxShadow: billingCycle === "yearly" ? '0 8px 16px rgba(8,94,84,0.2)' : 'none',
+                        }}
+                      >
+                        Annuel
+                        <Tag
+                          style={{
+                            background: billingCycle === "yearly" ? "#fff" : "rgba(82, 196, 26, 0.15)",
+                            border: "none",
+                            color: billingCycle === "yearly" ? "#085e54" : "#52c41a",
+                            margin: 0,
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            padding: '0 8px',
+                          }}
+                        >
+                          -23%
+                        </Tag>
+                      </button>
                     </div>
                   </Center>
 

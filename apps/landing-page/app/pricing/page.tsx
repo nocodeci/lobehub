@@ -4,7 +4,7 @@ import {
     Flexbox,
     Button,
 } from '@lobehub/ui';
-import { Typography, Segmented, Tag, Table as AntTable, Divider, Tooltip } from 'antd';
+import { Typography, Switch, Tag, Table as AntTable, Divider, Tooltip } from 'antd';
 import { createStyles } from 'antd-style';
 import {
     Zap,
@@ -75,13 +75,7 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     margin-bottom: 32px;
     z-index: 1;
   `,
-    segmentedWrapper: css`
-    background: #f5f5f5;
-    padding: 4px;
-    border-radius: 16px;
-    margin-bottom: 48px;
-    z-index: 1;
-  `,
+    // segmentedWrapper removed — replaced by Switch toggle
     pricingGrid: css`
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -209,7 +203,7 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
 
 const PricingPage = () => {
     const { styles, cx } = useStyles();
-    const [billingCycle, setBillingCycle] = useState('yearly');
+    const [billingCycle, setBillingCycle] = useState('monthly');
     const [mounted, setMounted] = useState(false);
     const { checkout, isLoading } = useStripeCheckout();
 
@@ -267,18 +261,18 @@ const PricingPage = () => {
                         Commencer gratuitement
                     </Button>
 
-                    <div className={styles.segmentedWrapper}>
-                        <Segmented
-                            size="large"
-                            options={[
-                                { label: <Flexbox horizontal align="center" gap={6} style={{ padding: '0 12px' }}>Paiement annuel <Tag color="success" style={{ background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a', margin: 0 }}>Remise de 23%</Tag></Flexbox>, value: 'yearly' },
-                                { label: <div style={{ padding: '0 12px' }}>Paiement mensuel</div>, value: 'monthly' },
-                            ]}
-                            value={billingCycle}
-                            onChange={setBillingCycle as any}
-                            style={{ background: 'transparent' }}
+                    <Flexbox horizontal align="center" gap={8} style={{ position: 'relative' }}>
+                        <span style={{ fontSize: 14, fontWeight: 500, opacity: billingCycle === 'monthly' ? 1 : 0.5 }}>Mensuel</span>
+                        <Switch
+                            checked={billingCycle === 'yearly'}
+                            onChange={(checked) => setBillingCycle(checked ? 'yearly' : 'monthly')}
+                            style={{ backgroundColor: billingCycle === 'yearly' ? '#52c41a' : '#a8a8a8' }}
                         />
-                    </div>
+                        <Flexbox horizontal align="center" gap={6}>
+                            <span style={{ fontSize: 14, fontWeight: 600, opacity: billingCycle === 'yearly' ? 1 : 0.5 }}>Facturation annuelle</span>
+                            <Tag color="success" style={{ background: 'rgba(82, 196, 26, 0.1)', border: 'none', color: '#52c41a', margin: 0, fontSize: 11 }}>-23%</Tag>
+                        </Flexbox>
+                    </Flexbox>
                 </section>
 
                 <section className={styles.pricingGrid}>
