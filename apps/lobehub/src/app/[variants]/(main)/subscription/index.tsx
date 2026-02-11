@@ -2,88 +2,222 @@
 
 import { Icon } from '@lobehub/ui';
 import { Flexbox } from '@lobehub/ui';
-import { Button, Card, Progress, Tag, Typography } from 'antd';
+import { Button, Card, Divider, Spin, Switch, Tag, Typography, message } from 'antd';
 import { cssVar } from 'antd-style';
-import { Check, CreditCard, Crown, Zap } from 'lucide-react';
-import { memo } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Atom, Check, CreditCard, ExternalLink, Sparkle, Zap } from 'lucide-react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 
-const { Title, Text, Paragraph } = Typography;
+import { useUserStore } from '@/store/user';
+import { settingsSelectors } from '@/store/user/slices/settings/selectors';
 
-interface PlanFeature {
-  included: boolean;
-  label: string;
-}
+const { Title, Text } = Typography;
 
-interface Plan {
-  current?: boolean;
-  features: PlanFeature[];
+type PlanKey = 'base' | 'premium' | 'ultimate';
+type BillingCycle = 'monthly' | 'yearly';
+
+interface PlanConfig {
+  credits: string;
+  description: string;
+  features: string[];
   icon: typeof Zap;
   monthlyPrice: number;
   name: string;
+  planKey: PlanKey;
   popular?: boolean;
   yearlyPrice: number;
 }
 
-const PLANS: Plan[] = [
+const PLANS: PlanConfig[] = [
   {
+    credits: '10,000,000',
+    description: 'Pour une utilisation légère et occasionnelle',
     features: [
-      { included: true, label: '5 agents' },
-      { included: true, label: '100 messages/jour' },
-      { included: true, label: '1 compte WhatsApp' },
-      { included: false, label: 'Modèles premium' },
-      { included: false, label: 'Support prioritaire' },
+      'GPT-4o mini (~14,000 messages)',
+      'DeepSeek R1 (~3,800 messages)',
+      'Claude 3.5 Sonnet (~600 messages)',
+      'Stockage fichiers 2 GB',
+      'Stockage vecteurs 10,000 entrées',
+      'Recherche web',
+      'Support e-mail prioritaire',
+    ],
+    icon: Sparkle,
+    monthlyPrice: 19,
+    name: 'Version de base',
+    planKey: 'base',
+    yearlyPrice: 15,
+  },
+  {
+    credits: '40,000,000',
+    description: 'Pour les professionnels et les équipes exigeantes',
+    features: [
+      'GPT-4o mini (~56,000 messages)',
+      'DeepSeek R1 (~15,000 messages)',
+      'Claude 3.5 Sonnet (~2,400 messages)',
+      'Stockage fichiers 10 GB',
+      'OCR & Analyse de documents',
+      'Jusqu\'à 10 agents simultanés',
+      'Connecteurs CRM Natifs',
+      'Support Chat & Email 24/7',
     ],
     icon: Zap,
-    monthlyPrice: 0,
-    name: 'Gratuit',
-    yearlyPrice: 0,
-  },
-  {
-    current: true,
-    features: [
-      { included: true, label: '20 agents' },
-      { included: true, label: '1 000 messages/jour' },
-      { included: true, label: '3 comptes WhatsApp' },
-      { included: true, label: 'Modèles premium' },
-      { included: false, label: 'Support prioritaire' },
-    ],
-    icon: Crown,
-    monthlyPrice: 19,
-    name: 'Base',
-    yearlyPrice: 180,
-  },
-  {
-    features: [
-      { included: true, label: '50 agents' },
-      { included: true, label: '5 000 messages/jour' },
-      { included: true, label: '10 comptes WhatsApp' },
-      { included: true, label: 'Modèles premium' },
-      { included: true, label: 'Support prioritaire' },
-    ],
-    icon: Crown,
-    monthlyPrice: 49,
-    name: 'Premium',
+    monthlyPrice: 50,
+    name: 'Premium Pro',
+    planKey: 'premium',
     popular: true,
-    yearlyPrice: 468,
+    yearlyPrice: 39,
   },
   {
+    credits: '100,000,000',
+    description: 'Pour les entreprises sans limites',
     features: [
-      { included: true, label: 'Agents illimités' },
-      { included: true, label: 'Messages illimités' },
-      { included: true, label: 'WhatsApp illimité' },
-      { included: true, label: 'Modèles premium' },
-      { included: true, label: 'Support prioritaire' },
+      'Accès prioritaire GPT-4o',
+      'Claude 3.5 Opus inclus',
+      'Génération d\'images (DALL-E 3)',
+      'Stockage fichiers 50 GB',
+      'Agents WhatsApp illimités',
+      'Multi-utilisateurs & Rôles (RBAC)',
+      'SSO & Logs d\'audit',
+      'Account Manager dédié',
+      'SLA 99.9%',
     ],
-    icon: Crown,
-    monthlyPrice: 99,
-    name: 'Ultimate',
-    yearlyPrice: 948,
+    icon: Atom,
+    monthlyPrice: 120,
+    name: 'Utilisation intensive',
+    planKey: 'ultimate',
+    yearlyPrice: 99,
   },
 ];
 
+interface SubscriptionData {
+  billingCycle: BillingCycle;
+  cancelAtPeriodEnd: boolean;
+  currentPeriodEnd: number;
+  currentPeriodStart: number;
+  id: string;
+}
+
+interface SubscriptionStatus {
+  currentPlan: PlanKey | null;
+  status: string;
+  subscription: SubscriptionData | null;
+}
+
 const SubscriptionPage = memo(() => {
-  const { t } = useTranslation('common');
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
+  const [subStatus, setSubStatus] = useState<SubscriptionStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  const userSettings = useUserStore(settingsSelectors.currentSettings);
+  const setSettings = useUserStore((s) => s.setSettings);
+  const stripeCustomerId = (userSettings as any)?.subscription?.stripeCustomerId as
+    | string
+    | undefined;
+
+  // Fetch subscription status
+  const fetchStatus = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = stripeCustomerId ? `?customerId=${stripeCustomerId}` : '';
+      const res = await fetch(`/api/subscription${params}`);
+      const data = await res.json();
+      setSubStatus(data);
+    } catch {
+      setSubStatus({ currentPlan: null, status: 'none', subscription: null });
+    } finally {
+      setLoading(false);
+    }
+  }, [stripeCustomerId]);
+
+  useEffect(() => {
+    fetchStatus();
+  }, [fetchStatus]);
+
+  // Handle checkout success from URL params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get('checkout');
+    const sessionId = params.get('session_id');
+
+    if (checkout === 'success' && sessionId) {
+      message.success('Abonnement activé avec succès !');
+      // Clean URL
+      window.history.replaceState({}, '', '/subscription');
+      // Refresh status
+      fetchStatus();
+    } else if (checkout === 'cancelled') {
+      message.info('Paiement annulé.');
+      window.history.replaceState({}, '', '/subscription');
+    }
+  }, [fetchStatus]);
+
+  // Start checkout
+  const handleCheckout = useCallback(
+    async (plan: PlanKey) => {
+      const loadingKey = `${plan}-${billingCycle}`;
+      setCheckoutLoading(loadingKey);
+      try {
+        const res = await fetch('/api/subscription', {
+          body: JSON.stringify({ billingCycle, customerId: stripeCustomerId, plan }),
+          headers: { 'Content-Type': 'application/json' },
+          method: 'POST',
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        if (data.url) window.location.href = data.url;
+      } catch (error: any) {
+        message.error(error.message || 'Erreur lors du paiement.');
+      } finally {
+        setCheckoutLoading(null);
+      }
+    },
+    [billingCycle, stripeCustomerId],
+  );
+
+  // Open Stripe portal
+  const handlePortal = useCallback(async () => {
+    if (!stripeCustomerId) return;
+    setPortalLoading(true);
+    try {
+      const res = await fetch('/api/subscription/portal', {
+        body: JSON.stringify({ customerId: stripeCustomerId }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      if (data.url) window.location.href = data.url;
+    } catch (error: any) {
+      message.error(error.message || 'Erreur lors de l\'ouverture du portail.');
+    } finally {
+      setPortalLoading(false);
+    }
+  }, [stripeCustomerId]);
+
+  const currentPlan = subStatus?.currentPlan;
+  const isActive = subStatus?.status === 'active';
+  const currentPlanConfig = useMemo(
+    () => PLANS.find((p) => p.planKey === currentPlan),
+    [currentPlan],
+  );
+
+  const renewalDate = useMemo(() => {
+    if (!subStatus?.subscription?.currentPeriodEnd) return null;
+    return new Date(subStatus.subscription.currentPeriodEnd * 1000).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  }, [subStatus]);
+
+  if (loading) {
+    return (
+      <Flexbox align="center" justify="center" style={{ minHeight: 400 }}>
+        <Spin size="large" />
+      </Flexbox>
+    );
+  }
 
   return (
     <Flexbox
@@ -91,72 +225,134 @@ const SubscriptionPage = memo(() => {
       style={{
         margin: '0 auto',
         maxWidth: 960,
+        overflow: 'auto',
         padding: '24px 16px',
         width: '100%',
       }}
     >
       {/* Current Plan Summary */}
-      <Card
-        style={{
-          borderRadius: 12,
-        }}
-      >
+      <Card style={{ borderRadius: 12 }}>
         <Flexbox gap={16}>
-          <Flexbox align="center" gap={12} horizontal justify="space-between">
+          <Flexbox align="center" gap={12} horizontal justify="space-between" style={{ flexWrap: 'wrap' }}>
             <Flexbox align="center" gap={8} horizontal>
-              <Icon icon={Crown} size={20} style={{ color: cssVar.colorPrimary }} />
+              <Icon
+                icon={currentPlanConfig?.icon || Sparkle}
+                size={20}
+                style={{ color: cssVar.colorPrimary }}
+              />
               <Title level={4} style={{ margin: 0 }}>
-                Plan actuel : Base
+                {isActive && currentPlanConfig
+                  ? `Plan actuel : ${currentPlanConfig.name}`
+                  : 'Aucun abonnement actif'}
               </Title>
-              <Tag color="blue">Mensuel</Tag>
+              {isActive && subStatus?.subscription?.billingCycle && (
+                <Tag color="blue">
+                  {subStatus.subscription.billingCycle === 'yearly' ? 'Annuel' : 'Mensuel'}
+                </Tag>
+              )}
+              {subStatus?.subscription?.cancelAtPeriodEnd && (
+                <Tag color="warning">Annulation prévue</Tag>
+              )}
             </Flexbox>
-            <Text style={{ fontSize: 24, fontWeight: 700 }}>
-              19€<Text style={{ fontSize: 14, fontWeight: 400 }}>/mois</Text>
+            {isActive && currentPlanConfig && (
+              <Text style={{ fontSize: 24, fontWeight: 700 }}>
+                ${billingCycle === 'yearly' ? currentPlanConfig.yearlyPrice : currentPlanConfig.monthlyPrice}
+                <Text style={{ fontSize: 14, fontWeight: 400 }}>/mois</Text>
+              </Text>
+            )}
+          </Flexbox>
+
+          {isActive && currentPlanConfig && (
+            <>
+              <Flexbox gap={4}>
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  {currentPlanConfig.credits} crédits / mois
+                </Text>
+              </Flexbox>
+
+              <Flexbox align="center" gap={8} horizontal justify="space-between" style={{ flexWrap: 'wrap' }}>
+                {renewalDate && (
+                  <Text type="secondary">
+                    {subStatus?.subscription?.cancelAtPeriodEnd
+                      ? `Expire le ${renewalDate}`
+                      : `Prochain renouvellement : ${renewalDate}`}
+                  </Text>
+                )}
+                {stripeCustomerId && (
+                  <Button
+                    icon={<Icon icon={ExternalLink} size={14} />}
+                    loading={portalLoading}
+                    onClick={handlePortal}
+                    size="small"
+                    type="text"
+                  >
+                    Gérer l&apos;abonnement
+                  </Button>
+                )}
+              </Flexbox>
+            </>
+          )}
+
+          {!isActive && (
+            <Text type="secondary">
+              Choisissez un plan ci-dessous pour commencer.
             </Text>
-          </Flexbox>
-
-          <Flexbox gap={12}>
-            <Flexbox align="center" gap={8} horizontal justify="space-between">
-              <Text>Messages utilisés ce mois</Text>
-              <Text strong>342 / 1 000</Text>
-            </Flexbox>
-            <Progress percent={34} showInfo={false} strokeColor={cssVar.colorPrimary} />
-          </Flexbox>
-
-          <Flexbox align="center" gap={8} horizontal justify="space-between">
-            <Text type="secondary">Prochain renouvellement : 11 mars 2026</Text>
-            <Button danger size="small" type="text">
-              Annuler l&apos;abonnement
-            </Button>
-          </Flexbox>
+          )}
         </Flexbox>
       </Card>
 
+      {/* Billing Cycle Toggle */}
+      <Flexbox align="center" gap={16} horizontal justify="center">
+        <Text style={{ fontWeight: billingCycle === 'monthly' ? 600 : 400 }}>Mensuel</Text>
+        <Switch
+          checked={billingCycle === 'yearly'}
+          onChange={(checked) => setBillingCycle(checked ? 'yearly' : 'monthly')}
+        />
+        <Flexbox align="center" gap={6} horizontal>
+          <Text style={{ fontWeight: billingCycle === 'yearly' ? 600 : 400 }}>Annuel</Text>
+          <Tag
+            color="success"
+            style={{
+              background: 'rgba(82, 196, 26, 0.1)',
+              border: 'none',
+              color: '#52c41a',
+              margin: 0,
+            }}
+          >
+            -23%
+          </Tag>
+        </Flexbox>
+      </Flexbox>
+
       {/* Plans Grid */}
-      <Flexbox gap={16}>
-        <Title level={4} style={{ margin: 0 }}>
-          Changer de plan
-        </Title>
-        <Flexbox gap={16} horizontal style={{ flexWrap: 'wrap' }}>
-          {PLANS.map((plan) => (
+      <Flexbox gap={16} horizontal style={{ flexWrap: 'wrap' }}>
+        {PLANS.map((plan) => {
+          const isCurrent = currentPlan === plan.planKey && isActive;
+          const price = billingCycle === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
+          const loadingKey = `${plan.planKey}-${billingCycle}`;
+
+          return (
             <Card
-              key={plan.name}
+              key={plan.planKey}
               style={{
-                border: plan.current
+                border: isCurrent
                   ? `2px solid ${cssVar.colorPrimary}`
                   : plan.popular
-                    ? `2px solid ${cssVar.colorSuccess}`
+                    ? `2px solid ${cssVar.colorText}`
                     : undefined,
-                borderRadius: 12,
-                flex: '1 1 200px',
-                minWidth: 200,
+                borderRadius: 16,
+                flex: '1 1 280px',
+                minWidth: 280,
                 position: 'relative',
               }}
             >
-              {plan.popular && (
+              {plan.popular && !isCurrent && (
                 <Tag
-                  color="success"
+                  color="default"
                   style={{
+                    background: '#000',
+                    border: 'none',
+                    color: '#fff',
                     left: '50%',
                     position: 'absolute',
                     top: -12,
@@ -166,7 +362,7 @@ const SubscriptionPage = memo(() => {
                   Populaire
                 </Tag>
               )}
-              {plan.current && (
+              {isCurrent && (
                 <Tag
                   color="blue"
                   style={{
@@ -179,6 +375,7 @@ const SubscriptionPage = memo(() => {
                   Plan actuel
                 </Tag>
               )}
+
               <Flexbox gap={16}>
                 <Flexbox align="center" gap={8} horizontal>
                   <Icon icon={plan.icon} size={18} />
@@ -187,87 +384,83 @@ const SubscriptionPage = memo(() => {
                   </Title>
                 </Flexbox>
 
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  {plan.description}
+                </Text>
+
                 <Flexbox>
-                  <Text style={{ fontSize: 28, fontWeight: 700 }}>
-                    {plan.monthlyPrice === 0 ? 'Gratuit' : `${plan.monthlyPrice}€`}
+                  <Text style={{ fontSize: 32, fontWeight: 800 }}>
+                    ${price}
                   </Text>
-                  {plan.monthlyPrice > 0 && (
-                    <Text type="secondary">/mois</Text>
+                  <Text type="secondary">/mois</Text>
+                  {billingCycle === 'yearly' && (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Facturé ${plan.planKey === 'base' ? '180' : plan.planKey === 'premium' ? '468' : '1,188'}/an
+                    </Text>
                   )}
                 </Flexbox>
 
+                <Text strong style={{ fontSize: 13 }}>
+                  {plan.credits} crédits / mois
+                </Text>
+
+                <Divider dashed style={{ margin: '4px 0' }} />
+
                 <Flexbox gap={8}>
                   {plan.features.map((feature) => (
-                    <Flexbox align="center" gap={6} horizontal key={feature.label}>
-                      <Icon
-                        icon={Check}
-                        size={14}
-                        style={{
-                          color: feature.included
-                            ? cssVar.colorSuccess
-                            : cssVar.colorTextQuaternary,
-                        }}
-                      />
-                      <Text
-                        style={{
-                          color: feature.included ? undefined : cssVar.colorTextQuaternary,
-                          fontSize: 13,
-                        }}
-                      >
-                        {feature.label}
-                      </Text>
+                    <Flexbox align="center" gap={6} horizontal key={feature}>
+                      <Icon icon={Check} size={14} style={{ color: cssVar.colorSuccess }} />
+                      <Text style={{ fontSize: 13 }}>{feature}</Text>
                     </Flexbox>
                   ))}
                 </Flexbox>
 
                 <Button
                   block
-                  disabled={plan.current}
+                  disabled={isCurrent}
+                  loading={checkoutLoading === loadingKey}
+                  onClick={() => handleCheckout(plan.planKey)}
+                  style={
+                    plan.popular && !isCurrent
+                      ? { background: '#000', border: 'none', color: '#fff', fontWeight: 700, height: 44 }
+                      : { fontWeight: 600, height: 44 }
+                  }
                   type={plan.popular ? 'primary' : 'default'}
                 >
-                  {plan.current ? 'Plan actuel' : plan.monthlyPrice === 0 ? 'Rétrograder' : 'Choisir'}
+                  {isCurrent ? 'Plan actuel' : 'Commencer'}
                 </Button>
               </Flexbox>
             </Card>
-          ))}
-        </Flexbox>
+          );
+        })}
       </Flexbox>
 
-      {/* Billing History */}
-      <Card style={{ borderRadius: 12 }}>
-        <Flexbox gap={16}>
-          <Flexbox align="center" gap={8} horizontal>
-            <Icon icon={CreditCard} size={18} />
-            <Title level={5} style={{ margin: 0 }}>
-              Historique de facturation
-            </Title>
-          </Flexbox>
-          <Flexbox gap={8}>
-            {[
-              { amount: '19,00€', date: '11 fév. 2026', status: 'Payé' },
-              { amount: '19,00€', date: '11 jan. 2026', status: 'Payé' },
-              { amount: '19,00€', date: '11 déc. 2025', status: 'Payé' },
-            ].map((invoice) => (
-              <Flexbox
-                align="center"
-                horizontal
-                justify="space-between"
-                key={invoice.date}
-                style={{
-                  borderBottom: `1px solid ${cssVar.colorBorderSecondary}`,
-                  paddingBlock: 8,
-                }}
-              >
-                <Text>{invoice.date}</Text>
-                <Flexbox align="center" gap={12} horizontal>
-                  <Text strong>{invoice.amount}</Text>
-                  <Tag color="success">{invoice.status}</Tag>
-                </Flexbox>
+      {/* Manage Billing */}
+      {stripeCustomerId && (
+        <Card style={{ borderRadius: 12 }}>
+          <Flexbox align="center" gap={16} horizontal justify="space-between" style={{ flexWrap: 'wrap' }}>
+            <Flexbox gap={4}>
+              <Flexbox align="center" gap={8} horizontal>
+                <Icon icon={CreditCard} size={18} />
+                <Title level={5} style={{ margin: 0 }}>
+                  Facturation
+                </Title>
               </Flexbox>
-            ))}
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                Gérez vos moyens de paiement, factures et abonnement via le portail Stripe.
+              </Text>
+            </Flexbox>
+            <Button
+              icon={<Icon icon={ExternalLink} size={14} />}
+              loading={portalLoading}
+              onClick={handlePortal}
+              type="primary"
+            >
+              Ouvrir le portail de facturation
+            </Button>
           </Flexbox>
-        </Flexbox>
-      </Card>
+        </Card>
+      )}
     </Flexbox>
   );
 });
