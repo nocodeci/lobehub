@@ -207,6 +207,25 @@ export const mobileRoutes: RouteConfig[] = [
         path: 'settings',
       },
 
+      // Subscription routes
+      {
+        children: [
+          {
+            element: dynamicElement(
+              () => import('../../(main)/subscription'),
+              'Mobile > Subscription',
+            ),
+            index: true,
+          },
+        ],
+        element: dynamicElement(
+          () => import('../../(main)/subscription/_layout'),
+          'Mobile > Subscription > Layout',
+        ),
+        errorElement: <ErrorBoundary resetPath="/subscription" />,
+        path: 'subscription',
+      },
+
       ...BusinessMobileRoutesWithMainLayout,
 
       // Me routes (mobile personal center)

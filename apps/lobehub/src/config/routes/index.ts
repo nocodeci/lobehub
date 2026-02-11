@@ -1,5 +1,6 @@
 import {
   BrainCircuit,
+  CreditCard,
   FilePenIcon,
   Image,
   LibraryBigIcon,
@@ -94,6 +95,15 @@ export const NAVIGATION_ROUTES: NavigationRoute[] = [
     keywordsKey: 'cmdk.keywords.settings',
     path: '/settings',
     pathPrefix: '/settings',
+  },
+  {
+    cmdkKey: 'cmdk.subscription',
+    electronKey: 'navigation.subscription',
+    icon: CreditCard,
+    id: 'subscription',
+    keywords: ['subscription', 'billing', 'plan', 'payment', 'abonnement'],
+    path: '/subscription',
+    pathPrefix: '/subscription',
   },
 ];
 
