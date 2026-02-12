@@ -338,7 +338,7 @@ const SubscriptionPage = memo(() => {
                 border: isCurrent
                   ? `2px solid ${cssVar.colorPrimary}`
                   : plan.popular
-                    ? `2px solid ${cssVar.colorText}`
+                    ? '2px solid #075e54'
                     : undefined,
                 borderRadius: 16,
                 flex: '1 1 280px',
@@ -350,7 +350,7 @@ const SubscriptionPage = memo(() => {
                 <Tag
                   color="default"
                   style={{
-                    background: '#000',
+                    background: '#075e54',
                     border: 'none',
                     color: '#fff',
                     left: '50%',
@@ -422,7 +422,7 @@ const SubscriptionPage = memo(() => {
                   onClick={() => handleCheckout(plan.planKey)}
                   style={
                     plan.popular && !isCurrent
-                      ? { background: '#000', border: 'none', color: '#fff', fontWeight: 700, height: 44 }
+                      ? { '--ant-color-primary-text': '#fff', background: '#075e54', border: 'none', color: '#fff', fontWeight: 700, height: 44 } as React.CSSProperties
                       : { fontWeight: 600, height: 44 }
                   }
                   type={plan.popular ? 'primary' : 'default'}
