@@ -17,7 +17,7 @@ export default function DemoPreview() {
             style={{
                 position: 'relative',
                 width: '100%',
-                maxWidth: 1200,
+                maxWidth: '100%',
                 margin: '0 auto',
                 borderRadius: 20,
                 overflow: 'hidden',
@@ -128,7 +128,7 @@ export default function DemoPreview() {
                 style={{
                     position: 'relative',
                     width: '100%',
-                    height: 640,
+                    height: 780,
                     background: '#0a0a0a',
                 }}
             >
