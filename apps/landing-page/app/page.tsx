@@ -73,6 +73,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AgentBuilderPreview } from "@/components/AgentBuilderPreview";
 import { StepsSection } from "@/components/StepsSection";
 import { WhatsAppLogo, GoogleSheetsLogo, ChromeLogo } from "@/components/Logos";
+import DemoPreview from "@/components/DemoPreview";
 
 declare global {
   namespace JSX {
@@ -2282,26 +2283,8 @@ const LandingPage = memo(() => {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: "-100px" }}
                     transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                    className={styles.productPreview}
                   >
-                    {/* Gradient Blobs */}
-                    <div className={styles.productPreviewBlob} style={{ top: 0, left: 0, width: 550, height: 550, background: 'rgba(7, 94, 84, 0.25)', filter: 'blur(80px)' }} />
-                    <div className={styles.productPreviewBlob} style={{ top: 80, left: 80, width: 400, height: 400, background: 'rgba(7, 94, 84, 0.15)', filter: 'blur(70px)' }} />
-                    <div className={styles.productPreviewBlob} style={{ bottom: 0, right: 0, width: 500, height: 500, background: 'rgba(37, 211, 102, 0.2)', filter: 'blur(80px)' }} />
-                    <div className={styles.productPreviewBlob} style={{ bottom: 160, right: 80, width: 350, height: 350, background: 'rgba(37, 211, 102, 0.12)', filter: 'blur(75px)' }} />
-                    <div className={styles.productPreviewBlob} style={{ top: '25%', right: 0, width: 320, height: 320, background: 'rgba(7, 94, 84, 0.2)', filter: 'blur(70px)' }} />
-                    <div className={styles.productPreviewBlob} style={{ bottom: '33%', left: 0, width: 320, height: 320, background: 'rgba(37, 211, 102, 0.15)', filter: 'blur(70px)' }} />
-                    <div className={styles.productPreviewBlob} style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 450, height: 450, background: 'rgba(7, 94, 84, 0.12)', filter: 'blur(80px)' }} />
-
-                    {/* iframe */}
-                    <div className={styles.productPreviewFrame}>
-                      <iframe
-                        src="https://app.connect.wozif.com/demo"
-                        title="Connect - Plateforme d'automatisation IA"
-                        loading="lazy"
-                        allow="clipboard-write"
-                      />
-                    </div>
+                    <DemoPreview />
                   </motion.div>
                 </div>
               </section>
