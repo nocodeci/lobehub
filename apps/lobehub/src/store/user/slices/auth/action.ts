@@ -1,6 +1,7 @@
 import { type SSOProvider } from '@lobechat/types';
 import { type StateCreator } from 'zustand/vanilla';
 
+import { isDemoMode } from '@/utils/isDemoMode';
 import type { UserStore } from '../../store';
 
 interface AuthProvidersData {
@@ -81,6 +82,9 @@ export const createAuthSlice: StateCreator<
     });
   },
   openLogin: async () => {
+    // Skip in demo mode
+    if (isDemoMode()) return;
+
     // Skip if already on a login page (/signin, /signup)
     const pathname = location.pathname;
     if (pathname.startsWith('/signin') || pathname.startsWith('/signup')) {

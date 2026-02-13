@@ -7,6 +7,7 @@ import superjson from 'superjson';
 
 import { withElectronProtocolIfElectron } from '@/const/protocol';
 import { isDesktop } from '@/const/version';
+import { isDemoMode } from '@/utils/isDemoMode';
 import type { LambdaRouter } from '@/server/routers/lambda';
 
 const log = debug('lobe-image:lambda-client');
@@ -36,6 +37,9 @@ const errorHandlingLink: TRPCLink<LambdaRouter> = () => {
           if (showError && !isAbortError) {
             switch (status) {
               case 401: {
+                // In demo mode, skip login redirect — let the UI render without auth
+                if (isDemoMode()) break;
+
                 // Debounce: only show login notification once every 5 seconds
                 const now = Date.now();
                 if (now - last401Time > MIN_401_INTERVAL) {

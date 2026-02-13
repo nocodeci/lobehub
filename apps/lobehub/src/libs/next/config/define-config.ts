@@ -85,7 +85,20 @@ export function defineConfig(config: CustomNextConfig) {
       return [
         {
           headers: securityHeaders,
-          source: '/:path*',
+          source: '/:path((?!demo).*)',
+        },
+        {
+          headers: [
+            {
+              key: 'X-Frame-Options',
+              value: 'ALLOWALL',
+            },
+            {
+              key: 'Content-Security-Policy',
+              value: "frame-ancestors 'self' https://connect.wozif.com https://www.connect.wozif.com http://localhost:*;",
+            },
+          ],
+          source: '/demo',
         },
         {
           headers: [

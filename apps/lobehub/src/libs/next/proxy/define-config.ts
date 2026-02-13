@@ -31,6 +31,15 @@ export function defineConfig() {
       return NextResponse.next();
     }
 
+    // In demo mode, redirect /signin back to /demo to prevent auth redirects
+    if (
+      url.pathname === '/signin' &&
+      request.cookies.get('demo_mode')?.value === '1'
+    ) {
+      logDefault('Demo mode: redirecting /signin back to /demo');
+      return NextResponse.redirect(new URL('/demo', request.url));
+    }
+
     // locale has three levels
     // 1. search params
     // 2. cookie
@@ -109,6 +118,10 @@ export function defineConfig() {
     let nextPathname: string;
     if (isSpaRoute) {
       nextPathname = `/${route}`;
+    } else if (url.pathname === '/demo') {
+      // /demo serves the real dashboard (same as /) without auth
+      // The demo_mode cookie is set by an inline script in the layout <head>
+      nextPathname = `/${route}`;
     } else {
       nextPathname = `/${route}` + (url.pathname === '/' ? '' : url.pathname);
     }
@@ -180,6 +193,8 @@ export function defineConfig() {
     '/market-auth-callback',
     // public share pages
     '/share(.*)',
+    // public demo page (for landing page iframe)
+    '/demo',
   ]);
 
   const betterAuthMiddleware = async (req: NextRequest) => {

@@ -65,6 +65,9 @@ export const useDesktopUserStateRedirect = () => {
 
 export const useWebUserStateRedirect = () =>
   useCallback((state: UserInitializationState) => {
+    // Skip all redirects in demo mode
+    if (document.cookie.includes('demo_mode=1')) return;
+
     const { pathname } = window.location;
 
     if (state.isInviteCodeRequired === true) {

@@ -618,6 +618,41 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.1);
   `,
+  productPreview: css`
+    position: relative;
+    width: 100%;
+    max-width: 1300px;
+    margin: 0 auto 40px;
+  `,
+  productPreviewBlob: css`
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+  `,
+  productPreviewFrame: css`
+    position: relative;
+    z-index: 10;
+    border-radius: 16px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.05);
+    border: 6px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.15), 0 10px 30px rgba(0, 0, 0, 0.1);
+
+    iframe {
+      width: 100%;
+      height: 500px;
+      border: none;
+      border-radius: 12px;
+
+      @media (min-width: 768px) {
+        height: 650px;
+      }
+
+      @media (min-width: 1024px) {
+        height: 750px;
+      }
+    }
+  `,
   heroVideoScene: css`
     margin-top: 80px;
     width: 100%;
@@ -2242,14 +2277,32 @@ const LandingPage = memo(() => {
                     </p>
                   </Center>
 
-                  <div className={styles.videoWrapper}>
-                    <Video
-                      preview
-                      src="https://github.com/lobehub/lobe-chat/assets/28616219/f29475a3-f346-4196-a435-41a6373ab9e2"
-                      variant="filled"
-                      className={styles.videoPlayer}
-                    />
-                  </div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 60 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-100px" }}
+                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                    className={styles.productPreview}
+                  >
+                    {/* Gradient Blobs */}
+                    <div className={styles.productPreviewBlob} style={{ top: 0, left: 0, width: 550, height: 550, background: 'rgba(7, 94, 84, 0.25)', filter: 'blur(80px)' }} />
+                    <div className={styles.productPreviewBlob} style={{ top: 80, left: 80, width: 400, height: 400, background: 'rgba(7, 94, 84, 0.15)', filter: 'blur(70px)' }} />
+                    <div className={styles.productPreviewBlob} style={{ bottom: 0, right: 0, width: 500, height: 500, background: 'rgba(37, 211, 102, 0.2)', filter: 'blur(80px)' }} />
+                    <div className={styles.productPreviewBlob} style={{ bottom: 160, right: 80, width: 350, height: 350, background: 'rgba(37, 211, 102, 0.12)', filter: 'blur(75px)' }} />
+                    <div className={styles.productPreviewBlob} style={{ top: '25%', right: 0, width: 320, height: 320, background: 'rgba(7, 94, 84, 0.2)', filter: 'blur(70px)' }} />
+                    <div className={styles.productPreviewBlob} style={{ bottom: '33%', left: 0, width: 320, height: 320, background: 'rgba(37, 211, 102, 0.15)', filter: 'blur(70px)' }} />
+                    <div className={styles.productPreviewBlob} style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 450, height: 450, background: 'rgba(7, 94, 84, 0.12)', filter: 'blur(80px)' }} />
+
+                    {/* iframe */}
+                    <div className={styles.productPreviewFrame}>
+                      <iframe
+                        src="https://app.connect.wozif.com/demo"
+                        title="Connect - Plateforme d'automatisation IA"
+                        loading="lazy"
+                        allow="clipboard-write"
+                      />
+                    </div>
+                  </motion.div>
                 </div>
               </section>
 

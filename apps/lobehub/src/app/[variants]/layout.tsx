@@ -17,6 +17,19 @@ import { RouteVariants } from '@/utils/server/routeVariants';
 
 const inVercel = process.env.VERCEL === '1';
 
+function demoModeScript() {
+  if (typeof window === 'undefined') return;
+  if (window.location.pathname !== '/demo') return;
+
+  // Mark demo mode in cookie + sessionStorage so all client code can detect it
+  document.cookie = 'demo_mode=1;path=/;max-age=3600;samesite=lax';
+  try {
+    sessionStorage.setItem('demo_mode', '1');
+  } catch {
+    // ignore
+  }
+}
+
 export interface RootLayoutProps extends DynamicLayoutProps {
   children: ReactNode;
 }
@@ -46,6 +59,8 @@ const RootLayout = async ({ children, params }: RootLayoutProps) => {
   return (
     <html dir={direction} lang={locale} suppressHydrationWarning>
       <head>
+        {/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
+        <script dangerouslySetInnerHTML={{ __html: `(${demoModeScript.toString()})();` }} />
         {/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
         <script dangerouslySetInnerHTML={{ __html: `(${outdateBrowserScript.toString()})();` }} />
         {process.env.DEBUG_REACT_SCAN === '1' && (

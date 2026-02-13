@@ -28,6 +28,13 @@ const DesktopOnboardingRedirect = () => {
 };
 
 const ClientRouter = () => {
+  // When accessing /demo, mark demo mode and silently replace the URL with /
+  // so react-router-dom renders the home page without auth redirects.
+  if (typeof window !== 'undefined' && window.location.pathname === '/demo') {
+    sessionStorage.setItem('demo_mode', '1');
+    window.history.replaceState(null, '', '/');
+  }
+
   return (
     <BrowserRouter>
       <Routes>{renderRoutes(desktopRoutes)}</Routes>
