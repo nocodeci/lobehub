@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = getStripe();
-    const appUrl = process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin;
+    const appUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://app.connect.wozif.com';
 
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,

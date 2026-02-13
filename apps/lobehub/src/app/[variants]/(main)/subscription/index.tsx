@@ -24,6 +24,7 @@ interface PlanConfig {
   name: string;
   planKey: PlanKey;
   popular?: boolean;
+  trialDays?: number;
   yearlyPrice: number;
 }
 
@@ -48,7 +49,7 @@ const PLANS: PlanConfig[] = [
   },
   {
     credits: '40,000,000',
-    description: 'Pour les professionnels et les équipes exigeantes',
+    description: 'Essai gratuit de 3 jours, puis facturation mensuelle ou annuelle.',
     features: [
       'GPT-4o mini (~56,000 messages)',
       'DeepSeek R1 (~15,000 messages)',
@@ -64,6 +65,7 @@ const PLANS: PlanConfig[] = [
     name: 'Premium Pro',
     planKey: 'premium',
     popular: true,
+    trialDays: 3,
     yearlyPrice: 39,
   },
   {
@@ -134,32 +136,15 @@ const SubscriptionPage = memo(() => {
     fetchStatus();
   }, [fetchStatus]);
 
-  // Handle checkout success from URL params
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const checkout = params.get('checkout');
-    const sessionId = params.get('session_id');
-
-    if (checkout === 'success' && sessionId) {
-      message.success('Abonnement activé avec succès !');
-      // Clean URL
-      window.history.replaceState({}, '', '/subscription');
-      // Refresh status
-      fetchStatus();
-    } else if (checkout === 'cancelled') {
-      message.info('Paiement annulé.');
-      window.history.replaceState({}, '', '/subscription');
-    }
-  }, [fetchStatus]);
-
   // Start checkout
   const handleCheckout = useCallback(
-    async (plan: PlanKey) => {
-      const loadingKey = `${plan}-${billingCycle}`;
+    async (plan: PlanKey, overrideCycle?: BillingCycle) => {
+      const cycle = overrideCycle || billingCycle;
+      const loadingKey = `${plan}-${cycle}`;
       setCheckoutLoading(loadingKey);
       try {
         const res = await fetch('/api/subscription', {
-          body: JSON.stringify({ billingCycle, customerId: stripeCustomerId, plan }),
+          body: JSON.stringify({ billingCycle: cycle, customerId: stripeCustomerId, plan }),
           headers: { 'Content-Type': 'application/json' },
           method: 'POST',
         });
@@ -174,6 +159,36 @@ const SubscriptionPage = memo(() => {
     },
     [billingCycle, stripeCustomerId],
   );
+
+  // Handle URL params: checkout result OR redirect from landing page
+  const [autoCheckoutDone, setAutoCheckoutDone] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get('checkout');
+    const sessionId = params.get('session_id');
+    const planParam = params.get('plan') as PlanKey | null;
+    const cycleParam = params.get('cycle') as BillingCycle | null;
+
+    if (checkout === 'success' && sessionId) {
+      message.success('Abonnement activé avec succès !');
+      window.history.replaceState({}, '', '/subscription');
+      fetchStatus();
+    } else if (checkout === 'cancelled') {
+      message.info('Paiement annulé.');
+      window.history.replaceState({}, '', '/subscription');
+    } else if (planParam && PLANS.some((p) => p.planKey === planParam) && !autoCheckoutDone) {
+      // Redirect from landing page — set billing cycle and auto-trigger checkout
+      const cycle = (cycleParam && ['monthly', 'yearly'].includes(cycleParam)) ? cycleParam : 'monthly';
+      setBillingCycle(cycle);
+      setAutoCheckoutDone(true);
+      window.history.replaceState({}, '', '/subscription');
+      // Trigger checkout with the cycle from the URL
+      setTimeout(() => {
+        handleCheckout(planParam, cycle);
+      }, 500);
+    }
+  }, [fetchStatus, autoCheckoutDone, handleCheckout]);
 
   // Open Stripe portal
   const handlePortal = useCallback(async () => {
@@ -382,6 +397,11 @@ const SubscriptionPage = memo(() => {
                   <Title level={5} style={{ margin: 0 }}>
                     {plan.name}
                   </Title>
+                  {plan.trialDays && !isCurrent && (
+                    <Tag color="processing" style={{ borderRadius: 6, fontSize: 10, fontWeight: 700, margin: 0 }}>
+                      {plan.trialDays} jours d&apos;essai gratuit
+                    </Tag>
+                  )}
                 </Flexbox>
 
                 <Text type="secondary" style={{ fontSize: 13 }}>
@@ -427,7 +447,7 @@ const SubscriptionPage = memo(() => {
                   }
                   type={plan.popular ? 'primary' : 'default'}
                 >
-                  {isCurrent ? 'Plan actuel' : 'Commencer'}
+                  {isCurrent ? 'Plan actuel' : plan.trialDays ? `Essayer ${plan.trialDays} jours gratuit` : 'Commencer'}
                 </Button>
               </Flexbox>
             </Card>

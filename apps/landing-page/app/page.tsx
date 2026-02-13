@@ -3115,9 +3115,13 @@ const LandingPage = memo(() => {
                               fontWeight: 700,
                               margin: 0,
                               color: "#000",
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8
                             }}
                           >
                             Premium
+                            <Tag color="processing" style={{ borderRadius: 6, fontSize: 10, fontWeight: 700 }}>3 jours d'essai</Tag>
                           </h2>
                           <p
                             style={{
@@ -3127,7 +3131,7 @@ const LandingPage = memo(() => {
                               color: "#000",
                             }}
                           >
-                            Pour les professionnels exigeants
+                            Essai gratuit de 3 jours, puis facturation automatique.
                           </p>
                         </div>
                         <div>
@@ -3185,7 +3189,7 @@ const LandingPage = memo(() => {
                             border: "none",
                           }}
                         >
-                          Commencer
+                          Essayer 3 jours gratuit
                         </Button>
                       </Flexbox>
 

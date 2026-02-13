@@ -370,8 +370,11 @@ const PricingPage = () => {
                                 <Zap size={18} fill="currentColor" color="#fff" />
                             </div>
                             <div>
-                                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Premium Pro</h2>
-                                <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Pour les professionnels et les équipes exigeantes</p>
+                                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    Premium Pro
+                                    <Tag color="processing" style={{ borderRadius: 6, fontSize: 10, fontWeight: 700 }}>3 jours d'essai gratuit</Tag>
+                                </h2>
+                                <p style={{ fontSize: 13, opacity: 0.6, margin: 0 }}>Essai gratuit de 3 jours, puis facturation mensuelle ou annuelle.</p>
                             </div>
                             <div>
                                 <div className={styles.priceValue}>{billingCycle === 'yearly' ? '39' : '50'}</div>

@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = getStripe();
-    const appUrl = process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin;
+    const appUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://app.connect.wozif.com';
 
     const sessionParams: any = {
       allow_promotion_codes: true,
@@ -129,6 +129,7 @@ export async function POST(req: NextRequest) {
       payment_method_types: ['card'],
       subscription_data: {
         metadata: { billingCycle, plan, planName: selectedPlan.name },
+        ...(plan === 'premium' ? { trial_period_days: 3 } : {}),
       },
       success_url: `${appUrl}/subscription?checkout=success&plan=${plan}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/subscription?checkout=cancelled`,

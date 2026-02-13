@@ -44,7 +44,7 @@ export const PLANS = {
   },
   premium: {
     credits: '40,000,000',
-    description: 'Pour les professionnels et les équipes exigeantes',
+    description: 'Essai gratuit de 3 jours, puis facturation mensuelle ou annuelle.',
     features: [
       'GPT-4o mini (~56,000 messages)',
       'DeepSeek R1 (~15,000 messages)',
@@ -62,6 +62,7 @@ export const PLANS = {
     },
     name: 'Premium Pro',
     popular: true,
+    trialDays: 3,
     yearly: {
       amount: 46800,
       priceId: process.env.STRIPE_PRICE_PREMIUM_YEARLY || '',
