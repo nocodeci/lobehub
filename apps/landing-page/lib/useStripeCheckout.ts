@@ -5,7 +5,7 @@ import { useState } from 'react';
 type PlanKey = 'base' | 'premium' | 'ultimate';
 type BillingCycle = 'monthly' | 'yearly';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://app.connect.wozif.com';
+const APP_URL = 'https://app.connect.wozif.com';
 
 export function useStripeCheckout() {
     const [loading, setLoading] = useState<string | null>(null);
