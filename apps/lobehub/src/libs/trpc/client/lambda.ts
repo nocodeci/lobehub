@@ -81,11 +81,11 @@ const errorHandlingLink: TRPCLink<LambdaRouter> = () => {
 const linkOptions = {
   // eslint-disable-next-line no-undef
   fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
-    // Ensure credentials are included to send cookies (like mp_token)
+    // In demo mode, omit credentials so API calls behave as unauthenticated
     // eslint-disable-next-line no-undef
     const fetchOptions: RequestInit = {
       ...init,
-      credentials: 'include',
+      credentials: isDemoMode() ? 'omit' : 'include',
     };
 
     if (isDesktop) {
@@ -99,6 +99,9 @@ const linkOptions = {
     return await fetch(input, fetchOptions);
   },
   headers: async () => {
+    // In demo mode, don't send auth headers
+    if (isDemoMode()) return {};
+
     // dynamic import to avoid circular dependency
     const { createHeaderWithAuth } = await import('@/services/_auth');
 
