@@ -5,8 +5,8 @@ import "./globals.css";
 const outfit = Outfit({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700", "800", "900"] });
 
 export const metadata: Metadata = {
-    title: "Wozif | L'écosystème IA pour les entreprises africaines",
-    description: "Découvrez Connect, la plateforme d'agents IA de Wozif. Automatisez vos opérations, connectez WhatsApp, et boostez votre productivité.",
+    title: "Wozif • Des solutions numériques utiles et intelligentes.",
+    description: "Wozif combine savoir-faire technologique et intelligence artificielle pour créer des produits numériques qui répondent aux besoins des entreprises africaines.",
 };
 
 export default function RootLayout({

@@ -1,16 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Menu, X, ChevronDown } from "lucide-react";
+import { ArrowRight, Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Logo from "./Logo";
 
 const navLinks = [
-    { name: "Connect", href: "#connect" },
-    { name: "Fonctionnalités", href: "#features" },
-    { name: "Tarifs", href: "#pricing" },
-    { name: "À propos", href: "#about" },
+    { name: "Solutions", href: "/products" },
+    { name: "Compte", href: "/account" },
+    { name: "À propos", href: "/about" },
 ];
 
 const ACCOUNT_URL = process.env.NEXT_PUBLIC_ACCOUNT_URL || "https://account.wozif.com";
@@ -30,13 +29,13 @@ export default function Header() {
     return (
         <header
             className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ${isScrolled
-                ? "bg-white/70 backdrop-blur-2xl py-4 shadow-[0_2px_20px_-5px_rgba(0,0,0,0.05)] border-b border-slate-100"
-                : "bg-transparent py-8"
+                ? "bg-white/80 backdrop-blur-2xl py-4 shadow-[0_1px_0_0_rgba(0,0,0,0.04)]"
+                : "bg-transparent py-6"
                 }`}
         >
-            <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 lg:px-12">
+            <div className="mx-auto flex max-w-[1200px] items-center justify-between px-6 lg:px-8">
                 <Link href="/" className="group flex items-center transition-all hover:scale-[1.02] active:scale-95">
-                    <Logo height={42} />
+                    <Logo height={36} />
                 </Link>
 
                 <nav className="hidden lg:flex items-center gap-1">
@@ -44,77 +43,70 @@ export default function Header() {
                         <Link
                             key={link.name}
                             href={link.href}
-                            className="px-5 py-2 text-[13px] font-black uppercase tracking-[0.15em] text-slate-500 hover:text-indigo-600 transition-all relative group flex items-center gap-1"
+                            className="px-4 py-2 text-[14px] font-semibold text-slate-600 hover:text-slate-950 transition-colors rounded-lg hover:bg-slate-50"
                         >
                             {link.name}
-                            {link.name === "Produits" && <ChevronDown className="w-3 h-3 opacity-50 group-hover:rotate-180 transition-transform" />}
-                            <span className="absolute bottom-1 left-5 right-5 h-[2px] bg-indigo-600 scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></span>
                         </Link>
                     ))}
                 </nav>
 
-                <div className="flex items-center gap-8">
+                <div className="flex items-center gap-4">
                     <Link
                         href={`${ACCOUNT_URL}/auth/login`}
-                        className="hidden text-sm font-black uppercase tracking-widest text-slate-900/60 hover:text-indigo-600 md:block transition-colors"
+                        className="hidden text-[14px] font-semibold text-slate-600 hover:text-slate-950 md:block transition-colors"
                     >
-                        Accès portail
+                        Se connecter
                     </Link>
                     <Link
                         href={`${ACCOUNT_URL}/auth/register`}
-                        className="relative group flex items-center gap-3 rounded-2xl bg-slate-950 px-8 py-4 text-sm font-black text-white transition-all hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.2)] active:scale-95 overflow-hidden"
+                        className="flex items-center gap-2 rounded-full bg-slate-950 px-5 py-2.5 text-[13px] font-semibold text-white transition-all hover:bg-slate-800 active:scale-95"
                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <span className="relative z-10 uppercase tracking-widest flex items-center gap-2">
-                            Démarrer
-                            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                        </span>
+                        S&apos;inscrire
                     </Link>
 
                     <button
                         className="lg:hidden text-slate-950 focus:outline-none"
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                     >
-                        {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
+                        {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>
                 </div>
             </div>
 
-            {/* Mobile Menu Overlay */}
+            {/* Mobile Menu */}
             <AnimatePresence>
                 {isMobileMenuOpen && (
                     <motion.div
-                        initial={{ opacity: 0, y: -20 }}
+                        initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        className="absolute top-full left-0 right-0 bg-white border-b border-slate-100 shadow-2xl lg:hidden overflow-hidden min-h-screen pt-12"
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute top-full left-0 right-0 bg-white border-b border-slate-100 shadow-lg lg:hidden"
                     >
-                        <nav className="flex flex-col p-8 gap-8">
+                        <nav className="flex flex-col p-6 gap-1">
                             {navLinks.map((link) => (
                                 <Link
                                     key={link.name}
                                     href={link.href}
-                                    className="text-4xl font-black text-slate-950 flex items-center justify-between group"
+                                    className="px-4 py-3 text-[15px] font-semibold text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
                                     onClick={() => setIsMobileMenuOpen(false)}
                                 >
                                     {link.name}
-                                    <ArrowRight className="h-8 w-8 text-slate-200 group-hover:text-indigo-600 group-hover:translate-x-2 transition-all" />
                                 </Link>
                             ))}
-                            <div className="flex flex-col gap-4 mt-12">
+                            <div className="border-t border-slate-100 mt-4 pt-4 flex flex-col gap-3">
                                 <Link
                                     href={`${ACCOUNT_URL}/auth/login`}
-                                    className="w-full text-center py-6 text-slate-950 font-black border-2 border-slate-100 rounded-3xl uppercase tracking-widest"
+                                    className="w-full text-center py-3 text-slate-700 font-semibold border border-slate-200 rounded-xl"
                                     onClick={() => setIsMobileMenuOpen(false)}
                                 >
                                     Se connecter
                                 </Link>
                                 <Link
                                     href={`${ACCOUNT_URL}/auth/register`}
-                                    className="w-full text-center py-6 bg-slate-950 text-white font-black rounded-3xl uppercase tracking-widest"
+                                    className="w-full text-center py-3 bg-slate-950 text-white font-semibold rounded-xl"
                                     onClick={() => setIsMobileMenuOpen(false)}
                                 >
-                                    Créer un compte
+                                    S&apos;inscrire
                                 </Link>
                             </div>
                         </nav>
