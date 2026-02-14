@@ -712,8 +712,14 @@ func extractMediaInfo(msg *waProto.Message) (mediaType string, filename string, 
 
 // Handle regular incoming messages with media support
 func handleMessage(client *whatsmeow.Client, messageStore *MessageStore, msg *events.Message, logger waLog.Logger, sessionID string) {
-	// Save message to database
+	// Ignore status broadcast messages (WhatsApp Stories/Status updates)
+	// These should never trigger the agent or be processed as regular messages
 	chatJID := msg.Info.Chat.String()
+	if strings.Contains(chatJID, "status@broadcast") || strings.HasSuffix(chatJID, "@broadcast") {
+		return
+	}
+
+	// Save message to database
 	sender := msg.Info.Sender.User
 
 	// Get appropriate chat name (pass nil for conversation since we don't have one for regular messages)

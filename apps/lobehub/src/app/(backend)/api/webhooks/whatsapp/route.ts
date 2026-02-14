@@ -491,6 +491,11 @@ export async function POST(req: NextRequest) {
 
         const { chat_jid, content, sender } = body.data;
 
+        // Ignore status broadcast messages (WhatsApp Stories/Status updates)
+        if (chat_jid && (chat_jid.includes('status@broadcast') || chat_jid.endsWith('@broadcast'))) {
+            return NextResponse.json({ status: 'ignored_broadcast' });
+        }
+
         if (!content || content.trim() === '') {
             return NextResponse.json({ status: 'empty_message' });
         }
