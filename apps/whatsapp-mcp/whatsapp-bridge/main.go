@@ -160,6 +160,52 @@ func (sm *SessionManager) createSession(sessionID string) (*Session, error) {
 	return session, nil
 }
 
+// RestoreExistingSessions scans the store directory for previously paired sessions
+// and automatically reconnects them. This ensures sessions survive bridge restarts.
+func (sm *SessionManager) RestoreExistingSessions(logger waLog.Logger) {
+	entries, err := os.ReadDir(sm.storeDir)
+	if err != nil {
+		logger.Warnf("Failed to read store directory for session restoration: %v", err)
+		return
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		sessionID := entry.Name()
+		dbPath := filepath.Join(sm.storeDir, sessionID, "whatsapp.db")
+
+		// Only restore sessions that have a whatsapp.db (i.e., were previously paired)
+		if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+			continue
+		}
+
+		logger.Infof("Restoring session: %s", sessionID)
+
+		session, err := sm.GetOrCreateSession(sessionID)
+		if err != nil {
+			logger.Warnf("Failed to restore session %s: %v", sessionID, err)
+			continue
+		}
+
+		// Auto-connect if the session was previously paired (has a stored device ID)
+		if session.Client != nil && session.Client.Store != nil && session.Client.Store.ID != nil {
+			go func(s *Session, id string) {
+				logger.Infof("Auto-connecting previously paired session: %s", id)
+				if err := s.Connect(); err != nil {
+					logger.Warnf("Failed to auto-connect session %s: %v", id, err)
+				} else {
+					logger.Infof("Session %s auto-connected successfully", id)
+				}
+			}(session, sessionID)
+		} else {
+			logger.Infof("Session %s has no stored device, skipping auto-connect", sessionID)
+		}
+	}
+}
+
 // GetSession returns an existing session or nil
 func (sm *SessionManager) GetSession(sessionID string) *Session {
 	sm.mu.RLock()
@@ -1493,6 +1539,10 @@ func main() {
 	// Initialize Session Manager
 	sessionManager = NewSessionManager(storeDir)
 	logger.Infof("Session Manager initialized with store dir: %s", storeDir)
+
+	// Restore and auto-connect previously paired sessions
+	logger.Infof("Restoring existing sessions from %s...", storeDir)
+	sessionManager.RestoreExistingSessions(logger)
 
 	// Start REST API server
 	startRESTServer(port)
