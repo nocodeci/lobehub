@@ -204,7 +204,7 @@ export const WhatsAppManifest: BuiltinToolManifest = {
     identifier: 'lobe-whatsapp-local',
     meta: {
         avatar: whatsappAvatar,
-        title: 'WhatsApp (Bridge)',
+        title: 'WhatsApp',
     },
     systemRole: systemPrompt,
     type: 'builtin',

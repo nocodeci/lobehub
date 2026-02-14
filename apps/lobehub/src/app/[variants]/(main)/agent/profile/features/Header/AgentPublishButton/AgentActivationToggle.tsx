@@ -1,8 +1,9 @@
 'use client';
 
-import { Button, Icon } from '@lobehub/ui';
+import { Flexbox, Icon } from '@lobehub/ui';
+import { cssVar } from 'antd-style';
 import isEqual from 'fast-deep-equal';
-import { Power, PowerOff } from 'lucide-react';
+import { Loader2, Power, PowerOff } from 'lucide-react';
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -72,14 +73,58 @@ const AgentActivationToggle = memo(() => {
     }, [localIsActive, isLoading, meta, t, updateAgentMeta]);
 
     return (
-        <Button
-            icon={<Icon icon={localIsActive ? Power : PowerOff} />}
-            loading={isLoading}
+        <Flexbox
+            align="center"
+            gap={8}
+            horizontal
             onClick={handleToggle}
-            type={localIsActive ? 'primary' : 'default'}
+            style={{
+                background: localIsActive
+                    ? 'linear-gradient(135deg, rgba(82, 196, 26, 0.12), rgba(82, 196, 26, 0.06))'
+                    : cssVar.colorFillTertiary,
+                border: `1px solid ${localIsActive ? 'rgba(82, 196, 26, 0.35)' : cssVar.colorBorderSecondary}`,
+                borderRadius: 20,
+                cursor: isLoading ? 'wait' : 'pointer',
+                opacity: isLoading ? 0.7 : 1,
+                padding: '6px 14px 6px 10px',
+                transition: 'all 0.25s ease',
+                userSelect: 'none',
+            }}
         >
-            {localIsActive ? t('agentActivation.active') : t('agentActivation.inactive')}
-        </Button>
+            {isLoading ? (
+                <Loader2
+                    size={14}
+                    style={{
+                        animation: 'spin 1s linear infinite',
+                        color: localIsActive ? '#52c41a' : cssVar.colorTextTertiary,
+                    }}
+                />
+            ) : (
+                <Flexbox
+                    align="center"
+                    justify="center"
+                    style={{
+                        background: localIsActive ? '#52c41a' : cssVar.colorTextQuaternary,
+                        borderRadius: '50%',
+                        boxShadow: localIsActive ? '0 0 6px rgba(82, 196, 26, 0.5)' : 'none',
+                        height: 8,
+                        transition: 'all 0.25s ease',
+                        width: 8,
+                    }}
+                />
+            )}
+            <span
+                style={{
+                    color: localIsActive ? '#52c41a' : cssVar.colorTextSecondary,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    lineHeight: 1,
+                    transition: 'color 0.25s ease',
+                }}
+            >
+                {localIsActive ? t('agentActivation.active') : t('agentActivation.inactive')}
+            </span>
+        </Flexbox>
     );
 });
 

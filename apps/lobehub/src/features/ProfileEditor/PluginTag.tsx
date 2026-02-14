@@ -273,11 +273,22 @@ const PluginTag = memo<PluginTagProps>(
     const getDisplayText = () => {
       let text = displayTitle;
 
-      // Pour WhatsApp, afficher le nom du compte actif
-      if (identifier === WHATSAPP_IDENTIFIER && activeWhatsAppAccount) {
-        const accountName = activeWhatsAppAccount.name || activeWhatsAppAccount.id;
-        const phone = activeWhatsAppAccount.phone ? ` (${activeWhatsAppAccount.phone})` : '';
-        text = `${text} → ${accountName}${phone}`;
+      // Pour WhatsApp, afficher le statut de connexion
+      if (identifier === WHATSAPP_IDENTIFIER) {
+        const connectedAccounts = whatsappAccounts.filter((a) => a.isConnected);
+        if (connectedAccounts.length === 0) {
+          text = 'Aucun WhatsApp connecté';
+        } else if (activeWhatsAppAccount?.isConnected) {
+          const accountName = activeWhatsAppAccount.name || activeWhatsAppAccount.id;
+          const phone = activeWhatsAppAccount.phone ? ` (${activeWhatsAppAccount.phone})` : '';
+          text = `${text} → ${accountName}${phone}`;
+        } else {
+          // Active account not connected, show first connected one
+          const first = connectedAccounts[0];
+          const accountName = first.name || first.id;
+          const phone = first.phone ? ` (${first.phone})` : '';
+          text = `${text} → ${accountName}${phone}`;
+        }
       }
 
       if (isDesktopOnly) {
@@ -293,12 +304,15 @@ const PluginTag = memo<PluginTagProps>(
     // Only show error state when not installed and not loading
     const showErrorState = !meta.isInstalled && !isLoading;
 
+    // WhatsApp: show error state (red) when no account is connected
+    const isWhatsAppDisconnected = identifier === WHATSAPP_IDENTIFIER && whatsappAccounts.filter((a) => a.isConnected).length === 0;
+
     return (
       <Tag
         className={styles.tag}
         closable
         closeIcon={<X size={12} />}
-        color={showErrorState ? 'error' : undefined}
+        color={showErrorState || isWhatsAppDisconnected ? 'error' : undefined}
         icon={renderIcon()}
         onClose={onRemove}
         title={

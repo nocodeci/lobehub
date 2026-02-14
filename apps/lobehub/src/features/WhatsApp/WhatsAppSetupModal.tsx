@@ -17,6 +17,8 @@ import {
 import { memo, useCallback, useEffect, useState } from 'react';
 import QRCode from 'react-qr-code';
 
+import { useBYOKCheck } from '@/hooks/useSubscription';
+import { canAddWhatsAppAccount } from '@/libs/subscription';
 import { useUserStore } from '@/store/user';
 import { settingsSelectors } from '@/store/user/slices/settings/selectors';
 
@@ -73,6 +75,10 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
 
     const whatsappSettings = ((userSettings.tool as any)?.whatsapp || {}) as any;
     const accounts = (whatsappSettings.accounts || []) as WhatsAppAccount[];
+
+    // Subscription plan check for WhatsApp account limits
+    const { plan } = useBYOKCheck();
+    const whatsappCheck = canAddWhatsAppAccount(plan, accounts.length);
 
     const persistAccounts = useCallback(async (next: { accounts: WhatsAppAccount[]; activeAccountId?: string }) => {
         await setSettings({
@@ -232,15 +238,26 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
                 await persistAccounts({ accounts: [defaultAccount], activeAccountId: defaultAccount.id });
             }
 
-            setLoading(true);
-            await checkAllAccountsStatus();
-            setLoading(false);
+            // Check status in background — no blocking spinner
+            checkAllAccountsStatus();
         };
 
         init();
     }, [open]);
 
     const addAccount = useCallback(async () => {
+        // Enforce WhatsApp account limit based on subscription plan
+        const check = canAddWhatsAppAccount(plan, accounts.length);
+        if (!check.allowed) {
+            Modal.warning({
+                title: 'Limite de comptes WhatsApp atteinte',
+                content: check.message,
+                okText: 'Passer à un plan supérieur',
+                onOk: () => { window.location.href = '/subscription'; },
+            });
+            return;
+        }
+
         const nextIndex = accounts.length + 1;
         const nextId = `whatsapp-${nextIndex}`;
         const nextAccount: WhatsAppAccount = {
@@ -249,7 +266,7 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
             isConnected: false,
         };
         await persistAccounts({ accounts: [...accounts, nextAccount] });
-    }, [accounts, persistAccounts]);
+    }, [accounts, persistAccounts, plan]);
 
     const deleteAccount = useCallback(
         async (id: string) => {
@@ -270,36 +287,29 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
                 okButtonProps: { danger: true },
                 cancelText: 'Annuler',
                 onOk: async () => {
-                    setLoading(true);
                     setError(null);
                     try {
-                        const res = await fetch(`/api/whatsapp?action=logout&accountId=${encodeURIComponent(id)}`, {
+                        // Try to logout from bridge, but don't block deletion if it fails
+                        await fetch(`/api/whatsapp?action=logout&accountId=${encodeURIComponent(id)}`, {
                             method: 'POST',
-                        });
-                        const data = await res.json().catch(() => ({}));
-                        if (!res.ok || data?.success === false) {
-                            throw new Error(data?.error || 'Impossible de déconnecter WhatsApp');
-                        }
+                        }).catch(() => {});
+                    } catch {
+                        // Ignore logout errors — proceed with removal
+                    }
 
-                        const nextAccounts = accounts.filter((a) => a.id !== id);
-                        await persistAccounts({ accounts: nextAccounts });
+                    const nextAccounts = accounts.filter((a) => a.id !== id);
+                    await persistAccounts({ accounts: nextAccounts });
 
-                        setAccountsStatus((prev) => {
-                            const next = { ...prev };
-                            delete next[id];
-                            return next;
-                        });
+                    setAccountsStatus((prev) => {
+                        const next = { ...prev };
+                        delete next[id];
+                        return next;
+                    });
 
-                        if (scanningAccountId === id) {
-                            setScanningAccountId(null);
-                            setQrData(null);
-                            setStep('list');
-                        }
-                    } catch (e) {
-                        setError(e instanceof Error ? e.message : 'Erreur lors de la suppression');
-                        throw e;
-                    } finally {
-                        setLoading(false);
+                    if (scanningAccountId === id) {
+                        setScanningAccountId(null);
+                        setQrData(null);
+                        setStep('list');
                     }
                 },
             });
@@ -471,15 +481,6 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
                 </Flexbox>
             </Flexbox>
 
-            {!bridgeOnline && (
-                <Alert
-                    message="Bridge hors ligne"
-                    description="Le bridge WhatsApp n'est pas en cours d'exécution."
-                    type="error"
-                    showIcon
-                />
-            )}
-
             {duplicateError && (
                 <Alert
                     message="Numéro WhatsApp déjà utilisé"
@@ -498,26 +499,38 @@ export const WhatsAppSetupModal = memo<WhatsAppSetupModalProps>(({ open, onClose
                 />
             )}
 
-            {loading ? (
-                <Flexbox align="center" gap={12} style={{ padding: 24 }}>
-                    <Spin indicator={<Loader2 className="animate-spin" size={32} />} />
-                    <Text>Vérification des comptes...</Text>
-                </Flexbox>
-            ) : (
-                <>
-                    <Flexbox gap={0}>
-                        {accounts.map(renderAccountCard)}
-                    </Flexbox>
+            <Flexbox gap={0}>
+                {accounts.map(renderAccountCard)}
+            </Flexbox>
 
-                    <Button
-                        icon={<Plus size={16} />}
-                        onClick={addAccount}
-                        style={{ alignSelf: 'flex-start' }}
-                    >
-                        Ajouter un compte
-                    </Button>
-                </>
+            {!whatsappCheck.allowed && (
+                <Alert
+                    description={
+                        <Flexbox gap={8}>
+                            <span>{whatsappCheck.message}</span>
+                            <Button
+                                href="/subscription"
+                                size="small"
+                                style={{ alignSelf: 'flex-start' }}
+                                type="primary"
+                            >
+                                Passer à un plan supérieur
+                            </Button>
+                        </Flexbox>
+                    }
+                    message={`Limite de ${whatsappCheck.limit} compte${whatsappCheck.limit > 1 ? 's' : ''} WhatsApp`}
+                    showIcon
+                    type="warning"
+                />
             )}
+            <Button
+                disabled={!whatsappCheck.allowed}
+                icon={<Plus size={16} />}
+                onClick={addAccount}
+                style={{ alignSelf: 'flex-start' }}
+            >
+                Ajouter un compte
+            </Button>
 
             <Divider style={{ margin: '8px 0' }} />
 

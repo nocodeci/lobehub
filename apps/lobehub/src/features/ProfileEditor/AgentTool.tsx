@@ -9,7 +9,7 @@ import {
 import { Avatar, Button, Flexbox, Icon, type ItemType } from '@lobehub/ui';
 import { cssVar } from 'antd-style';
 import isEqual from 'fast-deep-equal';
-import { PlusIcon, ToyBrick } from 'lucide-react';
+import { PlusIcon, SquareArrowOutUpRight, ToyBrick } from 'lucide-react';
 import React, { Suspense, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -34,6 +34,8 @@ import {
   pluginSelectors,
 } from '@/store/tool/selectors';
 import { type LobeToolMetaWithAvailability } from '@/store/tool/slices/builtin/selectors';
+
+import { WhatsAppSetupModal } from '@/features/WhatsApp/WhatsAppSetupModal';
 
 import PluginTag from './PluginTag';
 import PopoverContent from './PopoverContent';
@@ -162,6 +164,7 @@ const AgentTool = memo<AgentToolProps>(
 
     const [updating, setUpdating] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [whatsAppModalOpen, setWhatsAppModalOpen] = useState(false);
 
     // Tab state for dual-column layout
     const [activeTab, setActiveTab] = useState<TabType | null>(null);
@@ -317,135 +320,119 @@ const AgentTool = memo<AgentToolProps>(
       [isLobehubSkillEnabled, allLobehubSkillServers],
     );
 
-    // WhatsApp 账户列表项 (avec indentation visuelle)
+    // WhatsApp account items — same pattern as KlavisServerItem
     const whatsappAccountItems = useMemo(() => {
       if (whatsappAccounts.length === 0) return [];
 
-      // Vérifier si WhatsApp (Bridge) est activé
-      const isWhatsAppEnabled = isToolEnabled(WHATSAPP_IDENTIFIER);
+      const connectedAccounts = whatsappAccounts.filter((a) => a.isConnected);
 
-      return whatsappAccounts.map((a) => {
+      if (connectedAccounts.length === 0) {
+        return [{
+          icon: (
+            <Avatar
+              avatar="https://hub-apac-1.lobeobjects.space/assets/logos/whatsapp.svg"
+              shape={'square'}
+              size={SKILL_ICON_SIZE}
+              style={{ flex: 'none' }}
+            />
+          ),
+          key: 'whatsapp-account:scan-qr',
+          label: (
+            <Flexbox
+              align={'center'}
+              gap={24}
+              horizontal
+              justify={'space-between'}
+              onClick={(e) => {
+                e.stopPropagation();
+                setDropdownOpen(false);
+                setWhatsAppModalOpen(true);
+              }}
+            >
+              <Flexbox align={'center'} gap={8} horizontal>
+                Aucun compte connecté
+              </Flexbox>
+              <Flexbox
+                align="center"
+                gap={4}
+                horizontal
+                style={{ cursor: 'pointer', opacity: 0.65 }}
+              >
+                Scanner QR
+                <Icon icon={SquareArrowOutUpRight} size="small" />
+              </Flexbox>
+            </Flexbox>
+          ),
+        }];
+      }
+
+      return connectedAccounts.map((a) => {
         const isActive = a.id === activeWhatsAppAccountId;
-        const isConnected = a.isConnected || false;
-
-        // Si WhatsApp n'est pas activé, griser les comptes
-        const isDisabled = !isWhatsAppEnabled;
-        const opacityValue = isDisabled ? 0.35 : (isActive ? 1 : 0.6);
+        const displayName = a.name || a.phone || a.id;
 
         return {
           icon: (
-            <Flexbox align={'center'} gap={4} horizontal style={{ marginLeft: 8 }}>
-              <span style={{
-                color: cssVar.colorTextQuaternary,
-                fontSize: 10,
-                opacity: isDisabled ? 0.5 : 1,
-              }}>└</span>
-              <Avatar
-                avatar="https://hub-apac-1.lobeobjects.space/assets/logos/whatsapp.svg"
-                shape={'square'}
-                size={SKILL_ICON_SIZE - 4}
-                style={{
-                  flex: 'none',
-                  opacity: opacityValue,
-                  borderRadius: '33%',
-                  filter: isDisabled ? 'grayscale(1)' : 'none',
-                }}
-              />
-            </Flexbox>
+            <Avatar
+              avatar="https://hub-apac-1.lobeobjects.space/assets/logos/whatsapp.svg"
+              shape={'square'}
+              size={SKILL_ICON_SIZE}
+              style={{ flex: 'none' }}
+            />
           ),
           key: `whatsapp-account:${a.id}`,
           label: (
             <Flexbox
               align={'center'}
-              gap={8}
+              gap={24}
               horizontal
               justify={'space-between'}
-              style={{
-                width: '100%',
-                opacity: isDisabled ? 0.5 : 1,
-                cursor: isDisabled ? 'not-allowed' : 'pointer',
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isActive) {
+                  setSettings({
+                    tool: {
+                      ...(userSettings.tool as any),
+                      whatsapp: {
+                        ...whatsappSettings,
+                        activeAccountId: a.id,
+                      },
+                    },
+                  } as any);
+                }
               }}
             >
-              <Flexbox align={'center'} gap={6} horizontal>
-                <span style={{
-                  fontSize: 12,
-                  fontWeight: isActive && !isDisabled ? 600 : 400,
-                  color: isDisabled ? cssVar.colorTextQuaternary : (isActive ? cssVar.colorText : cssVar.colorTextSecondary),
-                }}>
-                  {a.name || a.id}
-                </span>
-                {a.phone && (
-                  <span style={{
-                    fontSize: 10,
-                    color: cssVar.colorTextQuaternary,
-                  }}>
+              <Flexbox align={'center'} gap={8} horizontal>
+                {displayName}
+                {a.phone && a.name && (
+                  <span style={{ color: cssVar.colorTextQuaternary, fontSize: 11 }}>
                     {a.phone}
                   </span>
                 )}
               </Flexbox>
-              <Flexbox align={'center'} gap={4} horizontal>
-                {isConnected && !isDisabled && (
-                  <span style={{
-                    fontSize: 9,
-                    color: cssVar.colorSuccess,
-                    backgroundColor: `${cssVar.colorSuccess}15`,
-                    padding: '1px 5px',
-                    borderRadius: 3,
-                    fontWeight: 500,
-                  }}>
-                    ✓ Connecté
-                  </span>
-                )}
-                {isActive && !isDisabled && isConnected && (
-                  <span style={{
-                    fontSize: 9,
-                    color: cssVar.colorPrimary,
-                    backgroundColor: `${cssVar.colorPrimary}15`,
-                    padding: '1px 5px',
-                    borderRadius: 3,
-                    fontWeight: 500,
-                  }}>
-                    Actif
-                  </span>
-                )}
-                {isActive && !isDisabled && !isConnected && (
-                  <span style={{
-                    fontSize: 9,
-                    color: cssVar.colorWarning,
-                    backgroundColor: `${cssVar.colorWarning}15`,
-                    padding: '1px 5px',
-                    borderRadius: 3,
-                    fontWeight: 500,
-                  }}>
-                    ⚠️ Non connecté
-                  </span>
-                )}
-                {isDisabled && (
-                  <span style={{
-                    fontSize: 9,
-                    color: cssVar.colorTextQuaternary,
-                    padding: '1px 5px',
-                  }}>
-                    Désactivé
-                  </span>
-                )}
-              </Flexbox>
+              {isActive ? (
+                <Flexbox
+                  align="center"
+                  gap={4}
+                  horizontal
+                  style={{ color: cssVar.colorSuccess, fontSize: 12, opacity: 0.85 }}
+                >
+                  Actif
+                </Flexbox>
+              ) : (
+                <Flexbox
+                  align="center"
+                  gap={4}
+                  horizontal
+                  style={{ color: cssVar.colorTextTertiary, cursor: 'pointer', fontSize: 12, opacity: 0.65 }}
+                >
+                  Connecté
+                </Flexbox>
+              )}
             </Flexbox>
           ),
-          onClick: isDisabled ? undefined : async () => {
-            await setSettings({
-              tool: {
-                ...(userSettings.tool as any),
-                whatsapp: {
-                  ...whatsappSettings,
-                  activeAccountId: a.id,
-                },
-              },
-            } as any);
-          },
         };
       });
-    }, [activeWhatsAppAccountId, isToolEnabled, setSettings, userSettings.tool, whatsappAccounts, whatsappSettings]);
+    }, [activeWhatsAppAccountId, setSettings, userSettings.tool, whatsappAccounts, whatsappSettings]);
 
     // Handle plugin remove via Tag close - use byId actions
     const handleRemovePlugin =
@@ -467,7 +454,7 @@ const AgentTool = memo<AgentToolProps>(
     // 合并 builtin 工具、LobeHub Skill Providers 和 Klavis 服务器
     const builtinItems = useMemo(
       () => [
-        // 原有的 builtin 工具 (avec comptes WhatsApp insérés après WhatsApp Bridge)
+        // 原有的 builtin 工具 (avec comptes WhatsApp insérés après WhatsApp)
         ...filteredBuiltinList.flatMap((item) => {
           const baseItem = {
             icon: (
@@ -753,6 +740,11 @@ const AgentTool = memo<AgentToolProps>(
 
     return (
       <>
+        {/* WhatsApp Setup Modal */}
+        <WhatsAppSetupModal
+          onClose={() => setWhatsAppModalOpen(false)}
+          open={whatsAppModalOpen}
+        />
         {/* Plugin Selector and Tags */}
         <Flexbox align="center" gap={8} horizontal wrap={'wrap'}>
           <Suspense fallback={button}>
