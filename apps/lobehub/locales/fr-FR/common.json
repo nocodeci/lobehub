@@ -401,6 +401,7 @@
   "tab.resource": "Ressources",
   "tab.search": "Recherche",
   "tab.setting": "Paramètres",
+  "tab.subscription": "Abonnement",
   "tab.video": "Vidéo",
   "telemetry.allow": "Autoriser",
   "telemetry.deny": "Refuser",
@@ -431,6 +432,6 @@
   "userPanel.plans": "Formules d'abonnement",
   "userPanel.profile": "Compte",
   "userPanel.setting": "Paramètres",
-  "userPanel.usages": "Statistiques d'utilisation",
+  "tab.usage": "Utilisation",
   "version": "Version"
 }
