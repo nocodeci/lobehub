@@ -5,11 +5,25 @@ import { Loader2, ExternalLink } from 'lucide-react';
 export default function DemoPreview() {
     const [loading, setLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
+    const [scaleFactor, setScaleFactor] = useState(1);
     const containerRef = useRef<HTMLDivElement>(null);
+    const iframeContainerRef = useRef<HTMLDivElement>(null);
 
     // Initial check and resize listener for responsiveness
     useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        const checkMobile = () => {
+            const width = window.innerWidth;
+            setIsMobile(width < 768);
+
+            // Calculate scale factor to force desktop view (1280px base) on mobile
+            if (width < 1280 && iframeContainerRef.current) {
+                const containerWidth = iframeContainerRef.current.offsetWidth;
+                setScaleFactor(containerWidth / 1280);
+            } else {
+                setScaleFactor(1);
+            }
+        };
+
         checkMobile();
         window.addEventListener('resize', checkMobile);
         return () => window.removeEventListener('resize', checkMobile);
@@ -21,19 +35,20 @@ export default function DemoPreview() {
         offset: ["start end", "center center"]
     });
 
-    // Transform scroll progress into 3D rotation and scale
-    // Start slightly less tilted on mobile to avoid extreme perspective
     const rotateXValue = isMobile ? 10 : 20;
     const rotateX = useTransform(scrollYProgress, [0, 1], [rotateXValue, 0]);
     const scale = useTransform(scrollYProgress, [0, 1], [0.95, 1]);
     const translateZ = useTransform(scrollYProgress, [0, 1], [isMobile ? -50 : -100, 0]);
 
-    // Apply smooth springing
     const springRotateX = useSpring(rotateX, { stiffness: 100, damping: 30, restDelta: 0.001 });
     const springScale = useSpring(scale, { stiffness: 100, damping: 30, restDelta: 0.001 });
 
-    // Dynamic height based on screen size
-    const iframeHeight = isMobile ? 500 : 780;
+    // Base desktop dimensions
+    const DESKTOP_WIDTH = 1280;
+    const DESKTOP_HEIGHT = 800;
+
+    // Resulting display height after scaling
+    const displayHeight = DESKTOP_HEIGHT * scaleFactor;
 
     return (
         <div
@@ -55,7 +70,6 @@ export default function DemoPreview() {
                     border: '1px solid rgba(0,0,0,0.08)',
                     boxShadow: '0 32px 100px rgba(7,94,84,0.12), 0 8px 32px rgba(0,0,0,0.06)',
                     background: '#0a0a0a',
-                    // Apply transformed values
                     rotateX: springRotateX,
                     scale: springScale,
                     z: translateZ,
@@ -72,9 +86,9 @@ export default function DemoPreview() {
                         alignItems: 'center',
                         padding: isMobile ? '0 12px' : '0 16px',
                         gap: 8,
+                        zIndex: 20
                     }}
                 >
-                    {/* Traffic lights - hidden on small mobile to save space */}
                     {!isMobile && (
                         <div style={{ display: 'flex', gap: 7, marginRight: 12 }}>
                             <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ff5f57' }} />
@@ -83,7 +97,6 @@ export default function DemoPreview() {
                         </div>
                     )}
 
-                    {/* URL bar - more compact on mobile */}
                     <div
                         style={{
                             flex: 1,
@@ -105,10 +118,9 @@ export default function DemoPreview() {
                             <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
                             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                         </svg>
-                        {isMobile ? 'app.connect.wozif.com' : 'app.connect.wozif.com'}
+                        app.connect.wozif.com
                     </div>
 
-                    {/* Open in new tab icon */}
                     <a
                         href="https://app.connect.wozif.com/demo"
                         target="_blank"
@@ -131,11 +143,13 @@ export default function DemoPreview() {
 
                 {/* ── iframe container ── */}
                 <div
+                    ref={iframeContainerRef}
                     style={{
                         position: 'relative',
                         width: '100%',
-                        height: iframeHeight,
+                        height: displayHeight,
                         background: '#0a0a0a',
+                        overflow: 'hidden'
                     }}
                 >
                     {/* Loading overlay */}
@@ -151,7 +165,7 @@ export default function DemoPreview() {
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: 16,
-                                zIndex: 5,
+                                zIndex: 11,
                                 background: '#0a0a0a',
                             }}
                         >
@@ -167,22 +181,32 @@ export default function DemoPreview() {
                         </motion.div>
                     )}
 
-                    <iframe
-                        src="https://app.connect.wozif.com/demo"
-                        title="Connect - Plateforme d'automatisation IA"
-                        loading="lazy"
-                        allow="clipboard-write"
-                        onLoad={() => setLoading(false)}
-                        style={{
-                            width: '100%',
-                            height: '100%',
-                            border: 'none',
-                            display: 'block',
-                        }}
-                    />
+                    <div style={{
+                        width: DESKTOP_WIDTH,
+                        height: DESKTOP_HEIGHT,
+                        transform: `scale(${scaleFactor})`,
+                        transformOrigin: 'top left',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0
+                    }}>
+                        <iframe
+                            src="https://app.connect.wozif.com/demo"
+                            title="Connect - Plateforme d'automatisation IA"
+                            loading="lazy"
+                            allow="clipboard-write"
+                            onLoad={() => setLoading(false)}
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                border: 'none',
+                                display: 'block',
+                            }}
+                        />
+                    </div>
                 </div>
 
-                {/* ── "Aperçu démo" badge - smaller on mobile ── */}
+                {/* ── "Aperçu démo" badge ── */}
                 <div
                     style={{
                         position: 'absolute',
@@ -196,7 +220,7 @@ export default function DemoPreview() {
                         borderRadius: 20,
                         letterSpacing: '0.06em',
                         textTransform: 'uppercase',
-                        zIndex: 10,
+                        zIndex: 15,
                         pointerEvents: 'none',
                         boxShadow: '0 4px 12px rgba(7,94,84,0.3)',
                     }}
