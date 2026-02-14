@@ -11,6 +11,8 @@ import useSWRMutation from 'swr/mutation';
 import { useGroupTemplates } from '@/components/ChatGroupWizard/templates';
 import { DEFAULT_CHAT_GROUP_CHAT_CONFIG } from '@/const/settings';
 import { type GroupMemberConfig, chatGroupService } from '@/services/chatGroup';
+import { useBYOKCheck } from '@/hooks/useSubscription';
+import { canCreateGroup } from '@/libs/subscription';
 import { useAgentStore } from '@/store/agent';
 import { useAgentGroupStore } from '@/store/agentGroup';
 import { useHomeStore } from '@/store/home';
@@ -32,6 +34,7 @@ export const useCreateMenuItems = () => {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const groupTemplates = useGroupTemplates();
+  const { plan } = useBYOKCheck();
 
   const [storeCreateAgent] = useAgentStore((s) => [s.createAgent]);
   const [addGroup, refreshAgentList, switchToGroup] = useHomeStore((s) => [
@@ -53,6 +56,18 @@ export const useCreateMenuItems = () => {
       return result;
     },
     {
+      onError: (error: any) => {
+        const errorMsg = error?.message || error?.data?.message || '';
+        if (errorMsg.includes('Limite de') || errorMsg.includes('FORBIDDEN') || error?.data?.code === 'FORBIDDEN') {
+          message.warning({
+            content: errorMsg || 'Vous avez atteint la limite d\'agents pour votre plan. Passez à un plan supérieur.',
+            duration: 6,
+          });
+          navigate('/subscription');
+        } else {
+          message.error('Erreur lors de la création de l\'agent.');
+        }
+      },
       onSuccess: async (result) => {
         navigate(`/agent/${result.agentId}/profile`);
         await refreshAgentList();
@@ -100,6 +115,15 @@ export const useCreateMenuItems = () => {
    */
   const createGroupFromTemplate = useCallback(
     async (templateId: string, selectedMemberTitles?: string[]) => {
+      const check = canCreateGroup(plan);
+      if (!check.allowed) {
+        message.warning({
+          content: check.message,
+          duration: 6,
+        });
+        navigate('/subscription');
+        return false;
+      }
       setIsCreatingGroup(true);
       try {
         const template = groupTemplates.find((t) => t.id === templateId);
@@ -145,7 +169,7 @@ export const useCreateMenuItems = () => {
         setIsCreatingGroup(false);
       }
     },
-    [groupTemplates, refreshAgentList, loadGroups, switchToGroup, message, t],
+    [groupTemplates, refreshAgentList, loadGroups, switchToGroup, message, t, plan, navigate],
   );
 
   /**
@@ -153,6 +177,15 @@ export const useCreateMenuItems = () => {
    */
   const createGroupWithMembers = useCallback(
     async (selectedAgents: string[], groupTitle?: string) => {
+      const check = canCreateGroup(plan);
+      if (!check.allowed) {
+        message.warning({
+          content: check.message,
+          duration: 6,
+        });
+        navigate('/subscription');
+        return false;
+      }
       setIsCreatingGroup(true);
       try {
         const title = groupTitle || t('defaultGroupChat');
@@ -174,7 +207,7 @@ export const useCreateMenuItems = () => {
         setIsCreatingGroup(false);
       }
     },
-    [createGroup, message, t],
+    [createGroup, message, t, plan, navigate],
   );
 
   /**
@@ -197,8 +230,17 @@ export const useCreateMenuItems = () => {
    * Create empty group and navigate to profile
    */
   const createEmptyGroup = useCallback(async () => {
+    const check = canCreateGroup(plan);
+    if (!check.allowed) {
+      message.warning({
+        content: check.message,
+        duration: 6,
+      });
+      navigate('/subscription');
+      return;
+    }
     await mutateGroup();
-  }, [mutateGroup]);
+  }, [mutateGroup, plan, message, navigate]);
 
   /**
    * Create group chat menu item

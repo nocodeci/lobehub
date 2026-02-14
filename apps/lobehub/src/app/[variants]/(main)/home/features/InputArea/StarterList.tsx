@@ -7,7 +7,9 @@ import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
+import { useBYOKCheck } from '@/hooks/useSubscription';
 import { useInitBuiltinAgent } from '@/hooks/useInitBuiltinAgent';
+import { canCreateGroup } from '@/libs/subscription';
 import { type StarterMode, useHomeStore } from '@/store/home';
 
 const styles = createStaticStyles(({ css, cssVar }) => ({
@@ -53,6 +55,8 @@ const StarterList = memo(() => {
     s.inputActiveMode,
     s.setInputActiveMode,
   ]);
+  const { plan } = useBYOKCheck();
+  const groupCheck = canCreateGroup(plan);
 
   const items: StarterItem[] = useMemo(
     () => [
@@ -62,6 +66,7 @@ const StarterList = memo(() => {
         titleKey: 'starter.createAgent',
       },
       {
+        disabled: !groupCheck.allowed,
         icon: GroupBotSquareIcon,
         key: 'group',
         titleKey: 'starter.createGroup',
@@ -83,7 +88,7 @@ const StarterList = memo(() => {
       //   titleKey: 'starter.deepResearch',
       // },
     ],
-    [],
+    [groupCheck.allowed],
   );
 
   const handleClick = useCallback(
@@ -132,8 +137,11 @@ const StarterList = memo(() => {
         );
 
         if (item.disabled) {
+          const tooltipTitle = item.key === 'group'
+            ? 'Plan Business requis'
+            : t('starter.developing');
           return (
-            <Tooltip key={item.key} title={t('starter.developing')}>
+            <Tooltip key={item.key} title={tooltipTitle}>
               {button}
             </Tooltip>
           );
