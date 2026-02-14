@@ -16,9 +16,10 @@ import { useGroupProfileStore } from '@/store/groupProfile';
 
 import AgentSettings from '../AgentSettings';
 import AutoSaveHint from '../Header/AutoSaveHint';
-import GroupPublishButton from '../Header/GroupPublishButton';
+import GroupActivationToggle from '../Header/GroupPublishButton/GroupActivationToggle';
 import GroupForkTag from './GroupForkTag';
 import GroupHeader from './GroupHeader';
+import GroupMembersSummary from './GroupMembersSummary';
 import GroupStatusTag from './GroupStatusTag';
 
 const GroupProfile = memo(() => {
@@ -107,7 +108,7 @@ const GroupProfile = memo(() => {
           >
             {t('startConversation')}
           </Button>
-          <GroupPublishButton />
+          <GroupActivationToggle />
           <Button
             icon={Settings2Icon}
             onClick={() => setShowAgentSetting(true)}
@@ -118,6 +119,8 @@ const GroupProfile = memo(() => {
             {t('advancedSettings')}
           </Button>
         </Flexbox>
+        {/* Members Summary */}
+        <GroupMembersSummary />
       </Flexbox>
       <Divider />
       {/* Group Content Editor */}

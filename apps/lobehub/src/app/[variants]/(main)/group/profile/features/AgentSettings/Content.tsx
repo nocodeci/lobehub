@@ -3,7 +3,7 @@
 import { Avatar, Block, Flexbox, Icon, Text } from '@lobehub/ui';
 import { useTheme } from 'antd-style';
 import type { ItemType } from 'antd/es/menu/interface';
-import { MessageSquareHeartIcon } from 'lucide-react';
+import { BrainIcon, MessageSquareHeartIcon } from 'lucide-react';
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -19,7 +19,7 @@ const Content = memo(() => {
   const theme = useTheme();
   const groupId = useAgentGroupStore(agentGroupSelectors.activeGroupId);
   const currentGroup = useAgentGroupStore(agentGroupSelectors.currentGroup);
-  const [tab] = useState(ChatSettingsTabs.Opening);
+  const [tab, setTab] = useState(ChatSettingsTabs.Opening);
 
   const updateGroupConfig = async (config: any) => {
     if (!groupId) return;
@@ -69,6 +69,11 @@ const Content = memo(() => {
         key: ChatSettingsTabs.Opening,
         label: t('agentTab.opening'),
       },
+      {
+        icon: <Icon icon={BrainIcon} />,
+        key: ChatSettingsTabs.Modal,
+        label: t('agentTab.modal'),
+      },
     ],
     [t],
   );
@@ -115,7 +120,13 @@ const Content = memo(() => {
             {displayTitle}
           </Text>
         </Block>
-        <Menu items={menuItems} selectable selectedKeys={[tab]} style={{ width: '100%' }} />
+        <Menu
+          items={menuItems}
+          onClick={({ key }) => setTab(key as ChatSettingsTabs)}
+          selectable
+          selectedKeys={[tab]}
+          style={{ width: '100%' }}
+        />
       </Flexbox>
       <Flexbox
         flex={1}
