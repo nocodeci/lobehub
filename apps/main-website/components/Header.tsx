@@ -7,10 +7,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import Logo from "./Logo";
 
 const navLinks = [
-    { name: "Produits", href: "#products" },
-    { name: "Solutions", href: "#solutions" },
-    { name: "Entreprise", href: "#about" },
-    { name: "Contact", href: "#contact" },
+    { name: "Connect", href: "#connect" },
+    { name: "Fonctionnalités", href: "#features" },
+    { name: "Tarifs", href: "#pricing" },
+    { name: "À propos", href: "#about" },
 ];
 
 const ACCOUNT_URL = process.env.NEXT_PUBLIC_ACCOUNT_URL || "https://account.wozif.com";

@@ -18,7 +18,7 @@ export default function Footer() {
                             <Logo height={45} />
                         </Link>
                         <p className="text-xl text-slate-500 font-medium leading-relaxed max-w-sm mb-12">
-                            L&apos;infrastructure digitale qui libère le potentiel économique de l&apos;Afrique.
+                            L&apos;écosystème IA qui propulse les entreprises africaines vers l&apos;avenir.
                         </p>
                         <div className="flex items-center gap-4">
                             {[Twitter, Linkedin, Github, Instagram].map((Icon, i) => (
@@ -30,11 +30,11 @@ export default function Footer() {
                     </div>
 
                     <div className="lg:col-span-2">
-                        <h4 className="font-black text-slate-900 mb-8 uppercase tracking-[0.2em] text-[11px]">Écosystème</h4>
+                        <h4 className="font-black text-slate-900 mb-8 uppercase tracking-[0.2em] text-[11px]">Produits</h4>
                         <ul className="space-y-5 font-bold text-slate-500 text-sm">
-                            <li><Link href="/products/gnata" className="hover:text-indigo-600 transition-colors flex items-center gap-2 group">Gnata <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-y-1" /></Link></li>
-                            <li><Link href="/products/afriflow" className="hover:text-indigo-600 transition-colors flex items-center gap-2 group">AfriFlow <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-y-1" /></Link></li>
-                            <li><Link href="#" className="flex items-center gap-2 opacity-40 cursor-not-allowed">Wozif Cloud <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded uppercase">Bientôt</span></Link></li>
+                            <li><Link href="https://app.connect.wozif.com" className="hover:text-indigo-600 transition-colors flex items-center gap-2 group">Connect <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-y-1" /></Link></li>
+                            <li><Link href="#pricing" className="hover:text-indigo-600 transition-colors">Tarifs</Link></li>
+                            <li><Link href="#" className="flex items-center gap-2 opacity-40 cursor-not-allowed">Plus de produits <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded uppercase">Bientôt</span></Link></li>
                         </ul>
                     </div>
 

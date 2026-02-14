@@ -1,223 +1,151 @@
 "use client";
 
-import { useScroll, useTransform, motion, useSpring, AnimatePresence } from "framer-motion";
-import { useRef, useState } from "react";
+import { motion } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight, Zap, Globe, ShieldCheck, CreditCard, Layout, Plus, Check } from "lucide-react";
-import Logo from "./Logo";
+import { ArrowRight, Bot, MessageCircle, Brain, Users, Workflow, Shield } from "lucide-react";
 
-export default function EcosystemAnimation() {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+const CONNECT_URL = process.env.NEXT_PUBLIC_CONNECT_URL || "https://app.connect.wozif.com";
 
-    const { scrollYProgress } = useScroll({
-        target: containerRef,
-        offset: ["start end", "end start"],
-    });
+const features = [
+    {
+        icon: Bot,
+        title: "Agents IA personnalisés",
+        desc: "Créez des agents avec des personnalités uniques, des instructions précises et des modèles IA au choix (GPT-4, Claude, Mistral...).",
+        color: "indigo",
+    },
+    {
+        icon: MessageCircle,
+        title: "WhatsApp natif",
+        desc: "Connectez vos agents à WhatsApp en un scan QR. Vos clients interagissent avec l'IA directement depuis leur messagerie.",
+        color: "emerald",
+    },
+    {
+        icon: Users,
+        title: "Groupes d'agents",
+        desc: "Combinez plusieurs agents en équipes intelligentes. Un superviseur coordonne les réponses pour des résultats optimaux.",
+        color: "violet",
+    },
+    {
+        icon: Brain,
+        title: "Mémoire contextuelle",
+        desc: "Vos agents se souviennent des conversations passées, des préférences et du contexte de chaque utilisateur.",
+        color: "amber",
+    },
+    {
+        icon: Workflow,
+        title: "Outils & Plugins",
+        desc: "Étendez les capacités de vos agents avec des outils MCP, des bases de connaissances et des intégrations tierces.",
+        color: "cyan",
+    },
+    {
+        icon: Shield,
+        title: "Sécurité & Contrôle",
+        desc: "Gardez le contrôle total : activez/désactivez vos agents, gérez les accès et suivez l'utilisation en temps réel.",
+        color: "rose",
+    },
+];
 
-    const pathLength = useSpring(scrollYProgress, {
-        stiffness: 40,
-        damping: 20,
-        restDelta: 0.001
-    });
-
-    // Transforms for entry/exit
-    const opacity = useTransform(scrollYProgress, [0.15, 0.25, 0.85, 0.95], [0, 1, 1, 0]);
-    const scale = useTransform(scrollYProgress, [0.1, 0.3], [0.8, 1]);
-    const linesOpacity = useTransform(scrollYProgress, [0.25, 0.45], [0, 0.6]);
-
-    const cards = [
-        {
-            id: "afriflow",
-            title: "AfriFlow",
-            subtitle: "Orchestration",
-            desc: "Unifiez mobile money, cartes et virements sous une SEULE interface intelligente.",
-            color: "blue",
-            icon: Zap,
-            href: "/products/afriflow",
-            position: "left"
-        },
-        {
-            id: "gnata",
-            title: "Gnata",
-            subtitle: "No-Code",
-            desc: "Propulsez votre business en ligne en 1h. E-commerce complet sans complexité technique.",
-            color: "emerald",
-            icon: Globe,
-            href: "/products/gnata",
-            position: "right"
-        }
-    ];
-
+export default function ConnectShowcase() {
     return (
-        <section ref={containerRef} className="relative h-[300vh] bg-white overflow-visible">
-            <div className="sticky top-0 h-screen flex items-center justify-center overflow-hidden">
+        <section id="connect" className="py-32 relative overflow-hidden">
+            {/* Background */}
+            <div className="absolute inset-0 bg-gradient-to-b from-white via-slate-50/50 to-white pointer-events-none" />
 
-                {/* Visual Foundation */}
-                <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-indigo-500/[0.02] blur-[150px] rounded-full" />
-                </div>
+            <div className="relative container mx-auto px-6 lg:px-12">
 
-                <div className="relative w-full max-w-7xl mx-auto px-6 flex flex-col items-center">
-
-                    {/* Section Header */}
+                {/* Section Header */}
+                <div className="text-center mb-20">
                     <motion.div
-                        style={{ opacity: useTransform(scrollYProgress, [0.1, 0.2], [0, 1]) }}
-                        className="text-center mb-24"
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
                     >
-                        <h2 className="text-3xl md:text-5xl font-black text-slate-950 mb-4 tracking-tight leading-none uppercase xl:text-7xl">
-                            Un écosystème <br className="md:hidden" /> sans couture.
+                        <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-[11px] font-black uppercase tracking-[0.3em] mb-8">
+                            <Bot className="w-3.5 h-3.5" />
+                            Produit phare
+                        </div>
+                        <h2 className="text-4xl md:text-6xl xl:text-7xl font-black text-slate-950 tracking-tighter mb-6 leading-[0.9]">
+                            Connect
                         </h2>
-                        <div className="h-1 w-24 bg-indigo-600 mx-auto rounded-full" />
+                        <p className="text-xl text-slate-500 max-w-2xl mx-auto font-medium leading-relaxed">
+                            La plateforme d&apos;agents IA qui transforme la façon dont les entreprises africaines communiquent et opèrent.
+                        </p>
                     </motion.div>
-
-                    <div className="relative w-full flex flex-col md:flex-row items-center justify-between gap-12 lg:gap-0">
-
-                        {/* Core SVG Infrastructure */}
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[400px] pointer-events-none z-0 hidden lg:block">
-                            <svg
-                                viewBox="0 0 1000 400"
-                                className="w-full h-full overflow-visible"
-                                preserveAspectRatio="xMidYMid meet"
-                            >
-                                <defs>
-                                    <linearGradient id="gradient-blue" x1="0%" y1="0%" x2="100%" y2="0%">
-                                        <stop offset="0%" stopColor="#3b82f6" />
-                                        <stop offset="100%" stopColor="#6366f1" />
-                                    </linearGradient>
-                                    <linearGradient id="gradient-green" x1="0%" y1="0%" x2="100%" y2="0%">
-                                        <stop offset="0%" stopColor="#6366f1" />
-                                        <stop offset="100%" stopColor="#10b981" />
-                                    </linearGradient>
-                                    <filter id="neon-glow" x="-20%" y="-20%" width="140%" height="140%">
-                                        <feGaussianBlur stdDeviation="5" result="blur" />
-                                        <feComposite in="glow" in2="SourceGraphic" operator="over" />
-                                    </filter>
-                                </defs>
-
-                                {/* Path Left */}
-                                <motion.path
-                                    d="M 500 200 Q 350 200, 150 200"
-                                    fill="none"
-                                    stroke="url(#gradient-blue)"
-                                    strokeWidth="6"
-                                    strokeLinecap="round"
-                                    style={{ pathLength, opacity: linesOpacity }}
-                                    className="transition-all duration-500"
-                                    filter={hoveredCard === "afriflow" ? "url(#neon-glow)" : ""}
-                                />
-
-                                {/* Path Right */}
-                                <motion.path
-                                    d="M 500 200 Q 650 200, 850 200"
-                                    fill="none"
-                                    stroke="url(#gradient-green)"
-                                    strokeWidth="6"
-                                    strokeLinecap="round"
-                                    style={{ pathLength, opacity: linesOpacity }}
-                                    className="transition-all duration-500"
-                                    filter={hoveredCard === "gnata" ? "url(#neon-glow)" : ""}
-                                />
-
-                                {/* Moving Data Packets */}
-                                {hoveredCard && (
-                                    <motion.circle r="6" fill={hoveredCard === "afriflow" ? "#3b82f6" : "#10b981"}>
-                                        <animateMotion
-                                            dur="0.8s"
-                                            repeatCount="indefinite"
-                                            path={hoveredCard === "afriflow" ? "M 500 200 Q 350 200, 150 200" : "M 500 200 Q 650 200, 850 200"}
-                                        />
-                                    </motion.circle>
-                                )}
-                            </svg>
-                        </div>
-
-                        {/* Middle Hub */}
-                        <div className="order-1 md:order-2 relative z-20">
-                            <motion.div
-                                style={{ scale, opacity }}
-                                className="relative w-32 h-32 md:w-48 md:h-48 rounded-[3rem] bg-white shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] border border-slate-100 flex items-center justify-center group"
-                            >
-                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-white rounded-inherit opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <Logo height={80} variant="icon" className="relative z-10" />
-
-                                {/* Orbital Dots */}
-                                {[0, 72, 144, 216, 288].map((angle, i) => (
-                                    <motion.div
-                                        key={i}
-                                        animate={{ rotate: 360 }}
-                                        transition={{ duration: 10 + i * 2, repeat: Infinity, ease: "linear" }}
-                                        className="absolute inset-0 pointer-none"
-                                    >
-                                        <div
-                                            className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-indigo-200"
-                                            style={{ transform: `rotate(${angle}deg) translateY(-80px)` }}
-                                        />
-                                    </motion.div>
-                                ))}
-                            </motion.div>
-                        </div>
-
-                        {/* Cards Section */}
-                        {cards.map((card) => (
-                            <motion.div
-                                key={card.id}
-                                onMouseEnter={() => setHoveredCard(card.id)}
-                                onMouseLeave={() => setHoveredCard(null)}
-                                style={{
-                                    opacity,
-                                    x: useTransform(scrollYProgress, [0.15, 0.35], [card.position === "left" ? -150 : 150, 0])
-                                }}
-                                className={`order-${card.position === "left" ? 1 : 3} relative z-30 w-full md:w-[320px] lg:w-[400px]`}
-                            >
-                                <Link href={card.href} className="block group">
-                                    <div className="relative p-8 md:p-12 rounded-[3rem] bg-white/70 backdrop-blur-3xl border border-white/50 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.05)] transition-all duration-500 group-hover:scale-[1.03] group-hover:shadow-[0_50px_100px_-20px_rgba(0,0,0,0.1)] group-hover:bg-white overflow-hidden">
-
-                                        {/* Background Accent */}
-                                        <div className={`absolute top-0 right-0 w-32 h-32 bg-${card.color}-500/5 blur-[60px] rounded-full group-hover:bg-${card.color}-500/10 transition-colors`} />
-
-                                        <div className={`w-16 h-16 md:w-20 md:h-20 rounded-[1.8rem] bg-${card.color}-50 flex items-center justify-center mb-8 group-hover:rotate-6 transition-transform duration-500`}>
-                                            <card.icon className={`w-8 h-8 md:w-10 md:h-10 text-${card.color}-600`} />
-                                        </div>
-
-                                        <div className="mb-2">
-                                            <span className={`text-[10px] font-black uppercase tracking-[0.2em] text-${card.color}-600/60`}>
-                                                {card.subtitle}
-                                            </span>
-                                            <h3 className="text-3xl md:text-5xl font-black text-slate-950 mb-4 tracking-tighter">
-                                                {card.title}
-                                            </h3>
-                                        </div>
-
-                                        <p className="text-slate-500 text-lg leading-relaxed mb-8 font-medium">
-                                            {card.desc}
-                                        </p>
-
-                                        <div className="flex items-center gap-4">
-                                            <div className={`flex items-center gap-2 text-sm font-black text-${card.color}-600 uppercase tracking-widest`}>
-                                                En savoir plus
-                                                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-2" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </Link>
-                            </motion.div>
-                        ))}
-                    </div>
-
-                    {/* Feature Dots (Bottom Indicator) */}
-                    <motion.div
-                        style={{ opacity: useTransform(scrollYProgress, [0.3, 0.4], [0, 1]) }}
-                        className="mt-32 flex items-center gap-4 text-slate-300"
-                    >
-                        <ShieldCheck className="w-5 h-5 text-indigo-400" />
-                        <div className="h-px w-12 bg-slate-200" />
-                        <CreditCard className="w-5 h-5 text-indigo-400" />
-                        <div className="h-px w-12 bg-slate-200" />
-                        <Globe className="w-5 h-5 text-indigo-400" />
-                    </motion.div>
-
                 </div>
+
+                {/* Product Preview Card */}
+                <motion.div
+                    initial={{ opacity: 0, y: 40 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.2 }}
+                    className="max-w-5xl mx-auto mb-24"
+                >
+                    <div className="relative rounded-[3rem] bg-slate-950 p-2 shadow-[0_60px_120px_-30px_rgba(0,0,0,0.3)]">
+                        {/* Browser Chrome */}
+                        <div className="flex items-center gap-2 px-6 py-4">
+                            <div className="flex gap-2">
+                                <div className="w-3 h-3 rounded-full bg-white/10" />
+                                <div className="w-3 h-3 rounded-full bg-white/10" />
+                                <div className="w-3 h-3 rounded-full bg-white/10" />
+                            </div>
+                            <div className="flex-1 flex justify-center">
+                                <div className="px-6 py-1.5 rounded-lg bg-white/5 text-white/40 text-xs font-medium">
+                                    app.connect.wozif.com
+                                </div>
+                            </div>
+                        </div>
+                        {/* App Preview */}
+                        <div className="rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 aspect-[16/9] flex items-center justify-center">
+                            <div className="text-center">
+                                <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-6">
+                                    <Bot className="w-10 h-10 text-white" />
+                                </div>
+                                <h3 className="text-2xl font-black text-white mb-2">Wozif Connect</h3>
+                                <p className="text-white/50 font-medium">Votre workspace d&apos;agents IA</p>
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* Features Grid */}
+                <div id="features" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {features.map((feature, i) => (
+                        <motion.div
+                            key={i}
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: i * 0.1 }}
+                            className="group p-10 rounded-[2.5rem] bg-white border border-slate-100 hover:border-indigo-100 hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.05)] transition-all"
+                        >
+                            <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center mb-8 group-hover:bg-indigo-50 group-hover:scale-110 transition-all">
+                                <feature.icon className="w-6 h-6 text-slate-400 group-hover:text-indigo-600" />
+                            </div>
+                            <h4 className="text-xl font-black text-slate-950 mb-4 tracking-tight">{feature.title}</h4>
+                            <p className="text-slate-500 font-medium leading-relaxed">{feature.desc}</p>
+                        </motion.div>
+                    ))}
+                </div>
+
+                {/* CTA */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    className="text-center mt-20"
+                >
+                    <Link
+                        href={CONNECT_URL}
+                        className="inline-flex items-center gap-3 px-10 py-5 bg-slate-950 text-white font-black rounded-2xl hover:shadow-[0_30px_60px_-15px_rgba(79,70,229,0.3)] transition-all hover:scale-[1.02] uppercase tracking-widest text-sm group relative overflow-hidden"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <span className="relative flex items-center gap-3">
+                            Lancer Connect
+                            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-2" />
+                        </span>
+                    </Link>
+                </motion.div>
             </div>
         </section>
     );
