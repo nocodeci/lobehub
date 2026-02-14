@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Zap, LayoutDashboard, LogOut } from "lucide-react";
@@ -16,6 +17,11 @@ export default function LandingPage() {
     const { data: session, status } = useSession();
     const isLoading = status === "loading";
     const isAuthenticated = !!session?.user;
+
+    // Always start at the top of the page
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, []);
 
     return (
         <main className="bg-[#191919] min-h-screen selection:bg-primary selection:text-black">
