@@ -16,6 +16,7 @@ import { systemStatusSelectors } from '@/store/global/selectors';
 
 import AgentBuilderToggle from './AgentBuilderToggle';
 import ChromeTabs, { type ChromeTabItem } from './ChromeTabs';
+import GroupActivationToggle from './GroupPublishButton/GroupActivationToggle';
 
 const styles = createStaticStyles(({ css, cssVar }) => ({
   header: css`
@@ -100,6 +101,7 @@ const Header = memo(() => {
           />
         </div>
         <Flexbox align="center" flex="none" gap={8} horizontal style={{ marginInlineStart: 12 }}>
+          <GroupActivationToggle />
           <AgentBuilderToggle />
         </Flexbox>
       </Flexbox>
