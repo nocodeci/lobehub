@@ -165,12 +165,6 @@ const Footer = memo(() => {
         type: 'divider',
       },
       {
-        icon: <Icon icon={FileClockIcon} />,
-        key: 'changelog',
-        label: t('changelog'),
-        onClick: handleOpenChangelogModal,
-      },
-      {
         icon: <Icon icon={FlaskConical} />,
         key: 'labs',
         label: t('labs'),
