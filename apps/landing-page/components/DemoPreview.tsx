@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
-import { Loader2, ExternalLink } from 'lucide-react';
+import { motion, useScroll, useTransform, useSpring, AnimatePresence } from 'framer-motion';
+import { Loader2, ExternalLink, MousePointerClick } from 'lucide-react';
 
 export default function DemoPreview() {
     const [loading, setLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [scaleFactor, setScaleFactor] = useState(1);
+    const [isInteractive, setIsInteractive] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const iframeContainerRef = useRef<HTMLDivElement>(null);
 
@@ -149,9 +150,99 @@ export default function DemoPreview() {
                         width: '100%',
                         height: displayHeight,
                         background: '#0a0a0a',
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        cursor: isInteractive ? 'default' : 'pointer'
                     }}
+                    onClick={() => setIsInteractive(true)}
                 >
+                    {/* Interaction Overlay (Allows scrolling the page until clicked) */}
+                    <AnimatePresence>
+                        {!isInteractive && !loading && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                whileHover={{ background: 'rgba(0,0,0,0.4)' }}
+                                style={{
+                                    position: 'absolute',
+                                    inset: 0,
+                                    zIndex: 10,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    background: 'rgba(0,0,0,0.2)',
+                                    backdropFilter: 'blur(2px)',
+                                    transition: 'background 0.3s ease'
+                                }}
+                            >
+                                <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: 12,
+                                    color: 'white',
+                                    textAlign: 'center',
+                                    padding: '20px'
+                                }}>
+                                    <div style={{
+                                        width: 54,
+                                        height: 54,
+                                        borderRadius: '50%',
+                                        background: 'rgba(7,94,84,0.9)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        boxShadow: '0 0 20px rgba(7,94,84,0.4)'
+                                    }}>
+                                        <MousePointerClick size={24} />
+                                    </div>
+                                    <span style={{
+                                        fontWeight: 600,
+                                        fontSize: isMobile ? 14 : 16,
+                                        textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                                    }}>
+                                        Cliquer pour explorer la démo
+                                    </span>
+                                    <span style={{
+                                        fontSize: 12,
+                                        opacity: 0.8,
+                                        maxWidth: 200
+                                    }}>
+                                        (Le défilement de la page reste actif tant que vous ne cliquez pas)
+                                    </span>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Exit interaction button */}
+                    {isInteractive && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsInteractive(false);
+                            }}
+                            style={{
+                                position: 'absolute',
+                                bottom: 20,
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                zIndex: 30,
+                                background: 'rgba(0,0,0,0.7)',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                color: 'white',
+                                padding: '8px 16px',
+                                borderRadius: 30,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                backdropFilter: 'blur(10px)',
+                                boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+                            }}
+                        >
+                            Quitter l'aperçu interactif
+                        </button>
+                    )}
                     {/* Loading overlay */}
                     {loading && (
                         <motion.div
@@ -188,7 +279,8 @@ export default function DemoPreview() {
                         transformOrigin: 'top left',
                         position: 'absolute',
                         top: 0,
-                        left: 0
+                        left: 0,
+                        pointerEvents: isInteractive ? 'auto' : 'none'
                     }}>
                         <iframe
                             src="https://app.connect.wozif.com/demo"
