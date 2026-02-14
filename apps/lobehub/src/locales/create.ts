@@ -45,7 +45,7 @@ export const createI18nNext = (lang?: string) => {
       return instance.init({
         debug: debugMode,
         defaultNS: ['error', 'common', 'chat'],
-        fallbackLng: DEFAULT_LANG,
+        fallbackLng: 'en-US',
 
         initAsync,
 

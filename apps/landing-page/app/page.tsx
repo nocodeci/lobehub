@@ -404,18 +404,26 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
   heroStatsRow: css`
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-top: 40px;
+    gap: 16px;
+    margin-top: 60px;
+    margin-bottom: 40px;
     margin-left: auto;
     margin-right: auto;
     width: 100%;
+    transform: perspective(1200px) rotateX(15deg) rotateZ(-2deg);
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+
+    &:hover {
+      transform: perspective(1200px) rotateX(8deg) rotateZ(-1deg);
+    }
 
     @media (min-width: 768px) {
-      margin-top: 80px;
+      margin-top: 100px;
+      gap: 24px;
     }
     max-width: 1400px;
     position: relative;
-    padding-block: 10px;
+    padding-block: 30px;
     padding-inline: var(--page-padding);
 
     .marquee-row {
@@ -435,33 +443,24 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
         black 90%,
         transparent
       );
-      padding: 6px 0;
-
-      @media (min-width: 768px) {
-        padding: 10px 0;
-      }
+      padding: 10px 0;
     }
 
     .marquee-content {
       display: flex;
-      gap: 6px;
-      padding-left: 6px;
-      animation: marqueeForward 15s linear infinite;
+      gap: 12px;
+      padding-left: 12px;
+      animation: marqueeForward 25s linear infinite;
       white-space: nowrap;
       will-change: transform;
 
-      @media (min-width: 480px) {
-        gap: 8px;
-        padding-left: 8px;
-      }
-
       @media (min-width: 768px) {
-        gap: 12px;
-        padding-left: 12px;
+        gap: 20px;
+        padding-left: 20px;
       }
 
       &.reverse {
-        animation: marqueeReverse 15s linear infinite;
+        animation: marqueeReverse 25s linear infinite;
       }
 
       &:hover {
@@ -470,74 +469,67 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     }
 
     @keyframes marqueeForward {
-      0% {
-        transform: translateX(0);
-      }
-      100% {
-        transform: translateX(-50%);
-      }
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
     }
 
     @keyframes marqueeReverse {
-      0% {
-        transform: translateX(-50%);
-      }
-      100% {
-        transform: translateX(0);
-      }
+      0% { transform: translateX(-50%); }
+      100% { transform: translateX(0); }
     }
 
     .logo-card {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, 0.8);
-      background-image: linear-gradient(
-        to bottom,
-        rgba(255, 255, 255, 0.6),
-        rgba(255, 255, 255, 0.3)
-      );
-      padding: 8px;
-      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      border: 1px solid transparent;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.12), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       flex-shrink: 0;
+      padding: 10px;
 
-      @media (min-width: 480px) {
-        width: 40px;
-        height: 40px;
-        padding: 10px;
-        border-radius: 10px;
+      &:nth-child(odd) {
+        transform: rotate(-3deg);
       }
-
-      @media (min-width: 768px) {
-        width: 56px;
-        height: 56px;
-        padding: 14px;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      &:nth-child(even) {
+        transform: rotate(3deg);
       }
-
-      @media (min-width: 1024px) {
-        width: 70px;
-        height: 70px;
-        padding: 16px;
+      &:nth-child(3n) {
+        transform: rotate(-5deg) translateY(-4px);
+      }
+      &:nth-child(5n) {
+        transform: rotate(4deg) translateY(3px);
       }
 
       &:hover {
-        transform: scale(1.1);
-        border-color: rgb(70, 71, 77);
-        background: rgb(33, 34, 36);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        transform: translateY(-12px) rotate(8deg) scale(1.2) !important;
+        background: #fff;
+        box-shadow: 0 20px 30px -5px rgba(7, 94, 84, 0.2), 0 0 15px rgba(7, 94, 84, 0.1);
+        border-color: #075e54;
+        z-index: 10;
       }
 
-      img {
+      @media (min-width: 768px) {
+        width: 64px;
+        height: 64px;
+        border-radius: 18px;
+        padding: 14px;
+      }
+
+      img, svg {
         width: 100%;
         height: 100%;
         object-fit: contain;
+        transition: all 0.3s ease;
+      }
+
+      &:hover img, &:hover svg {
+        transform: scale(1.05);
       }
     }
   `,
@@ -658,15 +650,52 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     margin-top: 80px;
     width: 100%;
     max-width: 1000px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
     border-radius: 24px;
-    overflow: hidden;
-    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5);
-    background: #000;
+    padding: 2px;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.2) 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(255, 255, 255, 0.15) 100%
+    );
+    box-shadow: 
+      0 40px 100px rgba(0, 0, 0, 0.6),
+      0 0 40px rgba(7, 94, 84, 0.1);
+    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+
+    &:hover {
+      transform: scale(1.01);
+      box-shadow: 
+        0 60px 120px rgba(0, 0, 0, 0.7),
+        0 0 60px rgba(7, 94, 84, 0.2);
+    }
+
+    .video-inner {
+      width: 100%;
+      height: 100%;
+      border-radius: 22px;
+      overflow: hidden;
+      background: #000;
+      position: relative;
+    }
 
     video {
       width: 100%;
       display: block;
+    }
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset: -20px;
+      background: radial-gradient(
+        circle at 50% 50%,
+        rgba(7, 94, 84, 0.15),
+        transparent 70%
+      );
+      z-index: -1;
+      opacity: 0.5;
     }
   `,
   heroTitle: css`
@@ -772,11 +801,29 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
       inset: 0;
       background: linear-gradient(
         135deg,
-        rgba(255, 255, 255, 0.1) 0%,
-        transparent 100%
+        rgba(255, 255, 255, 0.15) 0%,
+        rgba(255, 255, 255, 0) 50%,
+        rgba(255, 255, 255, 0.05) 100%
       );
       opacity: 0;
       transition: opacity 0.5s ease;
+    }
+
+    &::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -150%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        to right,
+        transparent,
+        rgba(255, 255, 255, 0.1),
+        transparent
+      );
+      transform: skewX(-25deg);
+      transition: 0.75s;
     }
 
     &:hover {
@@ -789,6 +836,9 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
 
       &::before {
         opacity: 1;
+      }
+      &::after {
+        left: 150%;
       }
     }
 
@@ -888,10 +938,29 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     border-radius: 24px;
     padding: 24px;
     transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
 
     @media (min-width: 768px) {
       border-radius: 32px;
       padding: 32px;
+    }
+
+    &::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -150%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        to right,
+        transparent,
+        rgba(7, 94, 84, 0.05),
+        transparent
+      );
+      transform: skewX(-25deg);
+      transition: 0.75s;
     }
 
     &:hover {
@@ -899,6 +968,10 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
       border-color: #075e54;
       box-shadow: 0 40px 80px rgba(0, 0, 0, 0.08);
       transform: translateY(-8px) scale(1.01);
+
+      &::after {
+        left: 150%;
+      }
     }
   `,
   visualMockup: css`
@@ -915,7 +988,7 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     );
     border: 1px solid rgba(255, 255, 255, 0.8);
     box-shadow: 0 80px 160px rgba(0, 0, 0, 0.15);
-    animation: ${float} 10s infinite ease -in -out;
+    animation: ${float} 10s infinite ease-in-out;
   `,
   statsGrid: css`
     display: grid;
@@ -1945,13 +2018,15 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     }
   `,
   footerContainer: css`
-    background: #ece5dd;
+    background: rgba(236, 229, 221, 0.4);
+    backdrop-filter: blur(20px);
     border-radius: 24px;
     border: 1px solid rgba(7, 94, 84, 0.1);
     overflow: hidden;
     width: 100%;
     max-width: 1440px;
     margin: 0 auto;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.05);
 
     @media (min-width: 768px) {
       border-radius: 48px;
@@ -1961,23 +2036,26 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     width: 100%;
     padding: 32px 16px;
     border-bottom: 1px solid rgba(7, 94, 84, 0.1);
+    background: linear-gradient(to right, rgba(8, 94, 84, 0.02), transparent);
 
     @media (min-width: 768px) {
-      padding: 48px 24px;
+      padding: 60px 40px;
     }
 
     h2 {
-      font-size: 20px;
-      line-height: 1.3;
+      font-size: 24px;
+      font-weight: 900;
+      line-height: 1.2;
+      letter-spacing: -1px;
       @media (min-width: 768px) {
-        font-size: 24px;
+        font-size: 32px;
       }
     }
 
     .newsletter-form {
       flex: 1 1 100%;
       @media (min-width: 768px) {
-        flex: 1 1 350px;
+        flex: 0 1 450px;
       }
     }
   `,
@@ -1988,23 +2066,53 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     margin: 0 auto;
 
     @media (min-width: 768px) {
-      padding: 64px 24px;
+      padding: 80px 24px;
     }
 
     .footer-grid {
       display: grid;
-      grid-template-columns: 1fr;
-      gap: 32px;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 40px;
       width: 100%;
 
-      @media (min-width: 480px) {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 40px;
+      @media (min-width: 1024px) {
+        grid-template-columns: 2fr repeat(3, 1fr);
+        gap: 60px;
+      }
+    }
+
+    .footer-brand {
+      grid-column: 1 / -1;
+      @media (min-width: 1024px) {
+        grid-column: auto;
+      }
+    }
+
+    .footer-links-column {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+
+      h4 {
+        font-weight: 800;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #075e54;
+        margin-bottom: 8px;
       }
 
-      @media (min-width: 1024px) {
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 48px;
+      a {
+        color: #666;
+        font-size: 15px;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        width: fit-content;
+
+        &:hover {
+          color: #075e54;
+          transform: translateX(5px);
+        }
       }
     }
   `,
@@ -2014,9 +2122,40 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
     border-top: 1px solid rgba(7, 94, 84, 0.1);
     max-width: 1200px;
     margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+    justify-content: space-between;
 
     @media (min-width: 768px) {
+      flex-direction: row;
       padding: 32px 24px;
+    }
+
+    .social-links {
+      display: flex;
+      gap: 16px;
+
+      a {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #075e54;
+        border: 1px solid rgba(7, 94, 84, 0.1);
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+        &:hover {
+          background: #075e54;
+          color: #fff;
+          transform: translateY(-5px) rotate(8deg);
+          box-shadow: 0 10px 20px rgba(7, 94, 84, 0.2);
+        }
+      }
     }
   `,
 }));
@@ -2133,17 +2272,29 @@ const LandingPage = memo(() => {
                         stiffness: 100,
                       }}
                     >
-                      <Button
-                        type="primary"
-                        size="large"
-                        icon={<Rocket size={20} />}
-                        onClick={() =>
-                          (window.location.href = "https://app.connect.wozif.com")
-                        }
-                        className="h-13 sm:h-14 lg:h-16 px-10 sm:px-10 lg:px-12 text-base sm:text-lg lg:text-xl font-black rounded-xl sm:rounded-2xl lg:rounded-3xl !bg-[#085e54] hover:!bg-[#085e54]/90 !text-white border-none transition-all duration-300 shadow-[0_12px_24px_rgba(8,94,84,0.25)] sm:shadow-[0_16px_32px_rgba(8,94,84,0.28)] lg:shadow-[0_20px_40px_rgba(8,94,84,0.3)] hover:-translate-y-1 active:scale-95 w-full sm:w-auto"
-                      >
-                        Commencer maintenant
-                      </Button>
+                      <Flexbox horizontal gap={16} align="center" justify="center" style={{ flexWrap: "wrap" }}>
+                        <Button
+                          type="primary"
+                          size="large"
+                          icon={<Rocket size={20} />}
+                          onClick={() =>
+                            (window.location.href = "https://app.connect.wozif.com")
+                          }
+                          className="h-13 sm:h-14 lg:h-16 px-10 sm:px-10 lg:px-12 text-base sm:text-lg lg:text-xl font-black rounded-xl sm:rounded-2xl lg:rounded-3xl !bg-[#085e54] hover:!bg-[#085e54]/90 !text-white border-none transition-all duration-300 shadow-[0_12px_24px_rgba(8,94,84,0.25)] sm:shadow-[0_16px_32px_rgba(8,94,84,0.28)] lg:shadow-[0_20px_40px_rgba(8,94,84,0.3)] hover:-translate-y-1 active:scale-95 w-full sm:w-auto"
+                        >
+                          Commencer l'essai gratuit
+                        </Button>
+                        <Button
+                          size="large"
+                          icon={<MessageCircle size={20} />}
+                          onClick={() =>
+                            (window.location.href = "https://calendly.com")
+                          }
+                          className="h-13 sm:h-14 lg:h-16 px-10 sm:px-10 lg:px-12 text-base sm:text-lg lg:text-xl font-black rounded-xl sm:rounded-2xl lg:rounded-3xl !bg-transparent hover:!bg-white/10 !text-white !border-white/30 hover:!border-white/60 transition-all duration-300 hover:-translate-y-1 active:scale-95 w-full sm:w-auto"
+                        >
+                          Demander une démo
+                        </Button>
+                      </Flexbox>
                     </motion.div>
 
                     {/* Stats Row-Dual Marquee */}
@@ -2263,7 +2414,7 @@ const LandingPage = memo(() => {
                 </div>
               </Card>
 
-              <section className={styles.sectionWrapper}>
+              <motion.section {...fadeInUp} className={styles.sectionWrapper}>
                 <div className={styles.container}>
                   <Center style={{ marginBottom: 64 }}>
                     <div className={styles.tagBrand}>
@@ -2288,7 +2439,7 @@ const LandingPage = memo(() => {
                 >
                   <DemoPreview />
                 </motion.div>
-              </section>
+              </motion.section>
 
 
               {/* AI Engine Section */}
@@ -3948,39 +4099,106 @@ const LandingPage = memo(() => {
                 </div>
               </motion.section>
 
-              <section className={styles.ctaBanner} style={{ background: "#dcf8c6", border: 'none' }}>
-                <div className={styles.waitlistSpline}>
-                  {/* Élément décoratif */}
-                  <div style={{
-                    width: "100%",
-                    height: "100%",
-                    background: "radial-gradient(circle, var(--brand-primary) 0%, transparent 70%)",
-                    opacity: 0.3
-                  }} />
-                </div>
-                <div style={{ zIndex: 1, width: '100%' }}>
-                  <h2 style={{ color: "#075e54" }}>
-                    Des agents IA qui grandissent avec vous
-                  </h2>
-                  <h3 style={{ color: "#128c7e", opacity: 0.8 }}>
-                    Commencez à utiliser Connect dès aujourd'hui et rejoignez
-                    des milliers d'entreprises innovantes.
-                  </h3>
+              {/* Premium Footer Section */}
+              <motion.footer 
+                {...fadeInUp}
+                className={styles.footerSection}
+              >
+                <div className={styles.footerContainer}>
+                  {/* Newsletter Section */}
+                  <div className={styles.footerNewsletter}>
+                    <Flexbox horizontal align="center" justify="space-between" style={{ gap: 32, flexWrap: "wrap" }}>
+                      <div style={{ flex: "1 1 300px" }}>
+                        <h2 style={{ color: "#075e54" }}>Restez à la pointe de l'IA</h2>
+                        <p style={{ color: "#666", marginTop: 8 }}>
+                          Recevez nos dernières mises à jour et conseils d'automatisation directement dans votre boîte mail.
+                        </p>
+                      </div>
+                      <div className="newsletter-form">
+                        <Flexbox horizontal gap={12}>
+                          <input 
+                            type="email" 
+                            placeholder="votre@email.com" 
+                            style={{ 
+                              flex: 1, 
+                              padding: "12px 20px", 
+                              borderRadius: "12px", 
+                              border: "1px solid rgba(7, 94, 84, 0.2)",
+                              background: "#fff",
+                              fontSize: "15px",
+                              outline: "none"
+                            }} 
+                          />
+                          <Button 
+                            type="primary" 
+                            style={{ 
+                              height: "48px", 
+                              borderRadius: "12px", 
+                              padding: "0 24px",
+                              background: "#075e54",
+                              fontWeight: 700
+                            }}
+                          >
+                            S'abonner
+                          </Button>
+                        </Flexbox>
+                      </div>
+                    </Flexbox>
+                  </div>
 
-                  <div className="cta-button-group">
-                    <Button
-                      type="primary"
-                      size="large"
-                      className="cta-btn-primary"
-                      onClick={() =>
-                        (window.location.href = "https://app.connect.wozif.com")
-                      }
-                    >
-                      Commencez gratuitement
-                    </Button>
+                  {/* Main Footer Links */}
+                  <div className={styles.footerMain}>
+                    <div className="footer-grid">
+                      <div className="footer-brand">
+                        <Flexbox horizontal align="center" gap={12} style={{ marginBottom: 20 }}>
+                          <img src="/logo.png" alt="Connect Logo" style={{ width: 32, height: 32 }} />
+                          <span style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-1px" }}>Connect</span>
+                        </Flexbox>
+                        <p style={{ color: "#666", lineHeight: 1.6, maxWidth: 300 }}>
+                          L'automatisation WhatsApp universelle pour les entreprises ambitieuses. Connectez, automatisez, grandissez.
+                        </p>
+                      </div>
+
+                      <div className="footer-links-column">
+                        <h4>Produit</h4>
+                        <a href="#features">Fonctionnalités</a>
+                        <a href="#solutions">Solutions</a>
+                        <a href="#pricing">Tarification</a>
+                        <a href="https://app.connect.wozif.com">Se connecter</a>
+                      </div>
+
+                      <div className="footer-links-column">
+                        <h4>Ressources</h4>
+                        <a href="#">Documentation</a>
+                        <a href="#">API Reference</a>
+                        <a href="#">Blog</a>
+                        <a href="#">Communauté</a>
+                      </div>
+
+                      <div className="footer-links-column">
+                        <h4>Légal</h4>
+                        <a href="#">Confidentialité</a>
+                        <a href="#">CGU</a>
+                        <a href="#">Cookies</a>
+                        <a href="#">Sécurité</a>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer Bottom */}
+                  <div className={styles.footerBottom}>
+                    <p style={{ color: "#666", fontSize: 14 }}>
+                      © 2024 Connect by Wozif. Tous droits réservés.
+                    </p>
+                    
+                    <div className="social-links">
+                      <a href="#" aria-label="Twitter"><Twitter size={18} /></a>
+                      <a href="#" aria-label="LinkedIn"><Linkedin size={18} /></a>
+                      <a href="#" aria-label="Github"><Github size={18} /></a>
+                    </div>
                   </div>
                 </div>
-              </section>
+              </motion.footer>
 
 
             </div>

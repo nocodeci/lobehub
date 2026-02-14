@@ -6,9 +6,10 @@ export interface LoadI18nNamespaceModuleParams {
 }
 
 export const loadI18nNamespaceModule = async (params: LoadI18nNamespaceModuleParams) => {
-  const { defaultLang, normalizeLocale, lng, ns } = params;
+  const { normalizeLocale, lng, ns } = params;
 
-  if (lng === defaultLang) return import(`@/locales/default/${ns}`);
+  // src/locales/default/ contains English strings, so only use it for en-US
+  if (lng === 'en-US' || lng === 'en') return import(`@/locales/default/${ns}`);
 
   try {
     return import(`@/../locales/${normalizeLocale(lng)}/${ns}.json`);
