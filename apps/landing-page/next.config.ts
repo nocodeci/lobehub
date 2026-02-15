@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ['@lobehub/ui', 'antd-style'],
+  serverExternalPackages: ['pg', '@prisma/client'],
 };
 
 export default nextConfig;

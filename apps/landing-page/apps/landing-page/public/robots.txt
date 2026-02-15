@@ -1,0 +1,74 @@
+# =====================================================
+# Robots.txt pour Connect by Wozif
+# https://connect.wozif.com
+# =====================================================
+
+# Autoriser tous les robots à indexer le site
+User-agent: *
+Allow: /
+
+# Pages à indexer en priorité
+Allow: /
+Allow: /pricing
+Allow: /blog
+Allow: /outils
+Allow: /tutoriel
+Allow: /documentation
+
+# Ressources à ne pas indexer
+Disallow: /api/
+Disallow: /_next/
+Disallow: /admin/
+Disallow: /private/
+
+# Fichiers statiques (autoriser pour le SEO images)
+Allow: /*.js$
+Allow: /*.css$
+Allow: /*.png$
+Allow: /*.jpg$
+Allow: /*.gif$
+Allow: /*.svg$
+Allow: /*.webp$
+
+# Sitemap principal
+Sitemap: https://connect.wozif.com/sitemap.xml
+
+# Directives spécifiques pour Googlebot
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+# Directives pour Googlebot Image
+User-agent: Googlebot-Image
+Allow: /
+
+# Directives pour Bingbot
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 2
+
+# Directives pour les réseaux sociaux
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+# Bloquer les mauvais bots connus
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /

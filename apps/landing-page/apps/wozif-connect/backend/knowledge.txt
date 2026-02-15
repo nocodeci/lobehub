@@ -1,0 +1,18 @@
+# Informations sur Wozif Connect
+
+Wozif Connect est une plateforme d'automatisation WhatsApp et Telegram pour les entreprises.
+
+PRINCIPALES FONCTIONNALITÉS :
+1. Chatbots IA : Des robots intelligents qui répondent 24h/7j en utilisant GPT-4.
+2. E-commerce WhatsApp : Possibilité de créer un catalogue, de gérer un panier (via Chariow) et de recevoir des paiements.
+3. Campagnes de Diffusion : Envoi de messages en masse sans risque de bannissement grâce à la technologie Anti-Ban.
+4. CRM Intégré : Gestion approfondie des contacts et des tags.
+
+TARIFS :
+- Plan Startup : 15 000 FCFA / mois (1 numéro, 5000 messages).
+- Plan Business : 45 000 FCFA / mois (5 numéros, messages illimités, support prioritaire).
+- Plan Enterprise : Sur devis pour les grandes structures.
+
+CONTACT :
+- Email : support@wozif.com
+- Adresse : Abidjan, Côte d'Ivoire.

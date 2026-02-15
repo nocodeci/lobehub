@@ -1,0 +1,484 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String          @id @default(cuid())
+  name           String
+  email          String          @unique
+  emailVerified  DateTime?
+  password       String
+  phone          String?
+  country        String?
+  image          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  accounts       Account[]
+  sessions       Session[]
+  subscriptions  Subscription[]
+  applications   Application[]
+  gnataChats     GnataChat[]
+  vibeCoder      VibeCoder?
+}
+
+model Application {
+  id               String          @id @default(cuid())
+  name             String
+  website          String?
+  category         String?
+  image            String?
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gateways         Gateway[]
+  paymentMethods   PaymentMethod[]
+  paymentRecords   Transaction[]
+  customers        Customer[]
+  paymentLinks     PaymentLink[]
+  whatsapp         WhatsAppConfig?
+  apiConfig        ApiConfig?
+  team             TeamMember[]
+  auditLogs        AuditLog[]
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([userId])
+}
+
+model ApiConfig {
+  id               String      @id @default(cuid())
+  applicationId    String?     @unique
+  publicKey        String      @unique
+  secretKey        String
+  webhookUrl       String?
+  lastRotationAt   DateTime    @default(now())
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  application      Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id            String      @id @default(cuid())
+  applicationId String?
+  actorName     String
+  action        String
+  ipAddress     String?
+  location      String?
+  createdAt     DateTime    @default(now())
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+}
+
+model TeamMember {
+  id            String      @id @default(cuid())
+  applicationId String?      // Linked to specific app
+  name          String
+  email         String
+  role          String      // Job title
+  permission    String      // e.g. "Super Admin", "Manager", "Support"
+  status        String      @default("Hors ligne")
+  avatar        String?
+  lastActive    String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+}
+
+model Customer {
+  id            String      @id @default(cuid())
+  applicationId String?
+  name          String
+  email         String
+  phone         String?
+  country       String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, email])
+  @@index([applicationId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Subscription {
+  id        String    @id @default(cuid())
+  userId    String
+  product   String
+  plan      String
+  status    String
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Transaction {
+  id            String            @id @default(cuid())
+  applicationId String?
+  gnataProjectId String?
+  orderId       String            @unique
+  amount        Float
+  currency      String            @default("XOF")
+  status        TransactionStatus @default(PENDING)
+  paymentType   PaymentType
+  provider      String
+  providerRef   String?           @unique
+  customerName  String
+  customerEmail String
+  customerPhone String?
+  metadata      Json?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  completedAt   DateTime?
+  application   Application?       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  gnataProject  GnataProject?      @relation(fields: [gnataProjectId], references: [id])
+  logs          ProviderLog[]
+
+  @@index([status])
+  @@index([provider])
+  @@index([applicationId])
+  @@index([gnataProjectId])
+}
+
+model ProviderLog {
+  id            String        @id @default(cuid())
+  transactionId String
+  type          String
+  payload       Json
+  timestamp     DateTime      @default(now())
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+
+  @@index([transactionId])
+}
+
+model PaymentMethod {
+  id            String      @id @default(cuid())
+  applicationId String?
+  name          String
+  country       String
+  flag          String?
+  provider      String
+  type          PaymentType
+  isActive      Boolean     @default(true)
+  uptime        String      @default("100%")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+}
+
+model Gateway {
+  id            String      @id @default(cuid())
+  applicationId String?
+  name          String
+  countries     String[]
+  status        String      @default("active")
+  uptime        String
+  successRate   String
+  logo          String?
+  apiKey        String?
+  apiSecret     String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  config        Json?
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+}
+
+model WhatsAppConfig {
+  id                  String      @id @default(cuid())
+  applicationId       String?      @unique
+  status              String      @default("DISCONNECTED")
+  phoneNumber         String?     @unique
+  autoFollowupEnabled Boolean     @default(false)
+  sessionData         Json?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  application         Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+enum PaymentType {
+  MOBILE_MONEY
+  CARD
+  BANK_TRANSFER
+}
+
+model PaymentLink {
+  id            String      @id @default(cuid())
+  applicationId String?
+  slug          String      @unique
+  title         String
+  description   String?
+  amount        Float
+  currency      String      @default("XOF")
+  status        String      @default("active") // active, inactive, expired
+  
+  // Advanced options
+  requestPhone  Boolean     @default(false)
+  allowQuantity Boolean     @default(false)
+  webhookUrl    String?
+  facebookPixelId String?
+  googleAdsId   String?
+  customSuccessMessage String?
+  expiresAt     DateTime?
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+}
+
+model GnataChat {
+  id        String         @id @default(cuid())
+  userId    String?        // Link to Unified User
+  title     String
+  icon      String?
+  messages  GnataMessage[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  isArchived Boolean       @default(false)
+  user      User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([id, userId])
+}
+
+model GnataMessage {
+  id              String    @id @default(cuid())
+  chatId          String
+  role            String    // "user" or "assistant"
+  content         String    @db.Text
+  toolInvocations Json?
+  timestamp       DateTime  @default(now())
+  chat            GnataChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+}
+
+// ============================================
+// GNATA WEBSITE BUILDER - Vibe Coder System
+// ============================================
+
+enum ProjectStatus {
+  PENDING     // En attente de paiement
+  PAID        // Payé, en attente d'assignation
+  ASSIGNED    // Assigné à un Vibe Coder
+  BUILDING    // En construction
+  REVIEW      // En révision par le client
+  COMPLETED   // Terminé et livré
+  CANCELLED   // Annulé
+}
+
+enum ProjectType {
+  ECOMMERCE
+  PORTFOLIO
+  RESTAURANT
+  BLOG
+  LANDING
+  CUSTOM
+}
+
+enum ProjectPriority {
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model VibeCoder {
+  id            String         @id @default(cuid())
+  userId        String?        @unique // Link to User if they have an account
+  coderNumber   Int            @unique @default(autoincrement()) // Vibe Coder #12
+  name          String
+  email         String         @unique
+  phone         String?
+  password      String
+  avatar        String?
+  specialty     String[]       // ["ecommerce", "portfolio", "restaurant"]
+  level         String         @default("Junior") // Junior, Pro, Expert
+  rating        Float          @default(5.0)
+  totalProjects Int            @default(0)
+  avgBuildTime  Int            @default(0) // In minutes
+  status        String         @default("offline") // online, offline, busy
+  commission    Float          @default(0.30) // 30% default
+  
+  // Payment info
+  paymentMethod String?        // "orange_money", "mtn", "wave", "bank"
+  paymentPhone  String?
+  
+  projects      GnataProject[]
+  earnings      CoderEarning[]
+  
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  user          User?          @relation(fields: [userId], references: [id])
+  
+  @@index([status])
+  @@index([level])
+}
+
+model GnataProject {
+  id            String          @id @default(cuid())
+  reference     String          @unique // GNATA-2024-001
+  
+  // Project info
+  name          String
+  description   String?         @db.Text
+  type          ProjectType     @default(CUSTOM)
+  priority      ProjectPriority @default(NORMAL)
+  requirements  String[]        // ["Panier", "Paiement", etc.]
+  colors        Json?           // { primary: "#xxx", secondary: "#xxx" }
+  
+  // Client info
+  clientName    String
+  clientEmail   String
+  clientPhone   String?
+  
+  // Status and assignment
+  status        ProjectStatus   @default(PENDING)
+  coderId       String?
+  coder         VibeCoder?      @relation(fields: [coderId], references: [id])
+  
+  // Pricing
+  price         Float           @default(30000) // In XOF
+  commission    Float?          // Coder's commission for this project
+  
+  // Timing
+  estimatedTime Int             @default(120) // In minutes (2h default)
+  actualTime    Int?            // Actual build time in minutes
+  startedAt     DateTime?       // When coder started building
+  completedAt   DateTime?       // When coder marked as complete
+  deliveredAt   DateTime?       // When client validated
+  
+  // Deployment
+  deployUrl     String?         // https://project-name.gnata.io
+  previewUrl    String?         // Preview before going live
+  
+  // Payment tracking
+  paymentId     String?         @unique
+  payment       GnataPayment?   @relation(fields: [paymentId], references: [id])
+  
+  // Chat link
+  chatId        String?         // Link to GnataChat conversation
+  externalPaymentId String?     // AfriFlow payment ID
+  transactions      Transaction[]
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  
+  @@index([status])
+  @@index([coderId])
+  @@index([clientEmail])
+  @@index([chatId])
+}
+
+model GnataPayment {
+  id            String          @id @default(cuid())
+  reference     String          @unique // PAY-GNATA-xxx
+  
+  // Payment details
+  amount        Float
+  currency      String          @default("XOF")
+  status        TransactionStatus @default(PENDING)
+  
+  // Provider info
+  provider      String          // "moneroo", "paydunya", etc.
+  providerRef   String?         // External transaction ID
+  
+  // Client info
+  clientName    String
+  clientEmail   String
+  clientPhone   String?
+  
+  // Metadata
+  metadata      Json?
+  
+  project       GnataProject?
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  completedAt   DateTime?
+  
+  @@index([status])
+  @@index([clientEmail])
+}
+
+
+model CoderEarning {
+  id            String       @id @default(cuid())
+  coderId       String
+  coder         VibeCoder    @relation(fields: [coderId], references: [id])
+  
+  projectRef    String       // Reference to project
+  amount        Float        // Commission amount
+  status        String       @default("pending") // pending, paid
+  
+  paidAt        DateTime?
+  createdAt     DateTime     @default(now())
+  
+  @@index([coderId])
+  @@index([status])
+}
+
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  provider    String
+  payload     Json
+  headers     Json?
+  status      String   @default("PENDING") // PENDING, PROCESSED, FAILED
+  error       String?
+  createdAt   DateTime @default(now())
+  processedAt DateTime?
+
+  @@index([provider])
+  @@index([status])
+}
+

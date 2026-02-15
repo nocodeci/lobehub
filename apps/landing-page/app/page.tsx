@@ -3,7 +3,6 @@
 import Script from "next/script";
 import {
   Header,
-  Footer,
   Flexbox,
   ActionIcon,
   Button,
@@ -52,6 +51,7 @@ import {
   Menu,
   X,
   Wand2,
+  CreditCard,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -1624,11 +1624,11 @@ const useStyles = createStyles(({ css, token }: { css: any; token: any }) => ({
   `,
   pricingGrid: css`
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
     width: 100%;
     margin-bottom: 48px;
-    @media (max-width: 1024px) {
+    @media (max-width: 768px) {
       grid-template-columns: 1fr;
     }
   `,
@@ -2511,40 +2511,6 @@ const LandingPage = memo(() => {
                 </div>
               </motion.section>
 
-              {/* Agent Builder Section */}
-              <motion.section
-                {...fadeInUp}
-                id="agent-builder"
-                style={{
-                  width: "100%",
-                  padding: "80px 0",
-                  background: "linear-gradient(180deg, #fff 0%, #f8faf9 100%)",
-                }}
-              >
-                <div className={styles.container}>
-                  <Center style={{ marginBottom: 48 }}>
-                    <div className={styles.tagBrand}>
-                      <Wand2 size={14} /> Créateur d'Agents
-                    </div>
-                    <h2 className={styles.sectionTitle}>
-                      Construisez votre agent en quelques clics.
-                    </h2>
-                    <p className={styles.sectionDesc}>
-                      Personnalisez les compétences de votre assistant IA et déployez-le instantanément sur WhatsApp.
-                    </p>
-                  </Center>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8 }}
-                    viewport={{ once: true }}
-                  >
-                    <AgentBuilderPreview styles={styles} cx={cx} />
-                  </motion.div>
-                </div>
-              </motion.section>
-
               {/* Solutions & Use Cases Section */}
               <motion.section
                 {...fadeInUp}
@@ -2888,7 +2854,7 @@ const LandingPage = memo(() => {
                             padding: '0 8px',
                           }}
                         >
-                          -23%
+                          -17%
                         </Tag>
                       </button>
                     </div>
@@ -2901,7 +2867,7 @@ const LandingPage = memo(() => {
                     viewport={{ once: true }}
                     className={styles.pricingGrid}
                   >
-                    {/* Version de base */}
+                    {/* Plan Gratuit */}
                     <motion.div
                       variants={fadeInUp}
                       className={styles.pricingCard}
@@ -2910,10 +2876,9 @@ const LandingPage = memo(() => {
                         <div
                           className={styles.planIcon}
                           style={{
-                            background:
-                              "linear-gradient(45deg, #c57948, #803718)",
-                            borderColor: "#ffc385",
-                            color: "#ffc385",
+                            background: "linear-gradient(45deg, #52c41a, #389e0d)",
+                            borderColor: "#95de64",
+                            color: "#95de64",
                           }}
                         >
                           <Sparkles size={18} fill="currentColor" />
@@ -2927,7 +2892,7 @@ const LandingPage = memo(() => {
                               color: "#000",
                             }}
                           >
-                            Version de base
+                            Gratuit
                           </h2>
                           <p
                             style={{
@@ -2937,12 +2902,118 @@ const LandingPage = memo(() => {
                               color: "#000",
                             }}
                           >
-                            Pour une utilisation plus légère et occasionnelle
+                            Idéal pour tester la plateforme
+                          </p>
+                        </div>
+                        <div>
+                          <div className={styles.priceValue}>0€</div>
+                          <div
+                            style={{
+                              fontSize: 13,
+                              opacity: 0.5,
+                              color: "#000",
+                            }}
+                          >
+                            Gratuit
+                          </div>
+                        </div>
+                        <Button
+                          type="default"
+                          block
+                          loading={isLoading("free")}
+                          onClick={() => checkout("free", billingCycle as "monthly" | "yearly")}
+                          style={{
+                            fontWeight: 500,
+                            height: 40,
+                            borderRadius: 8,
+                          }}
+                        >
+                          Commencer gratuitement
+                        </Button>
+                      </Flexbox>
+
+                      <Divider dashed style={{ margin: 0 }} />
+
+                      <div className={styles.featureGroup}>
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            marginBottom: 8,
+                            color: "#000",
+                          }}
+                        >
+                          1 agent WhatsApp
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 700,
+                            color: "#000",
+                            marginBottom: 12,
+                          }}
+                        >
+                          250 crédits / mois (~25 messages)
+                        </div>
+
+                        <div className={styles.featureItem}>
+                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                          <div style={{ color: "#000" }}>Stockage 500 MB</div>
+                        </div>
+
+                        <div className={styles.featureItem}>
+                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                          <div style={{ color: "#000" }}>Branding "Powered by Connect"</div>
+                        </div>
+
+                        <div className={styles.featureItem}>
+                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                          <div style={{ color: "#000" }}>Support communauté</div>
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    {/* Plan Starter */}
+                    <motion.div
+                      variants={fadeInUp}
+                      className={styles.pricingCard}
+                    >
+                      <Flexbox gap={16}>
+                        <div
+                          className={styles.planIcon}
+                          style={{
+                            background:
+                              "linear-gradient(45deg, #1890ff, #096dd9)",
+                            borderColor: "#69c0ff",
+                            color: "#69c0ff",
+                          }}
+                        >
+                          <Zap size={18} fill="currentColor" />
+                        </div>
+                        <div>
+                          <h2
+                            style={{
+                              fontSize: 18,
+                              fontWeight: 700,
+                              margin: 0,
+                              color: "#000",
+                            }}
+                          >
+                            Starter
+                          </h2>
+                          <p
+                            style={{
+                              fontSize: 13,
+                              opacity: 0.6,
+                              margin: 0,
+                              color: "#000",
+                            }}
+                          >
+                            Pour petites entreprises et freelances
                           </p>
                         </div>
                         <div>
                           <div className={styles.priceValue}>
-                            {billingCycle === "yearly" ? "15" : "19"}
+                            {billingCycle === "yearly" ? "24" : "29"}€
                           </div>
                           <div
                             style={{
@@ -2966,7 +3037,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              $180 / Par an
+                              290€ / Par an
                             </span>
                             <Tag
                               color="success"
@@ -2978,15 +3049,15 @@ const LandingPage = memo(() => {
                                 color: "#52c41a",
                               }}
                             >
-                              Remise de 21%
+                              Remise de 17%
                             </Tag>
                           </Flexbox>
                         )}
                         <Button
                           type="primary"
                           block
-                          loading={isLoading("base")}
-                          onClick={() => checkout("base", billingCycle as "monthly" | "yearly")}
+                          loading={isLoading("starter")}
+                          onClick={() => checkout("starter", billingCycle as "monthly" | "yearly")}
                           style={{
                             fontWeight: 500,
                             height: 40,
@@ -3012,8 +3083,7 @@ const LandingPage = memo(() => {
                             color: "#000",
                           }}
                         >
-                          Calcul des crédits{" "}
-                          <CircleHelp size={14} style={{ opacity: 0.5 }} />
+                          3 agents WhatsApp
                         </div>
                         <div
                           style={{
@@ -3022,7 +3092,7 @@ const LandingPage = memo(() => {
                             color: "#000",
                           }}
                         >
-                          10,000,000 / Par mois
+                          5,000,000 crédits / mois
                         </div>
 
                         <div className={styles.featureItem}>
@@ -3141,7 +3211,7 @@ const LandingPage = memo(() => {
                         </div>
                       </div>
 
-                      <div className={cx(styles.expandedContent, expandedPlans['base'] && 'expanded')}>
+                      <div className={cx(styles.expandedContent, expandedPlans['starter'] && 'expanded')}>
                         <Divider dashed style={{ margin: 0 }} />
 
                         <div className={styles.featureGroup}>
@@ -3270,8 +3340,8 @@ const LandingPage = memo(() => {
                         </div>
                       </div>
 
-                      <div className={styles.showMoreBtn} onClick={() => togglePlan('base')}>
-                        {expandedPlans['base'] ? (
+                      <div className={styles.showMoreBtn} onClick={() => togglePlan('starter')}>
+                        {expandedPlans['starter'] ? (
                           <>Réduire <ChevronRight size={16} style={{ transform: 'rotate(-90deg)' }} /></>
                         ) : (
                           <>Voir plus de détails <ChevronRight size={16} style={{ transform: 'rotate(90deg)' }} /></>
@@ -3279,7 +3349,7 @@ const LandingPage = memo(() => {
                       </div>
                     </motion.div>
 
-                    {/* Premium */}
+                    {/* Pro */}
                     <motion.div
                       variants={fadeInUp}
                       className={cx(styles.pricingCard, styles.featuredCard)}
@@ -3289,12 +3359,12 @@ const LandingPage = memo(() => {
                           className={styles.planIcon}
                           style={{
                             background:
-                              "linear-gradient(45deg, #a5b4c2, #606e7b)",
-                            borderColor: "#fcfdff",
-                            color: "#fcfdff",
+                              "linear-gradient(45deg, #52c41a, #389e0d)",
+                            borderColor: "#95de64",
+                            color: "#95de64",
                           }}
                         >
-                          <Zap size={18} fill="currentColor" />
+                          <Atom size={18} fill="currentColor" />
                         </div>
                         <div>
                           <h2
@@ -3308,7 +3378,7 @@ const LandingPage = memo(() => {
                               gap: 8
                             }}
                           >
-                            Premium
+                            Pro
                             <Tag color="processing" style={{ borderRadius: 6, fontSize: 10, fontWeight: 700 }}>3 jours d'essai</Tag>
                           </h2>
                           <p
@@ -3319,12 +3389,12 @@ const LandingPage = memo(() => {
                               color: "#000",
                             }}
                           >
-                            Essai gratuit de 3 jours, puis facturation automatique.
+                            Pour PME et agences en croissance
                           </p>
                         </div>
                         <div>
                           <div className={styles.priceValue}>
-                            {billingCycle === "yearly" ? "39" : "50"}
+                            {billingCycle === "yearly" ? "66" : "79"}€
                           </div>
                           <div
                             style={{
@@ -3348,7 +3418,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              $468 / Par an
+                              790€ / Par an
                             </span>
                             <Tag
                               color="success"
@@ -3360,15 +3430,15 @@ const LandingPage = memo(() => {
                                 color: "#52c41a",
                               }}
                             >
-                              Remise de 22%
+                              Remise de 17%
                             </Tag>
                           </Flexbox>
                         )}
                         <Button
                           type="primary"
                           block
-                          loading={isLoading("premium")}
-                          onClick={() => checkout("premium", billingCycle as "monthly" | "yearly")}
+                          loading={isLoading("pro")}
+                          onClick={() => checkout("pro", billingCycle as "monthly" | "yearly")}
                           style={{
                             fontWeight: 500,
                             height: 40,
@@ -3394,8 +3464,7 @@ const LandingPage = memo(() => {
                             color: "#000",
                           }}
                         >
-                          Calcul des crédits{" "}
-                          <CircleHelp size={14} style={{ opacity: 0.5 }} />
+                          10 agents WhatsApp
                         </div>
                         <div
                           style={{
@@ -3404,7 +3473,7 @@ const LandingPage = memo(() => {
                             color: "#000",
                           }}
                         >
-                          40,000,000 / Par mois
+                          40,000,000 crédits / mois
                         </div>
 
                         <div className={styles.featureItem}>
@@ -3516,7 +3585,7 @@ const LandingPage = memo(() => {
                         </div>
                       </div>
 
-                      <div className={cx(styles.expandedContent, expandedPlans['premium'] && 'expanded')}>
+                      <div className={cx(styles.expandedContent, expandedPlans['pro'] && 'expanded')}>
                         <Divider dashed style={{ margin: 0 }} />
 
                         <div className={styles.featureGroup}>
@@ -3645,8 +3714,8 @@ const LandingPage = memo(() => {
                         </div>
                       </div>
 
-                      <div className={styles.showMoreBtn} onClick={() => togglePlan('premium')}>
-                        {expandedPlans['premium'] ? (
+                      <div className={styles.showMoreBtn} onClick={() => togglePlan('pro')}>
+                        {expandedPlans['pro'] ? (
                           <>Réduire <ChevronRight size={16} style={{ transform: 'rotate(-90deg)' }} /></>
                         ) : (
                           <>Voir plus de détails <ChevronRight size={16} style={{ transform: 'rotate(90deg)' }} /></>
@@ -3654,7 +3723,7 @@ const LandingPage = memo(() => {
                       </div>
                     </motion.div>
 
-                    {/* Ultimate */}
+                    {/* Business */}
                     <motion.div
                       variants={fadeInUp}
                       className={styles.pricingCard}
@@ -3664,12 +3733,12 @@ const LandingPage = memo(() => {
                           className={styles.planIcon}
                           style={{
                             background:
-                              "linear-gradient(45deg, #f7a82f, #bb7227)",
-                            borderColor: "#fcfa6e",
-                            color: "#fcfa6e",
+                              "linear-gradient(45deg, #722ed1, #531dab)",
+                            borderColor: "#b37feb",
+                            color: "#b37feb",
                           }}
                         >
-                          <Atom size={18} />
+                          <CreditCard size={18} fill="currentColor" />
                         </div>
                         <div>
                           <h2
@@ -3680,7 +3749,7 @@ const LandingPage = memo(() => {
                               color: "#000",
                             }}
                           >
-                            Ultimate
+                            Business
                           </h2>
                           <p
                             style={{
@@ -3690,12 +3759,12 @@ const LandingPage = memo(() => {
                               color: "#000",
                             }}
                           >
-                            Pour une utilisation intensive
+                            Pour grandes entreprises
                           </p>
                         </div>
                         <div>
                           <div className={styles.priceValue}>
-                            {billingCycle === "yearly" ? "99" : "120"}
+                            {billingCycle === "yearly" ? "166" : "199"}€
                           </div>
                           <div
                             style={{
@@ -3719,7 +3788,7 @@ const LandingPage = memo(() => {
                                 color: "#000",
                               }}
                             >
-                              $1,188 / Par an
+                              1,990€ / Par an
                             </span>
                             <Tag
                               color="success"
@@ -3738,8 +3807,8 @@ const LandingPage = memo(() => {
                         <Button
                           type="primary"
                           block
-                          loading={isLoading("ultimate")}
-                          onClick={() => checkout("ultimate", billingCycle as "monthly" | "yearly")}
+                          loading={isLoading("business")}
+                          onClick={() => checkout("business", billingCycle as "monthly" | "yearly")}
                           style={{
                             fontWeight: 500,
                             height: 40,
@@ -3765,8 +3834,7 @@ const LandingPage = memo(() => {
                             color: "#000",
                           }}
                         >
-                          Calcul des crédits{" "}
-                          <CircleHelp size={14} style={{ opacity: 0.5 }} />
+                          50 agents WhatsApp
                         </div>
                         <div
                           style={{
@@ -3775,7 +3843,7 @@ const LandingPage = memo(() => {
                             color: "#000",
                           }}
                         >
-                          100,000,000 / Par mois
+                          150,000,000 crédits / mois
                         </div>
 
                         <div className={styles.featureItem}>
@@ -3887,7 +3955,7 @@ const LandingPage = memo(() => {
                         </div>
                       </div>
 
-                      <div className={cx(styles.expandedContent, expandedPlans['ultimate'] && 'expanded')}>
+                      <div className={cx(styles.expandedContent, expandedPlans['business'] && 'expanded')}>
                         <Divider dashed style={{ margin: 0 }} />
 
                         <div className={styles.featureGroup}>
@@ -4016,12 +4084,135 @@ const LandingPage = memo(() => {
                         </div>
                       </div>
 
-                      <div className={styles.showMoreBtn} onClick={() => togglePlan('ultimate')}>
-                        {expandedPlans['ultimate'] ? (
+                      <div className={styles.showMoreBtn} onClick={() => togglePlan('business')}>
+                        {expandedPlans['business'] ? (
                           <>Réduire <ChevronRight size={16} style={{ transform: 'rotate(-90deg)' }} /></>
                         ) : (
                           <>Voir plus de détails <ChevronRight size={16} style={{ transform: 'rotate(90deg)' }} /></>
                         )}
+                      </div>
+                    </motion.div>
+
+                    {/* Enterprise */}
+                    <motion.div
+                      variants={fadeInUp}
+                      className={styles.pricingCard}
+                    >
+                      <Flexbox gap={16}>
+                        <div
+                          className={styles.planIcon}
+                          style={{
+                            background:
+                              "linear-gradient(45deg, #fa8c16, #d46b08)",
+                            borderColor: "#ffc53d",
+                            color: "#ffc53d",
+                          }}
+                        >
+                          <Sparkles size={18} fill="currentColor" />
+                        </div>
+                        <div>
+                          <h2
+                            style={{
+                              fontSize: 18,
+                              fontWeight: 700,
+                              margin: 0,
+                              color: "#000",
+                            }}
+                          >
+                            Enterprise
+                          </h2>
+                          <p
+                            style={{
+                              fontSize: 13,
+                              opacity: 0.6,
+                              margin: 0,
+                              color: "#000",
+                            }}
+                          >
+                            Solution sur mesure pour corporations
+                          </p>
+                        </div>
+                        <div>
+                          <div className={styles.priceValue}>Sur devis</div>
+                          <div
+                            style={{
+                              fontSize: 13,
+                              opacity: 0.5,
+                              color: "#000",
+                            }}
+                          >
+                            À partir de 500€/mois
+                          </div>
+                        </div>
+                        <Button
+                          type="primary"
+                          block
+                          loading={isLoading("enterprise")}
+                          onClick={() => window.open('mailto:sales@connect.wozif.com?subject=Demande Enterprise', '_blank')}
+                          style={{
+                            fontWeight: 500,
+                            height: 40,
+                            borderRadius: 8,
+                            background: "#075e54",
+                            border: "none",
+                          }}
+                        >
+                          Contacter les ventes
+                        </Button>
+                      </Flexbox>
+
+                      <Divider dashed style={{ margin: 0 }} />
+
+                      <div className={styles.featureGroup}>
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            marginBottom: 8,
+                            color: "#000",
+                          }}
+                        >
+                          Agents WhatsApp illimités
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 700,
+                            color: "#000",
+                            marginBottom: 12,
+                          }}
+                        >
+                          Crédits personnalisés
+                        </div>
+
+                        <div className={styles.featureItem}>
+                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                          <div style={{ color: "#000" }}>Infrastructure dédiée</div>
+                        </div>
+
+                        <div className={styles.featureItem}>
+                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                          <div style={{ color: "#000" }}>Stockage illimité</div>
+                        </div>
+
+                        <div className={styles.featureItem}>
+                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                          <div style={{ color: "#000" }}>Multi-utilisateurs illimités</div>
+                        </div>
+
+                        <div className={styles.featureItem}>
+                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                          <div style={{ color: "#000" }}>SLA 99.9%</div>
+                        </div>
+
+                        <div className={styles.featureItem}>
+                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                          <div style={{ color: "#000" }}>Onboarding personnalisé</div>
+                        </div>
+
+                        <div className={styles.featureItem}>
+                          <CheckCircle2 size={16} fill="#52c41a" color="#fff" />
+                          <div style={{ color: "#000" }}>Support dédié 24/7</div>
+                        </div>
                       </div>
                     </motion.div>
                   </motion.div>

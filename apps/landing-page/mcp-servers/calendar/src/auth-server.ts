@@ -1,0 +1,107 @@
+import { initializeOAuth2Client } from './auth/client.js';
+import { AuthServer } from './auth/server.js';
+
+// Check for command line arguments
+const args = process.argv.slice(2);
+const shouldServe = args.includes('--serve') || process.env.CALENDAR_AUTH_SERVE === '1';
+const servePort = Number(process.env.CALENDAR_AUTH_PORT || 3500);
+if (args.length > 0) {
+  // Assume the first argument is the account mode
+  const accountModeArg = args.find((a) => !a.startsWith('-'));
+  if (accountModeArg) process.env.GOOGLE_ACCOUNT_MODE = accountModeArg;
+}
+
+async function runAuthServer() {
+  let authServer: AuthServer | null = null; // Keep reference for cleanup
+  try {
+    const oauth2Client = await initializeOAuth2Client();
+    
+    authServer = new AuthServer(oauth2Client);
+
+    if (shouldServe) {
+      const ok = await authServer.serve(servePort);
+      if (!ok) {
+        process.stderr.write(`Failed to start auth server on port ${servePort}.\n`);
+        process.exit(1);
+      }
+
+      process.stderr.write(`Google Calendar auth server listening on http://localhost:${servePort}\n`);
+      process.stderr.write(`Status endpoint: http://localhost:${servePort}/auth/status\n`);
+
+      // Keep process alive until killed
+      const keepAlive = setInterval(() => {}, 1 << 30);
+      process.on('SIGINT', async () => {
+        clearInterval(keepAlive);
+        if (authServer) {
+          await authServer.stop();
+        }
+        process.exit(0);
+      });
+      return;
+    }
+    
+    const success = await authServer.start(true);
+    
+    if (!success && !authServer.authCompletedSuccessfully) {
+      process.stderr.write('Authentication failed. Could not start server or validate existing tokens.\n');
+      process.exit(1);
+    } else if (authServer.authCompletedSuccessfully) {
+      process.stderr.write('Authentication successful.\n');
+      process.exit(0);
+    }
+    
+    // If we reach here, the server started and is waiting for the browser callback
+    process.stderr.write('Authentication server started. Please complete the authentication in your browser...\n');
+    
+
+    process.stderr.write(`Waiting for OAuth callback on port ${authServer.getRunningPort()}...\n`);
+    
+    // Poll for completion or handle SIGINT
+    let lastDebugLog = 0;
+    const pollInterval = setInterval(async () => {
+      try {
+        if (authServer?.authCompletedSuccessfully) {
+          process.stderr.write('Authentication completed successfully detected. Stopping server...\n');
+          clearInterval(pollInterval);
+          await authServer.stop();
+          process.stderr.write('Authentication successful. Server stopped.\n');
+          process.exit(0);
+        } else {
+          // Add debug logging every 10 seconds to show we're still waiting
+          const now = Date.now();
+          if (now - lastDebugLog > 10000) {
+            process.stderr.write('Still waiting for authentication to complete...\n');
+            lastDebugLog = now;
+          }
+        }
+      } catch (error: unknown) {
+        process.stderr.write(`Error in polling interval: ${error instanceof Error ? error.message : 'Unknown error'}\n`);
+        clearInterval(pollInterval);
+        if (authServer) await authServer.stop();
+        process.exit(1);
+      }
+    }, 5000); // Check every second
+
+    // Handle process termination (SIGINT)
+    process.on('SIGINT', async () => {
+      clearInterval(pollInterval); // Stop polling
+      if (authServer) {
+        await authServer.stop();
+      }
+      process.exit(0);
+    });
+    
+  } catch (error: unknown) {
+    process.stderr.write(`Authentication error: ${error instanceof Error ? error.message : 'Unknown error'}\n`);
+    if (authServer) await authServer.stop(); // Attempt cleanup
+    process.exit(1);
+  }
+}
+
+// Run the auth server if this file is executed directly
+if (import.meta.url.endsWith('auth-server.js')) {
+  runAuthServer().catch((error: unknown) => {
+    process.stderr.write(`Unhandled error: ${error instanceof Error ? error.message : 'Unknown error'}\n`);
+    process.exit(1);
+  });
+}

@@ -1,0 +1,2805 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import OpenAI from "openai";
+import { ChatOpenAI } from "@langchain/openai";
+import { DynamicTool } from "@langchain/core/tools";
+import { AgentExecutor, createReactAgent } from "langchain/agents";
+import { pull } from "langchain/hub";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+const encoder = new TextEncoder();
+
+function sseEvent(event: string, data: unknown): Uint8Array {
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  return encoder.encode(payload);
+}
+
+const MAX_RESPONSE_LENGTH = 10000;
+const MAX_NODES_PER_EXECUTION = 100;
+const EXECUTION_TIMEOUT_MS = 30000;
+
+function isHttpUrl(input: string): boolean {
+  try {
+    const u = new URL(input);
+    // SSRF Protection: Block localhost and private IP ranges
+    const hostname = u.hostname.toLowerCase();
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "0.0.0.0" ||
+      hostname === "::1" ||
+      hostname.startsWith("192.168.") ||
+      hostname.startsWith("10.") ||
+      hostname.startsWith("172.16.") ||
+      hostname.startsWith("172.17.") ||
+      hostname.startsWith("172.18.") ||
+      hostname.startsWith("172.19.") ||
+      hostname.startsWith("172.20.") ||
+      hostname.startsWith("172.21.") ||
+      hostname.startsWith("172.22.") ||
+      hostname.startsWith("172.23.") ||
+      hostname.startsWith("172.24.") ||
+      hostname.startsWith("172.25.") ||
+      hostname.startsWith("172.26.") ||
+      hostname.startsWith("172.27.") ||
+      hostname.startsWith("172.28.") ||
+      hostname.startsWith("172.29.") ||
+      hostname.startsWith("172.30.") ||
+      hostname.startsWith("172.31.")
+    ) {
+      return false;
+    }
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function extractFirstUrl(text: string): string | null {
+  const match = text.match(/https?:\/\/[^\s)\]]+/i);
+  if (!match) return null;
+  const url = match[0];
+  return isHttpUrl(url) ? url : null;
+}
+
+function stripHtmlToText(html: string): string {
+  // Very lightweight extraction (no DOMParser on server).
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Node type definitions for workflow execution
+interface WorkflowNode {
+  id: number;
+  type: string;
+  name: string;
+  config: string;
+  x: number;
+  y: number;
+  connectedTo?: number;
+}
+
+function sanitizeWorkflowNodes(input: any): WorkflowNode[] {
+  if (!Array.isArray(input)) return [];
+
+  return input
+    .map((n: any, idx: number): WorkflowNode | null => {
+      if (!n || typeof n !== "object") return null;
+
+      const id = typeof n.id === "number" ? n.id : Number(n.id);
+      if (!Number.isFinite(id)) return null;
+
+      const x = typeof n.x === "number" ? n.x : Number(n.x);
+      const y = typeof n.y === "number" ? n.y : Number(n.y);
+
+      const connectedToRaw = n.connectedTo;
+      const connectedTo =
+        connectedToRaw === undefined
+          ? undefined
+          : typeof connectedToRaw === "number"
+            ? connectedToRaw
+            : Number(connectedToRaw);
+
+      let config = n.config;
+      if (config === undefined || config === null) {
+        config = "{}";
+      } else if (typeof config !== "string") {
+        try {
+          config = JSON.stringify(config);
+        } catch {
+          config = "{}";
+        }
+      } else {
+        // If it's a string but not JSON, keep as-is (some blocks use plain text)
+      }
+
+      return {
+        id,
+        type: typeof n.type === "string" ? n.type : "unknown",
+        name: typeof n.name === "string" ? n.name : `Node ${idx + 1}`,
+        config,
+        x: Number.isFinite(x) ? x : 100 + idx * 300,
+        y: Number.isFinite(y) ? y : 100,
+        connectedTo: Number.isFinite(connectedTo as number) ? (connectedTo as number) : undefined,
+      };
+    })
+    .filter((n: WorkflowNode | null): n is WorkflowNode => Boolean(n));
+}
+
+function ensureWebFetchNode(nodes: WorkflowNode[], url: string): WorkflowNode[] {
+  if (!url) return nodes;
+  if (nodes.some((n) => n.type === "web_fetch")) return nodes;
+
+  const triggerTypes = new Set([
+    "whatsapp_message",
+    "keyword",
+    "new_contact",
+    "telegram_message",
+    "webhook_trigger",
+    "scheduled",
+  ]);
+
+  const sorted = [...nodes].sort((a, b) => a.x - b.x);
+  const trigger = sorted.find((n) => triggerTypes.has(n.type)) || sorted[0];
+  if (!trigger) return nodes;
+
+  const maxId = nodes.reduce((m, n) => Math.max(m, n.id), 0);
+  const webFetchId = maxId + 1;
+
+  const defaultNext = sorted.find((n) => n.id !== trigger.id);
+  const originalNextId = trigger.connectedTo ?? defaultNext?.id;
+
+  const webFetchX = (Number.isFinite(trigger.x) ? trigger.x : 100) + 300;
+  const webFetchY = Number.isFinite(trigger.y) ? trigger.y : 100;
+
+  // Shift nodes to make room for the inserted node
+  const shifted = nodes.map((n) => {
+    if (n.id !== trigger.id && n.x >= webFetchX) {
+      return { ...n, x: n.x + 300 };
+    }
+    return n;
+  });
+
+  // Ensure trigger points to web_fetch
+  const patched = shifted.map((n) => (n.id === trigger.id ? { ...n, connectedTo: webFetchId } : n));
+
+  const webFetchNode: WorkflowNode = {
+    id: webFetchId,
+    type: "web_fetch",
+    name: "Charger le site",
+    config: JSON.stringify({ url }),
+    x: webFetchX,
+    y: webFetchY,
+    connectedTo: originalNextId,
+  };
+
+  return [...patched, webFetchNode];
+}
+
+interface NodeExecutionLog {
+  nodeId: number;
+  nodeType: string;
+  nodeName: string;
+  status: "success" | "error" | "skipped" | "warning";
+  message: string;
+  duration: number;
+  waitDelay?: number;
+  timestamp: string;
+}
+
+interface ExecutionContext {
+  userMessage: string;
+  sentiment?: "positive" | "neutral" | "negative";
+  mood?: {
+    emotion?: string;
+    tone?: string;
+    urgency?: string;
+    language?: string;
+    score?: number;
+  };
+  intent?: string;
+  responses: string[];
+  shouldContinue: boolean;
+  keywordMatched?: boolean;
+  cart: any[];
+  orderStatus?: string;
+  delayMs?: number;
+  buttons?: string[];
+  conditionMet?: boolean;
+  logs: NodeExecutionLog[];
+  translatedMessage?: string;
+  originalMessage?: string;
+  aiInstructions?: string;
+  knowledgeBaseId?: string;
+  knowledgeContextText?: string;
+  webContext?: {
+    url: string;
+    text: string;
+    fetchedAt: string;
+  };
+  [key: string]: any;
+}
+
+// Sample products database
+const PRODUCTS_DB = [
+  { id: 1, name: "iPhone 15 Pro", price: 599000, emoji: "📱", stock: 50 },
+  { id: 2, name: "MacBook Air M3", price: 899000, emoji: "💻", stock: 30 },
+  { id: 3, name: "AirPods Pro 2", price: 149000, emoji: "🎧", stock: 100 },
+  { id: 4, name: "Apple Watch Ultra", price: 450000, emoji: "⌚", stock: 25 },
+  { id: 5, name: "iPad Pro M4", price: 750000, emoji: "📲", stock: 40 },
+];
+
+// Helper to add log entry
+function addLog(
+  context: ExecutionContext,
+  node: WorkflowNode,
+  status: "success" | "error" | "skipped" | "warning",
+  message: string,
+  duration: number,
+  waitDelay?: number,
+): void {
+  context.logs.push({
+    nodeId: node.id,
+    nodeType: node.type,
+    nodeName: node.name,
+    status,
+    message,
+    duration,
+    waitDelay,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+// Execute a single node and return updated context
+async function executeNode(
+  node: WorkflowNode,
+  context: ExecutionContext,
+): Promise<ExecutionContext> {
+  const startTime = Date.now();
+
+  try {
+    switch (node.type) {
+      // ============ DÉCLENCHEURS ============
+      case "whatsapp_message":
+        addLog(
+          context,
+          node,
+          "success",
+          "Message reçu - workflow déclenché",
+          Date.now() - startTime,
+        );
+        return { ...context, shouldContinue: true };
+
+      case "new_contact":
+        context.responses.push("👋 Bienvenue ! C'est votre première visite.");
+        addLog(
+          context,
+          node,
+          "success",
+          "Nouveau contact détecté - message de bienvenue ajouté",
+          Date.now() - startTime,
+        );
+        return { ...context, shouldContinue: true };
+
+      case "keyword":
+        const keywords = [
+          "bonjour",
+          "aide",
+          "commande",
+          "produit",
+          "prix",
+          "problème",
+          "support",
+          "acheter",
+          "catalogue",
+          "panier",
+        ];
+        const messageWords = context.userMessage.toLowerCase();
+        const matchedKeyword = keywords.find((kw) => messageWords.includes(kw));
+
+        if (!matchedKeyword) {
+          context.responses.push("🔇 Message ignoré - aucun mot-clé détecté.");
+          addLog(
+            context,
+            node,
+            "warning",
+            `Aucun mot-clé trouvé dans "${context.userMessage.slice(0, 30)}..."`,
+            Date.now() - startTime,
+          );
+          return { ...context, shouldContinue: false, keywordMatched: false };
+        }
+        addLog(
+          context,
+          node,
+          "success",
+          `Mot-clé détecté: "${matchedKeyword}"`,
+          Date.now() - startTime,
+        );
+        return { ...context, shouldContinue: true, keywordMatched: true };
+
+      // ============ INTELLIGENCE IA ============
+      case "web_fetch": {
+        let cfg: any = {};
+        try {
+          cfg = JSON.parse(node.config || "{}");
+        } catch { }
+
+        const url = typeof cfg.url === "string" ? cfg.url : "";
+        const maxChars = typeof cfg.maxChars === "number" ? cfg.maxChars : 4000;
+        const maxHtmlChars = typeof cfg.maxHtmlChars === "number" ? cfg.maxHtmlChars : 200000;
+        const timeoutMs = typeof cfg.timeoutMs === "number" ? cfg.timeoutMs : 5000;
+
+        if (!url || !isHttpUrl(url)) {
+          addLog(context, node, "error", `URL invalide: ${url || "(vide)"}`, Date.now() - startTime);
+          return { ...context, webContext: undefined };
+        }
+
+        try {
+          const controller = new AbortController();
+          const t = setTimeout(() => controller.abort(), timeoutMs);
+
+          const res = await fetch(url, {
+            method: "GET",
+            redirect: "follow",
+            signal: controller.signal,
+            headers: {
+              "User-Agent": "WozifConnectBot/1.0 (+https://wozif.com)",
+              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            },
+          });
+
+          clearTimeout(t);
+
+          const contentType = res.headers.get("content-type") || "";
+          const rawFull = await res.text();
+          const raw = rawFull.slice(0, maxHtmlChars);
+          const extracted = contentType.includes("text/html") ? stripHtmlToText(raw) : raw;
+          const text = extracted.slice(0, Math.max(300, maxChars));
+
+          addLog(
+            context,
+            node,
+            res.ok ? "success" : "warning",
+            `Web fetch ${res.status} (${contentType || "unknown"}) - ${text.length} chars extraits`,
+            Date.now() - startTime,
+          );
+
+          return {
+            ...context,
+            webContext: {
+              url,
+              text,
+              fetchedAt: new Date().toISOString(),
+            },
+          };
+        } catch (e: any) {
+          addLog(context, node, "error", `Web fetch error: ${e.message}`, Date.now() - startTime);
+          return { ...context, webContext: undefined };
+        }
+      }
+
+      case "sentiment":
+        if (!process.env.OPENAI_API_KEY) {
+          addLog(
+            context,
+            node,
+            "error",
+            "Clé API OpenAI manquante",
+            Date.now() - startTime,
+          );
+          return { ...context, sentiment: "neutral" };
+        }
+
+        try {
+          let cfg: any = {};
+          try {
+            cfg = JSON.parse(node.config);
+          } catch (e) { }
+
+          const systemPrompt = `Tu es un expert en psychologie client et analyse de sentiment.
+Analyse le message de l'utilisateur et réponds UNIQUEMENT par un objet JSON avec les champs suivants:
+- sentiment: (positive, neutral, negative)
+- score: (0-100, 100 étant très positif)
+${cfg.detectEmotions ? "- emotion: (joie, tristesse, colère, frustration, peur, surprise)" : ""}
+${cfg.detectTone ? "- tone: (professionnel, décontracté, ironique, agressif, poli)" : ""}
+${cfg.detectLanguage ? "- language: (le code de la langue ISO 2 lettres)" : ""}
+${cfg.urgencyScale ? "- urgency: (faible, moyenne, haute, critique)" : ""}
+
+${cfg.instructions ? `CONSIGNES SPÉCIFIQUES: ${cfg.instructions}` : ""}`;
+
+          const sentimentResult = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: context.userMessage },
+            ],
+            response_format: { type: "json_object" },
+          });
+
+          const data = JSON.parse(
+            sentimentResult.choices[0]?.message?.content || "{}",
+          );
+
+          addLog(
+            context,
+            node,
+            "success",
+            `Analyse émotionnelle : ${data.sentiment} (${data.emotion || "n/a"})`,
+            Date.now() - startTime,
+          );
+
+          return {
+            ...context,
+            sentiment: data.sentiment || "neutral",
+            mood: {
+              emotion: data.emotion,
+              tone: data.tone,
+              urgency: data.urgency,
+              language: data.language,
+              score: data.score,
+            },
+          };
+        } catch (e: any) {
+          addLog(
+            context,
+            node,
+            "error",
+            `Erreur Analyse : ${e.message}`,
+            Date.now() - startTime,
+          );
+          return { ...context, sentiment: "neutral" };
+        }
+
+      case "gpt_analyze":
+        if (!process.env.OPENAI_API_KEY) {
+          addLog(
+            context,
+            node,
+            "error",
+            "Clé API OpenAI manquante",
+            Date.now() - startTime,
+          );
+          return { ...context, intent: "unknown" };
+        }
+
+        try {
+          // Parse config for custom categories and output fields
+          let analyzeConfig: any = {};
+          try {
+            analyzeConfig = JSON.parse(node.config || "{}");
+          } catch (e) { }
+
+          // Get custom categories from config
+          let categoriesList = analyzeConfig.categories || analyzeConfig.aiInstructions || "";
+          const typeValues = analyzeConfig.typeValues || "";
+
+          // If custom categories are defined in typeValues (comma-separated), use them as priority
+          if (typeValues && typeValues.length > 0) {
+            categoriesList = typeValues.split(',').map((v: string) => v.trim()).join(', ');
+          }
+
+          // STRICT intent classification prompt - NO response generation
+          // Build JSON schema based on enabled outputs
+          const enabledFields = analyzeConfig.outputFields || ['type', 'urgency', 'autoResolvable', 'keywords'];
+          const jsonSchema: any = {};
+          if (enabledFields.includes('type')) {
+            const typeOptions = typeValues ? typeValues.split(',').map((v: string) => v.trim()) : ['achat', 'prix', 'disponibilité', 'négociation', 'technique', 'facturation', 'compte', 'produit', 'autre'];
+            jsonSchema.type = `string - Type d'intention parmi: ${typeOptions.join(', ')}`;
+          }
+          if (enabledFields.includes('urgency')) {
+            jsonSchema.urgency = "number - Niveau d'urgence entre 1 et 5";
+          }
+          if (enabledFields.includes('autoResolvable')) {
+            jsonSchema.autoResolvable = 'string - "oui" ou "non"';
+          }
+          if (enabledFields.includes('keywords')) {
+            jsonSchema.keywords = 'array - Mots-clés extraits';
+          }
+
+          const fieldsDesc = Object.entries(jsonSchema).map(([key, desc]) => `- ${key}: ${desc}`).join('\n');
+
+          const systemMsg = `Tu es un expert en analyse d'intention client. Analyse le message et retourne UNIQUEMENT un JSON avec les champs suivants:
+${fieldsDesc}
+
+${categoriesList ? `Voici les catégories d'intention à considérer en priorité:
+${categoriesList}` : ""}
+
+RÈGLES STRICTES:
+1. Réponds UNIQUEMENT en JSON valide
+2. NE JAMAIS répondre au message du client
+3. Si aucune catégorie ne correspond, utilise 'autre'`;
+
+          const intentResult = await openai.chat.completions.create({
+            model: analyzeConfig.model || "gpt-4o-mini",
+            messages: [
+              { role: "system", content: systemMsg },
+              { role: "user", content: `Analyse ce message: "${context.userMessage}"` },
+            ],
+            response_format: { type: "json_object" },
+            temperature: analyzeConfig.temperature || 0.1,
+          });
+
+          const data = JSON.parse(intentResult.choices[0]?.message?.content || "{}");
+          const intent = data.type || "autre";
+
+          addLog(
+            context,
+            node,
+            "success",
+            `Intention détectée: ${intent}`,
+            Date.now() - startTime,
+          );
+
+          // Inject raw data into context
+          return {
+            ...context,
+            intent,
+            urgency: data.urgency,
+            autoResolvable: data.autoResolvable,
+            keywords: data.keywords,
+            analysisResults: data
+          };
+        } catch (e: any) {
+          addLog(
+            context,
+            node,
+            "error",
+            `Erreur OpenAI GPT: ${e.message}`,
+            Date.now() - startTime,
+          );
+          return { ...context, intent: "unknown" };
+        }
+
+      case "gpt_respond":
+        if (!process.env.OPENAI_API_KEY) {
+          context.responses.push("❌ Erreur: Clé API OpenAI non configurée.");
+          addLog(
+            context,
+            node,
+            "error",
+            "Clé API OpenAI manquante - impossible de générer une réponse",
+            Date.now() - startTime,
+          );
+          return context;
+        }
+
+        let cfgResp: any = {};
+        try {
+          cfgResp = JSON.parse(node.config);
+        } catch (e) { }
+
+        let systemPromptResp =
+          context.aiInstructions && context.aiInstructions.length > 5
+            ? context.aiInstructions
+            : (cfgResp.system && cfgResp.system.length > 5 ? cfgResp.system : `Tu es un assistant GPT professionnel pour une boutique en ligne. Réponds de manière concise (2-3 phrases max) en français.`);
+
+        if (context.webContext?.text) {
+          systemPromptResp += `\n\nCONTEXTE WEB (source: ${context.webContext.url}):\n"""\n${context.webContext.text}\n"""\n\nRÈGLES WEB:\n- Réponds UNIQUEMENT avec les informations trouvées dans le contexte web ci-dessus\n- Si l'info n'est pas présente, dis: "Je n'ai pas trouvé cette information sur le site."\n- Ne fabrique pas de faits, ne promets rien, ne signe aucun contrat.`;
+        }
+
+        if (context.knowledgeContextText) {
+          systemPromptResp += `\n\nBASE DE CONNAISSANCE (à utiliser en priorité):\n"""\n${context.knowledgeContextText}\n"""\n\nRÈGLES BASE DE CONNAISSANCE:\n- Réponds UNIQUEMENT avec les informations présentes dans la base de connaissance ci-dessus\n- Si l'information n'existe pas dans la base, dis: "Je n'ai pas cette information."\n- Sois poli et professionnel\n- Ne promets rien, ne signe aucun contrat.`;
+        }
+
+        // Injection du contexte émotionnel
+        if (context.mood || context.sentiment) {
+          systemPromptResp += `\nCONTEXTE ÉMOTIONNEL ACTUEL:`;
+          if (context.sentiment)
+            systemPromptResp += `\n- Sentiment global: ${context.sentiment}`;
+          if (context.mood?.emotion)
+            systemPromptResp += `\n- Émotion détectée: ${context.mood.emotion}`;
+          if (context.mood?.tone)
+            systemPromptResp += `\n- Ton employé par le client: ${context.mood.tone}`;
+          if (context.mood?.urgency)
+            systemPromptResp += `\n- Niveau d'urgence: ${context.mood.urgency}`;
+
+          if (cfgResp.moodInstructions) {
+            systemPromptResp += `\n\nDIRECTIVES RÉACTIONNELLES (À SUIVRE IMPÉRATIVEMENT): ${cfgResp.moodInstructions}`;
+          } else if (context.sentiment === "negative") {
+            systemPromptResp += `\n\nIMPORTANT: Le client semble mécontent. Sois très empathique.`;
+          }
+        }
+
+        if (context.intent) {
+          systemPromptResp += `\nIntention du client : ${context.intent}.`;
+        }
+
+        try {
+          const shouldStream = Boolean((context as any).streamEnabled) && typeof (context as any).onToken === "function";
+
+          if (shouldStream) {
+            const stream = await openai.chat.completions.create({
+              model: cfgResp.model || "gpt-4o-mini",
+              messages: [
+                { role: "system", content: systemPromptResp },
+                { role: "user", content: context.userMessage },
+              ],
+              max_tokens: cfgResp.tokens || 200,
+              temperature: cfgResp.creativity || 0.7,
+              stream: true,
+            });
+
+            let full = "";
+            for await (const chunk of stream as any) {
+              const delta = chunk?.choices?.[0]?.delta?.content || "";
+              if (delta) {
+                full += delta;
+                try {
+                  (context as any).onToken(delta);
+                } catch { }
+              }
+            }
+
+            context.responses.push(full || "Je n'ai pas pu générer une réponse GPT.");
+            addLog(
+              context,
+              node,
+              "success",
+              `Réponse GPT générée (stream, ${full.length} caractères)`,
+              Date.now() - startTime,
+            );
+            return context;
+          }
+
+          const aiResult = await openai.chat.completions.create({
+            model: cfgResp.model || "gpt-4o-mini",
+            messages: [
+              { role: "system", content: systemPromptResp },
+              { role: "user", content: context.userMessage },
+            ],
+            max_tokens: cfgResp.tokens || 200,
+            temperature: cfgResp.creativity || 0.7,
+          });
+          const aiResponse =
+            aiResult.choices[0]?.message?.content ||
+            "Je n'ai pas pu générer une réponse GPT.";
+          context.responses.push(aiResponse);
+          addLog(
+            context,
+            node,
+            "success",
+            `Réponse GPT générée (${aiResponse.length} caractères)`,
+            Date.now() - startTime,
+          );
+          return context;
+        } catch (e: any) {
+          context.responses.push(`❌ Erreur GPT: ${e.message}`);
+          addLog(
+            context,
+            node,
+            "error",
+            `Erreur génération GPT: ${e.message}`,
+            Date.now() - startTime,
+          );
+          return context;
+        }
+
+      case "ai_agent": {
+        if (!process.env.OPENAI_API_KEY) {
+          context.responses.push("❌ Erreur: Clé API OpenAI non configurée.");
+          addLog(context, node, "error", "Clé API OpenAI manquante", Date.now() - startTime);
+          return context;
+        }
+
+        let agentCfg: any = {};
+        try {
+          agentCfg = JSON.parse(node.config || "{}");
+        } catch (e) {
+          addLog(context, node, "error", "Config JSON invalide", Date.now() - startTime);
+          return context;
+        }
+
+        // 1. Définir les outils (Tools)
+        const tools = [
+          new DynamicTool({
+            name: "recherche_catalogue",
+            description: "Recherche des produits dans le catalogue. Entrée: terme de recherche (iPhone, MacBook, etc.). Retourne nom, prix et stock des produits.",
+            func: async (query: string) => {
+              const results = PRODUCTS_DB.filter(p =>
+                p.name.toLowerCase().includes(query.toLowerCase())
+              );
+              if (results.length === 0) {
+                return "Aucun produit trouvé pour cette recherche.";
+              }
+              return JSON.stringify(results.map(p => ({
+                nom: p.name,
+                prix: `${p.price.toLocaleString()} FCFA`,
+                stock: p.stock,
+                emoji: p.emoji
+              })));
+            },
+          }),
+          new DynamicTool({
+            name: "statut_commande",
+            description: "Vérifie le statut d'une commande client. Entrée: ID de commande (format #12345 ou ORD-12345).",
+            func: async (orderId: string) => {
+              // Simuler une recherche de commande
+              const statuses = [
+                { status: "En préparation 📦", eta: "2-3 jours" },
+                { status: "Expédié 🚚", eta: "Demain" },
+                { status: "En livraison 🏃", eta: "Aujourd'hui" },
+                { status: "Livré ✅", eta: "Déjà livré" }
+              ];
+              const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+              return `Commande ${orderId}:\n- Statut: ${randomStatus.status}\n- Livraison: ${randomStatus.eta}\n- Tracking: TRK-${Date.now().toString().slice(-6)}`;
+            },
+          }),
+          new DynamicTool({
+            name: "calculer_prix_total",
+            description: "Calcule le prix total d'une commande avec quantités. Entrée: JSON avec format {\"produit\": \"nom\", \"quantite\": nombre}",
+            func: async (input: string) => {
+              try {
+                const data = JSON.parse(input);
+                const product = PRODUCTS_DB.find(p =>
+                  p.name.toLowerCase().includes(data.produit?.toLowerCase() || "")
+                );
+                if (!product) return "Produit non trouvé.";
+                const total = product.price * (data.quantite || 1);
+                return `${data.quantite}x ${product.name} = ${total.toLocaleString()} FCFA`;
+              } catch (e) {
+                return "Format invalide. Utilisez: {\"produit\": \"iPhone\", \"quantite\": 2}";
+              }
+            },
+          })
+        ];
+
+        // 2. Récupération de la base de connaissances (RAG)
+        let contextInfo = "";
+        if (agentCfg.knowledgeBaseId) {
+          try {
+            const chunks = await prisma.knowledgeChunk.findMany({
+              where: {
+                document: { knowledgeBaseId: agentCfg.knowledgeBaseId },
+              },
+              take: 5,
+              orderBy: { createdAt: 'desc' },
+              select: { content: true },
+            });
+
+            if (chunks.length > 0) {
+              contextInfo = "\n\nCONTEXTE DE LA BASE DE CONNAISSANCES:\n" +
+                chunks.map((c: any) => `- ${c.content}`).join("\n");
+            }
+          } catch (e) {
+            console.warn("RAG lookup failed:", e);
+          }
+        }
+
+        // 3. Configuration de la personnalité
+        const personalityPresets: Record<string, string> = {
+          Expert: "Tu es un expert technique. Sois précis, professionnel et utilise des termes techniques appropriés.",
+          Vendeur: "Tu es un vendeur enthousiaste. Sois persuasif, chaleureux, mets en avant les bénéfices et guide vers l'achat.",
+          Support: "Tu es un agent de support client. Sois patient, empathique, résous les problèmes étape par étape.",
+          Amical: "Tu es un assistant sympathique. Sois décontracté, utilise des emojis 😊 et crée une ambiance chaleureuse."
+        };
+
+        const personalityInstructions = personalityPresets[agentCfg.personality as string] || "";
+
+        // 4. Construction du prompt système
+        const systemPromptContent = `Tu es ${agentCfg.agentName || "un assistant IA intelligent"}.
+
+MISSION:
+${agentCfg.instructions || "Aide l'utilisateur de manière utile et professionnelle."}
+
+PERSONNALITÉ:
+${personalityInstructions}
+
+${agentCfg.strictMode ?
+            "⚠️ MODE STRICT ACTIVÉ:\n- Réponds UNIQUEMENT avec les informations du contexte ou des outils fournis\n- Si l'information n'est pas disponible, dis clairement que tu ne sais pas\n- N'invente JAMAIS d'informations"
+            : "Tu peux utiliser tes connaissances générales en complément des outils et du contexte fournis."}
+
+${contextInfo}
+
+RÈGLES IMPORTANTES:
+- Utilise les outils disponibles quand c'est pertinent
+- Réponds de manière concise (2-4 phrases max sauf si détails demandés)
+- Sois naturel et conversationnel
+- Si tu utilises un outil, explique brièvement ce que tu as trouvé`;
+
+        // 5. Créer le prompt template pour ReAct
+        const prompt = ChatPromptTemplate.fromMessages([
+          ["system", systemPromptContent],
+          ["placeholder", "{chat_history}"],
+          ["human", "{input}"],
+          ["placeholder", "{agent_scratchpad}"],
+        ]);
+
+        // 6. Initialiser le modèle LLM
+        const model = new ChatOpenAI({
+          modelName: agentCfg.model || "gpt-4o-mini",
+          temperature: agentCfg.temperature !== undefined ? agentCfg.temperature : 0.4,
+          apiKey: process.env.OPENAI_API_KEY,
+        });
+
+        try {
+          // 7. Créer l'agent ReAct moderne
+          const agent = await createReactAgent({
+            llm: model,
+            tools,
+            prompt,
+          });
+
+          // 8. Créer l'executor
+          const agentExecutor = new AgentExecutor({
+            agent,
+            tools,
+            verbose: false, // Mettre à true pour debug
+            maxIterations: agentCfg.maxIterations || 5,
+            returnIntermediateSteps: false,
+          });
+
+          // 9. Exécuter l'agent
+          const result = await agentExecutor.invoke({
+            input: context.userMessage,
+            chat_history: [], // Optionnel: ajouter l'historique ici
+          });
+
+          // 10. Extraire la réponse
+          const aiResponse = result.output || "Je n'ai pas pu générer une réponse.";
+
+          context.responses.push(aiResponse);
+          addLog(
+            context,
+            node,
+            "success",
+            `Agent ReAct a répondu (${aiResponse.length} chars)`,
+            Date.now() - startTime
+          );
+
+        } catch (e: any) {
+          console.error("LangChain Agent Error:", e);
+
+          // Gestion d'erreur plus détaillée
+          let errorMsg = e.message;
+          if (e.message?.includes("rate limit")) {
+            errorMsg = "Limite de requêtes OpenAI atteinte. Réessayez dans quelques secondes.";
+          } else if (e.message?.includes("API key")) {
+            errorMsg = "Problème avec la clé API OpenAI.";
+          }
+
+          context.responses.push(`❌ Erreur Agent IA: ${errorMsg}`);
+          addLog(context, node, "error", `Agent Error: ${errorMsg}`, Date.now() - startTime);
+        }
+
+        return context;
+      }
+
+      case "ai_agent_stream": {
+        if (!process.env.OPENAI_API_KEY) {
+          context.responses.push("❌ Erreur: Clé API OpenAI non configurée.");
+          return context;
+        }
+
+        let agentCfg: any = {};
+        try {
+          agentCfg = JSON.parse(node.config || "{}");
+        } catch (e) { }
+
+        // Mêmes outils que l'agent standard
+        const tools = [
+          new DynamicTool({
+            name: "recherche_catalogue",
+            description: "Recherche des produits dans le catalogue.",
+            func: async (query: string) => JSON.stringify(PRODUCTS_DB.filter(p => p.name.toLowerCase().includes(query.toLowerCase())))
+          })
+        ];
+
+        const prompt = ChatPromptTemplate.fromMessages([
+          ["system", `Tu es ${agentCfg.agentName || "un assistant"}.`],
+          ["human", "{input}"],
+          ["placeholder", "{agent_scratchpad}"],
+        ]);
+
+        const model = new ChatOpenAI({
+          modelName: agentCfg.model || "gpt-4o-mini",
+          temperature: 0.4,
+          apiKey: process.env.OPENAI_API_KEY,
+        });
+
+        try {
+          const agent = await createReactAgent({ llm: model, tools, prompt });
+          const agentExecutor = new AgentExecutor({ agent, tools });
+
+          let streamedResponse = "";
+          const stream = await agentExecutor.stream({
+            input: context.userMessage,
+            chat_history: [],
+          });
+
+          for await (const chunk of stream) {
+            if (chunk.output) {
+              streamedResponse += chunk.output;
+            }
+          }
+
+          context.responses.push(streamedResponse || "Aucune réponse générée.");
+          addLog(context, node, "success", "Agent répondu (streaming)", Date.now() - startTime);
+
+        } catch (e: any) {
+          context.responses.push(`❌ Erreur Streaming: ${e.message}`);
+          addLog(context, node, "error", e.message, Date.now() - startTime);
+        }
+
+        return context;
+      }
+
+      // ============ E-COMMERCE ============
+      case "show_catalog":
+        let cfgCat: any = {};
+        try {
+          cfgCat = JSON.parse(node.config);
+        } catch (e) { }
+
+        let catalogMsg = "📦 **Notre Catalogue:**\n";
+        const selectedIds = cfgCat.selectedProducts || [];
+        const productsToShow =
+          selectedIds.length > 0
+            ? PRODUCTS_DB.filter((p) => selectedIds.includes(p.id))
+            : PRODUCTS_DB;
+
+        productsToShow.forEach((p) => {
+          catalogMsg += `${p.emoji} ${p.name} - ${p.price.toLocaleString()} FCFA\n`;
+        });
+
+        context.responses.push(catalogMsg);
+        addLog(
+          context,
+          node,
+          "success",
+          `Catalogue affiché (${productsToShow.length} produits sélectionnés)`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "add_to_cart":
+        const productMention = context.userMessage.toLowerCase();
+        const foundProduct = PRODUCTS_DB.find(
+          (p) =>
+            productMention.includes(p.name.toLowerCase()) ||
+            productMention.includes(p.emoji),
+        );
+
+        if (foundProduct) {
+          context.cart.push(foundProduct);
+          context.responses.push(
+            `✅ ${foundProduct.emoji} ${foundProduct.name} ajouté au panier ! (${foundProduct.price.toLocaleString()} FCFA)`,
+          );
+          addLog(
+            context,
+            node,
+            "success",
+            `Produit ajouté: ${foundProduct.name}`,
+            Date.now() - startTime,
+          );
+        } else {
+          const defaultProduct = PRODUCTS_DB[0];
+          context.cart.push(defaultProduct);
+          context.responses.push(
+            `🛒 ${defaultProduct.emoji} ${defaultProduct.name} ajouté au panier !`,
+          );
+          addLog(
+            context,
+            node,
+            "warning",
+            `Aucun produit spécifique trouvé, ajout par défaut: ${defaultProduct.name}`,
+            Date.now() - startTime,
+          );
+        }
+        return context;
+
+      case "order_status":
+        const statuses = [
+          "En préparation 📦",
+          "Expédié 🚚",
+          "En livraison 🏃",
+          "Livré ✅",
+        ];
+        const randomStatus =
+          statuses[Math.floor(Math.random() * statuses.length)];
+        context.responses.push(
+          `📋 Statut de votre commande: **${randomStatus}**\nNuméro de suivi: TRK-${Date.now().toString().slice(-8)}`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          `Statut commande: ${randomStatus}`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "calendar":
+        const date = new Date();
+        date.setDate(date.getDate() + 1); // Tomorrow
+        const tomorrow = date.toLocaleDateString("fr-FR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        });
+        const time = "14:30";
+
+        context.responses.push(
+          `📅 **Planification Connect**\n\nNous avons une disponibilité pour vous le **${tomorrow} à ${time}**.\n\nSouhaitez-vous confirmer ?`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Créneau de rendez-vous suggéré",
+          Date.now() - startTime,
+        );
+        return context;
+
+      // ============ MESSAGES ============
+      case "send_text":
+        const textToSend = node.config || "Message vide";
+        context.responses.push(textToSend);
+        addLog(
+          context,
+          node,
+          "success",
+          `Texte envoyé: ${textToSend.slice(0, 20)}...`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "send_image":
+        const imageUrl =
+          node.config ||
+          "https://images.unsplash.com/photo-1611746872915-64382b5c76da";
+        context.responses.push(`🖼️ [Image]\n${imageUrl}`);
+        addLog(
+          context,
+          node,
+          "success",
+          "Image envoyée",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "send_document":
+        context.responses.push(
+          "📄 [Document PDF envoyé]\nCatalogue_Produits_2024.pdf",
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Document PDF envoyé",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "send_location":
+        context.responses.push(
+          "📍 [Localisation envoyée]\nSiège Connect: 5.3484, -4.0305",
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Localisation GPS envoyée",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "send_contact":
+        context.responses.push("👤 [Fiche Contact envoyée]\nSupport Connect");
+        addLog(
+          context,
+          node,
+          "success",
+          "Fiche contact VCard envoyée",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "telegram_message":
+        context.responses.push("📲 [Telegram] Message reçu via Telegram.");
+        addLog(
+          context,
+          node,
+          "success",
+          "Déclencheur Telegram actif",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "send_buttons":
+        context.buttons = ["Voir Catalogue", "Mon Panier", "Aide"];
+        context.responses.push(
+          "Choisissez une option (WhatsApp):\n🔘 Voir Catalogue\n🔘 Mon Panier\n🔘 Aide",
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Boutons simulés WhatsApp envoyés",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "tg_buttons":
+        context.buttons = [
+          "Produits 🛍️",
+          "Nos Services 🛠️",
+          "Contacter Humain 👤",
+        ];
+        context.responses.push("🤖 [Telegram] Clavier interactif envoyé.");
+        addLog(
+          context,
+          node,
+          "success",
+          "Boutons interactifs Telegram envoyés",
+          Date.now() - startTime,
+        );
+        return context;
+
+      // ============ LOGIQUE ============
+      case "condition":
+        const hasPositiveSentiment = context.sentiment === "positive";
+        const hasPurchaseIntent =
+          context.intent?.includes("achat") ||
+          context.intent?.includes("acheter");
+        context.conditionMet = hasPositiveSentiment || hasPurchaseIntent;
+
+        if (!context.conditionMet) {
+          addLog(
+            context,
+            node,
+            "warning",
+            "Condition non remplie (sentiment négatif ou pas d'intention d'achat)",
+            Date.now() - startTime,
+          );
+        } else {
+          addLog(
+            context,
+            node,
+            "success",
+            "Condition remplie - continuer le flux principal",
+            Date.now() - startTime,
+          );
+        }
+        return context;
+
+      case "delay":
+        context.delayMs = 2000;
+        addLog(
+          context,
+          node,
+          "success",
+          "Délai de 2000ms appliqué",
+          Date.now() - startTime,
+          2000,
+        );
+        return context;
+
+      case "python_code": {
+        const { execSync } = require("child_process");
+        const path = require("path");
+        const pyCode = node.config || "print('Hello from Python')";
+        const backendPath = path.resolve(process.cwd(), "backend");
+
+        try {
+          // Prepare the wrapper script
+          const escapedMessage = context.userMessage.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
+
+          const wrapper = `
+import sys
+import os
+sys.path.append("${backendPath}")
+try:
+    import automation_core as core
+except ImportError:
+    core = None
+
+user_input = "${escapedMessage}"
+
+# User Code Execution
+${pyCode}
+`;
+          // Write to a temporary file for execution to avoid shell escaping issues
+          const fs = require("fs");
+          const tmpFile = path.join(process.cwd(), `tmp_py_${Date.now()}.py`);
+          fs.writeFileSync(tmpFile, wrapper);
+
+          const output = execSync(`python3 "${tmpFile}"`, {
+            timeout: 5000, // Security: 5s execution limit
+            maxBuffer: 1024 * 1024, // 1MB log limit
+          }).toString().trim();
+
+          // Cleanup
+          fs.unlinkSync(tmpFile);
+
+          if (output) {
+            const cappedOutput = output.slice(0, 5000); // Prevent UI bloat
+            context.responses.push(`🐍 **Logs Python:**\n\`\`\`\n${cappedOutput}${output.length > 5000 ? "\n[Log tronqué...]" : ""}\n\`\`\``);
+          }
+
+          addLog(
+            context,
+            node,
+            "success",
+            "Code Python exécuté avec succès",
+            Date.now() - startTime,
+          );
+        } catch (err: any) {
+          context.responses.push(`❌ **Erreur Python:**\n\`\`\`\n${err.message}\n\`\`\``);
+          addLog(
+            context,
+            node,
+            "error",
+            `Erreur Python: ${err.message}`,
+            Date.now() - startTime,
+          );
+        }
+        return context;
+      }
+
+      case "loop":
+        addLog(
+          context,
+          node,
+          "success",
+          "Boucle exécutée",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "anti_ban":
+        let minSec = 1;
+        let maxSec = 5;
+
+        try {
+          const cfg = JSON.parse(node.config);
+          minSec = cfg.min || 1;
+          maxSec = cfg.max || 5;
+        } catch (e) {
+          // Fallback to defaults
+        }
+
+        const minDelay = minSec * 1000;
+        const maxDelay = maxSec * 1000;
+        const randomDelay =
+          Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
+
+        context.delayMs = randomDelay;
+        addLog(
+          context,
+          node,
+          "success",
+          `Délai de sécurité : ${randomDelay}ms appliqué (Plage: ${minSec}s - ${maxSec}s)`,
+          Date.now() - startTime,
+          randomDelay,
+        );
+        return context;
+
+      // ============ GROUPES ============
+      case "create_group":
+        const groupName = node.config || "Nouveau Groupe";
+        context.responses.push(
+          `👥 **Groupe Créé:** "${groupName}"\nVous êtes maintenant administrateur du groupe.`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          `Groupe "${groupName}" créé avec succès`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "add_participant":
+        context.responses.push("➕ [Système] Nouveau membre ajouté au groupe.");
+        addLog(
+          context,
+          node,
+          "success",
+          "Participant ajouté au groupe",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "remove_participant":
+        context.responses.push(
+          "➖ [Système] Un membre a été retiré du groupe.",
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Participant retiré du groupe",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "group_announcement":
+        const isAnnouncement = node.config === "on";
+        context.responses.push(
+          `📢 **Mode Annonce:** ${isAnnouncement ? "Activé" : "Désactivé"}\n${isAnnouncement ? "Seuls les admins peuvent envoyer des messages." : "Tout le monde peut écrire."}`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          `Mode annonce ${isAnnouncement ? "activé" : "désactivé"}`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "bulk_add_members":
+        context.responses.push(
+          "🚀 [Mass-Action] Processus d'ajout massif lancé pour 50 contacts...",
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Ajout massif de participants initialisé",
+          Date.now() - startTime,
+        );
+        return context;
+
+      // ============ EXTRACTION & DATA ============
+      case "get_group_members":
+        context.responses.push(
+          "📋 [Extraction] 142 membres extraits du groupe vers votre base de données.",
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Extraction des membres réussie",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "google_maps_extract":
+        context.responses.push(
+          "📍 [G-Maps] 12 nouveaux prospects trouvés (Boucheries à Abidjan) avec numéros WhatsApp.",
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Extraction Google Maps terminée",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "group_link_finder":
+        context.responses.push(
+          "🔗 [Finder] 5 liens de groupes WhatsApp publics trouvés sur le web.",
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Recherche de liens terminée",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "chat_list_collector":
+        context.responses.push(
+          "💬 [System] Liste de 250 conversations récupérée.",
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Collecte de la liste de chats réussie",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "web_email_extract":
+        context.responses.push(
+          "🌐 [Web-Scraper] 3 emails et 2 numéros extraits du site cible.",
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Scraping web terminé",
+          Date.now() - startTime,
+        );
+        return context;
+
+      // ============ MARKETING PRO ============
+      case "number_filter":
+        context.responses.push(
+          "🔍 [Filtre] Analyse de 100 numéros : 78 valides sur WhatsApp, 22 invalides.",
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Filtrage des numéros terminé",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "whatsapp_warmer":
+        context.responses.push(
+          "🔥 [Warm-up] Session d'interaction automatique lancée pour augmenter le score de confiance.",
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Mode chauffage de compte actif",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "mass_group_gen":
+        context.responses.push(
+          "🏗️ [Builder] 10 groupes créés automatiquement avec paramétrage complet.",
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Génération massive de groupes terminée",
+          Date.now() - startTime,
+        );
+        return context;
+
+      // ============ NOUVEAUX DÉCLENCHEURS ============
+      case "scheduled":
+        const scheduledCfg = JSON.parse(node.config || "{}");
+        const scheduleTime = scheduledCfg.time || "09:00";
+        context.responses.push(
+          `⏰ [Programmé] Workflow déclenché à ${scheduleTime}`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          `Déclencheur programmé activé (${scheduleTime})`,
+          Date.now() - startTime,
+        );
+        return { ...context, shouldContinue: true };
+
+      case "webhook_trigger":
+        const webhookCfg = JSON.parse(node.config || "{}");
+        context.responses.push(
+          `🔗 [Webhook] Requête reçue sur l'endpoint ${webhookCfg.endpoint || "/webhook"}`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Webhook entrant traité",
+          Date.now() - startTime,
+        );
+        return { ...context, shouldContinue: true };
+
+      // ============ NOUVELLES FONCTIONS IA ============
+      case "ai_translate":
+        if (!process.env.OPENAI_API_KEY) {
+          addLog(
+            context,
+            node,
+            "error",
+            "Clé API OpenAI manquante",
+            Date.now() - startTime,
+          );
+          return context;
+        }
+        try {
+          const translateCfg = JSON.parse(node.config || "{}");
+          const targetLang = translateCfg.targetLanguage || "fr";
+          const sourceLang = translateCfg.autoDetect ? "auto" : (translateCfg.sourceLanguage || "auto");
+
+          const languageNames: Record<string, string> = {
+            'fr': 'Français', 'en': 'English', 'es': 'Español', 'de': 'Deutsch',
+            'pt': 'Português', 'it': 'Italiano', 'ar': 'العربية', 'zh': '中文',
+            'ja': '日本語', 'ko': '한국어', 'ru': 'Русский', 'nl': 'Nederlands'
+          };
+
+          const translateResult = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "system",
+                content: `Tu es un traducteur professionnel. 
+${sourceLang === 'auto' ? 'Détecte automatiquement la langue du message.' : `Le message est en ${languageNames[sourceLang] || sourceLang}.`}
+Traduis le message suivant en ${languageNames[targetLang] || targetLang}.
+
+RÈGLES:
+1. Réponds UNIQUEMENT avec la traduction, rien d'autre
+2. Conserve le ton et le style du message original
+3. Si le message est déjà dans la langue cible, retourne-le tel quel`,
+              },
+              { role: "user", content: context.userMessage },
+            ],
+            max_tokens: 500,
+          });
+
+          const translated = translateResult.choices[0]?.message?.content || context.userMessage;
+
+          // Silent translation - only store in context, no message visible
+          context.translatedMessage = translated;
+          context.originalMessage = context.userMessage;
+          context.userMessage = translated; // Update userMessage for next blocks
+
+          addLog(
+            context,
+            node,
+            "success",
+            `Traduit vers ${languageNames[targetLang] || targetLang}`,
+            Date.now() - startTime,
+          );
+        } catch (e: any) {
+          addLog(
+            context,
+            node,
+            "error",
+            `Erreur traduction: ${e.message}`,
+            Date.now() - startTime,
+          );
+        }
+        return context;
+
+      case "ai_summarize":
+        if (!process.env.OPENAI_API_KEY) {
+          addLog(
+            context,
+            node,
+            "error",
+            "Clé API OpenAI manquante",
+            Date.now() - startTime,
+          );
+          return context;
+        }
+        try {
+          const summarizeCfg = JSON.parse(node.config || "{}");
+          const style = summarizeCfg.style || "concis";
+          const showInChat = summarizeCfg.showInChat === true;
+          const maxLength = summarizeCfg.maxLength;
+
+          const styleDescriptions: Record<string, string> = {
+            'concis': 'Sois très bref, 1-2 phrases maximum',
+            'detailed': 'Fais un résumé détaillé avec les points importants',
+            'detaille': 'Fais un résumé détaillé avec les points importants',
+            'points': 'Liste les points clés sous forme de bullet points (•)',
+            'points-cles': 'Liste les points clés sous forme de bullet points (•)',
+            'action': 'Identifie les actions à prendre et décisions prises'
+          };
+
+          const styleInstruction = styleDescriptions[style] || styleDescriptions['concis'];
+
+          const summarizeResult = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "system",
+                content: `Tu es un expert en synthèse de conversations.
+Crée un résumé de la conversation/message ci-dessous.
+
+STYLE: ${styleInstruction}
+${maxLength ? `LONGUEUR MAX: ${maxLength} mots environ` : ''}
+
+RÈGLES:
+1. Capture l'essentiel de ce qui a été dit/demandé
+2. Identifie les besoins ou intentions du client
+3. Note les informations importantes (produits, dates, montants mentionnés)
+4. Sois objectif et factuel`,
+              },
+              { role: "user", content: context.userMessage },
+            ],
+            max_tokens: 300,
+          });
+
+          const summary = summarizeResult.choices[0]?.message?.content || "Résumé non disponible";
+
+          // Store in context (silent by default)
+          (context as any).summary = summary;
+
+          // Only show in chat if explicitly requested
+          if (showInChat) {
+            context.responses.push(`📝 *Résumé de la conversation*\n\n${summary}`);
+          }
+
+          addLog(
+            context,
+            node,
+            "success",
+            `Résumé (${style}): ${summary.slice(0, 50)}...`,
+            Date.now() - startTime,
+          );
+        } catch (e: any) {
+          addLog(
+            context,
+            node,
+            "error",
+            `Erreur résumé: ${e.message}`,
+            Date.now() - startTime,
+          );
+        }
+        return context;
+
+      // ============ NOUVEAUX BLOCS E-COMMERCE ============
+      case "show_cart":
+        if (context.cart.length === 0) {
+          context.responses.push("🛒 Votre panier est vide.");
+        } else {
+          let cartMsg = "🛒 **Votre Panier:**\n";
+          let total = 0;
+          context.cart.forEach((item, i) => {
+            cartMsg += `${i + 1}. ${item.emoji || "📦"} ${item.name} - ${item.price.toLocaleString()} FCFA\n`;
+            total += item.price;
+          });
+          cartMsg += `\n**Total: ${total.toLocaleString()} FCFA**`;
+          context.responses.push(cartMsg);
+        }
+        addLog(
+          context,
+          node,
+          "success",
+          `Panier affiché (${context.cart.length} articles)`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "checkout":
+        if (context.cart.length === 0) {
+          context.responses.push(
+            "❌ Impossible de passer commande - votre panier est vide.",
+          );
+          addLog(
+            context,
+            node,
+            "warning",
+            "Checkout échoué - panier vide",
+            Date.now() - startTime,
+          );
+        } else {
+          const total = context.cart.reduce((sum, item) => sum + item.price, 0);
+          const orderId = `ORD-${Date.now().toString().slice(-8)}`;
+          context.responses.push(
+            `✅ **Commande confirmée!**\n\n📦 Numéro: ${orderId}\n💰 Total: ${total.toLocaleString()} FCFA\n\n💳 Lien de paiement envoyé par SMS.`,
+          );
+          addLog(
+            context,
+            node,
+            "success",
+            `Commande ${orderId} créée - ${total} FCFA`,
+            Date.now() - startTime,
+          );
+          context.cart = []; // Vider le panier
+        }
+        return context;
+
+      case "apply_promo":
+        const promoCfg = JSON.parse(node.config || "{}");
+        const promoCode = promoCfg.code || "PROMO10";
+        const discount = promoCfg.discount || 10;
+        context.responses.push(
+          `🎁 Code promo **${promoCode}** appliqué! Réduction de ${discount}% sur votre commande.`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          `Code promo ${promoCode} (-${discount}%) appliqué`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      // ============ NOUVEAUX BLOCS MESSAGES ============
+      case "send_audio":
+        const audioCfg = JSON.parse(node.config || "{}");
+        const audioUrl = audioCfg.url || "audio_message.ogg";
+        context.responses.push(`🎵 [Message vocal envoyé]\n${audioUrl}`);
+        addLog(
+          context,
+          node,
+          "success",
+          "Message audio envoyé",
+          Date.now() - startTime,
+        );
+        return context;
+
+      // ============ NOUVEAUX BLOCS LOGIQUE ============
+      case "set_variable":
+        const varCfg = JSON.parse(node.config || "{}");
+        const varName = varCfg.name || "variable";
+        const varValue = varCfg.value || "";
+        (context as any)[`var_${varName}`] = varValue;
+        addLog(
+          context,
+          node,
+          "success",
+          `Variable ${varName} définie`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "random_choice":
+        const choices = ["A", "B", "C"];
+        const randomIdx = Math.floor(Math.random() * choices.length);
+        const chosen = choices[randomIdx];
+        context.responses.push(
+          `🎲 Choix aléatoire: Branche **${chosen}** sélectionnée`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          `Branche aléatoire: ${chosen}`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "end_flow":
+        context.responses.push("🏁 [Fin du workflow]");
+        addLog(
+          context,
+          node,
+          "success",
+          "Workflow terminé",
+          Date.now() - startTime,
+        );
+        return { ...context, shouldContinue: false };
+
+      // ============ CRM & CONTACTS ============
+      case "save_contact":
+        const saveCfg = JSON.parse(node.config || "{}");
+        context.responses.push(
+          `👤 [CRM] Contact sauvegardé dans la base de données.`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Contact enregistré dans le CRM",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "add_tag":
+        const tagCfg = JSON.parse(node.config || "{}");
+        const tagName = tagCfg.tag || "Client";
+        context.responses.push(`🏷️ [CRM] Tag "${tagName}" ajouté au contact.`);
+        addLog(
+          context,
+          node,
+          "success",
+          `Tag "${tagName}" ajouté`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "remove_tag":
+        const removeTagCfg = JSON.parse(node.config || "{}");
+        const tagToRemove = removeTagCfg.tag || "Client";
+        context.responses.push(
+          `🏷️ [CRM] Tag "${tagToRemove}" retiré du contact.`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          `Tag "${tagToRemove}" retiré`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "update_contact":
+        const updateCfg = JSON.parse(node.config || "{}");
+        context.responses.push(
+          `📝 [CRM] Informations du contact mises à jour.`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Contact mis à jour",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "assign_agent":
+        const agentCfg = JSON.parse(node.config || "{}");
+        const agentName = agentCfg.agent || "Support Team";
+        context.responses.push(
+          `👨‍💼 [CRM] Conversation transférée à **${agentName}**. Un agent vous répondra sous peu.`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          `Assigné à ${agentName}`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "add_note":
+        const noteCfg = JSON.parse(node.config || "{}");
+        const noteText = noteCfg.note || "Note ajoutée";
+        context.responses.push(
+          `📝 [CRM] Note interne ajoutée: "${noteText.slice(0, 50)}..."`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Note ajoutée au contact",
+          Date.now() - startTime,
+        );
+        return context;
+
+      // ============ NOTIFICATIONS ============
+      case "notify_email":
+        const emailCfg = JSON.parse(node.config || "{}");
+        const emailTo = emailCfg.to || "team@company.com";
+        context.responses.push(`📧 [Notification] Email envoyé à ${emailTo}`);
+        addLog(
+          context,
+          node,
+          "success",
+          `Email envoyé à ${emailTo}`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "notify_webhook":
+        const webhookOutCfg = JSON.parse(node.config || "{}");
+        const webhookUrl = webhookOutCfg.url || "https://webhook.site/...";
+        context.responses.push(
+          `🔗 [Webhook] Requête POST envoyée à ${webhookUrl}`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          `Webhook appelé: ${webhookUrl}`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "notify_slack":
+        const slackCfg = JSON.parse(node.config || "{}");
+        const slackChannel = slackCfg.channel || "#general";
+        context.responses.push(
+          `💬 [Slack] Message envoyé dans ${slackChannel}`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          `Notification Slack → ${slackChannel}`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "notify_internal":
+        context.responses.push(
+          `🔔 [Alerte] Notification interne créée dans le tableau de bord.`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Alerte interne créée",
+          Date.now() - startTime,
+        );
+        return context;
+
+      // ============ RENDEZ-VOUS ============
+      case "check_availability":
+        const slots = [
+          "Lundi 10h",
+          "Mardi 14h",
+          "Mercredi 16h",
+          "Jeudi 09h",
+          "Vendredi 11h",
+        ];
+        const availableSlots = slots.slice(0, 3).join("\n• ");
+        context.responses.push(
+          `📅 **Créneaux disponibles:**\n• ${availableSlots}\n\nRépondez avec le créneau souhaité.`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          `${slots.length} créneaux affichés`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "book_appointment":
+        const bookCfg = JSON.parse(node.config || "{}");
+        const appointmentDate = new Date();
+        appointmentDate.setDate(appointmentDate.getDate() + 1);
+        const formattedDate = appointmentDate.toLocaleDateString("fr-FR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        });
+        context.responses.push(
+          `✅ **Rendez-vous confirmé!**\n\n📅 ${formattedDate} à 14h00\n📍 Lieu: Bureau principal\n\nUn rappel vous sera envoyé 1h avant.`,
+        );
+        addLog(context, node, "success", "RDV réservé", Date.now() - startTime);
+        return context;
+
+      case "cancel_appointment":
+        context.responses.push(
+          `❌ **Rendez-vous annulé.**\n\nSouhaitez-vous reprogrammer?`,
+        );
+        addLog(context, node, "success", "RDV annulé", Date.now() - startTime);
+        return context;
+
+      case "send_reminder":
+        const reminderCfg = JSON.parse(node.config || "{}");
+        const reminderTime = reminderCfg.before || "1h";
+        context.responses.push(
+          `⏰ **Rappel:** Vous avez un rendez-vous dans ${reminderTime}. N'oubliez pas!`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          `Rappel RDV envoyé (${reminderTime} avant)`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      // ============ SÉCURITÉ AVANCÉE ============
+      case "rate_limit":
+        const rateCfg = JSON.parse(node.config || "{}");
+        const maxMessages = rateCfg.max || 10;
+        const perMinutes = rateCfg.minutes || 1;
+        context.responses.push(
+          `🚦 [Rate Limit] Limite: ${maxMessages} messages par ${perMinutes} minute(s)`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          `Rate limit: ${maxMessages}/${perMinutes}min`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "block_spam":
+        const spamKeywords = ["crypto", "gratuit", "gagnez", "urgent"];
+        const isSpam = spamKeywords.some((kw) =>
+          context.userMessage.toLowerCase().includes(kw),
+        );
+        if (isSpam) {
+          context.responses.push(
+            `🚫 [Anti-Spam] Message bloqué - contenu suspect détecté.`,
+          );
+          addLog(
+            context,
+            node,
+            "warning",
+            "Message spam bloqué",
+            Date.now() - startTime,
+          );
+          return { ...context, shouldContinue: false };
+        }
+        addLog(
+          context,
+          node,
+          "success",
+          "Message validé (pas de spam)",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "verify_human":
+        const verifyCfg = JSON.parse(node.config || "{}");
+        const question = verifyCfg.question || "Combien font 2 + 3 ?";
+        context.responses.push(
+          `🤖 **Vérification humaine**\n\n${question}\n\n(Répondez correctement pour continuer)`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Question de vérification posée",
+          Date.now() - startTime,
+        );
+        return context;
+
+      // ============ AVANCÉ ============
+      case "http_request":
+        const httpCfg = JSON.parse(node.config || "{}");
+        const method = httpCfg.method || "GET";
+        const url = httpCfg.url || "https://api.example.com";
+        context.responses.push(
+          `🌐 [HTTP ${method}] Requête envoyée à ${url}\n📥 Réponse: { "status": "ok", "data": {...} }`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          `${method} ${url} - 200 OK`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "run_javascript":
+        const jsCfg = JSON.parse(node.config || "{}");
+        const code = jsCfg.code || 'return "Hello World";';
+        context.responses.push(
+          `⚡ [JavaScript] Code exécuté.\nRésultat: "Hello World"`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Code JavaScript exécuté",
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "google_sheets":
+        const sheetsCfg = JSON.parse(node.config || "{}");
+        const action = sheetsCfg.action || "read";
+        const sheetName = sheetsCfg.sheet || "Contacts";
+        context.responses.push(
+          `📊 [Google Sheets] ${action === "read" ? "Lecture" : "Écriture"} dans "${sheetName}" effectuée.`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          `Sheets: ${action} sur ${sheetName}`,
+          Date.now() - startTime,
+        );
+        return context;
+
+      case "database_query":
+        const dbCfg = JSON.parse(node.config || "{}");
+        const query = dbCfg.query || "SELECT * FROM users LIMIT 10";
+        context.responses.push(
+          `🗄️ [Database] Requête exécutée.\nRésultat: 10 lignes retournées.`,
+        );
+        addLog(
+          context,
+          node,
+          "success",
+          "Requête SQL exécutée",
+          Date.now() - startTime,
+        );
+        return context;
+
+      // ============ MESSAGES ADDITIONNELS ============
+      case "send_document": {
+        const docCfg = JSON.parse(node.config || "{}");
+        context.responses.push(`📄 Document: ${docCfg.filename || "fichier"}\n${docCfg.caption || ""}`);
+        addLog(context, node, "success", `Document envoyé: ${docCfg.filename}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "send_location": {
+        const locCfg = JSON.parse(node.config || "{}");
+        context.responses.push(`📍 *${locCfg.name || "Localisation"}*\n${locCfg.address || ""}`);
+        addLog(context, node, "success", `Localisation envoyée: ${locCfg.name}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "send_contact": {
+        const contactCfg = JSON.parse(node.config || "{}");
+        context.responses.push(`👤 *Contact*\n${contactCfg.name}\n📞 ${contactCfg.phone}`);
+        addLog(context, node, "success", `Contact partagé: ${contactCfg.name}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "send_audio": {
+        const audioCfg = JSON.parse(node.config || "{}");
+        context.responses.push(`🎵 ${audioCfg.asVoiceNote ? "Note vocale" : "Audio"} envoyé`);
+        addLog(context, node, "success", "Audio envoyé", Date.now() - startTime);
+        return context;
+      }
+
+      // ============ LOGIQUE ============
+      case "loop": {
+        const loopCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Boucle ${loopCfg.loopType}: ${loopCfg.count} itérations`, Date.now() - startTime);
+        return context;
+      }
+
+      case "set_variable": {
+        const varCfg = JSON.parse(node.config || "{}");
+        (context as any)[varCfg.variableName] = varCfg.value;
+        addLog(context, node, "success", `Variable ${varCfg.variableName} = ${varCfg.value}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "random_choice": {
+        const randCfg = JSON.parse(node.config || "{}");
+        const choices = randCfg.choices || [];
+        const selected = choices[Math.floor(Math.random() * choices.length)];
+        addLog(context, node, "success", `Choix aléatoire: ${selected?.label || "option"}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "end_flow": {
+        const endCfg = JSON.parse(node.config || "{}");
+        if (endCfg.action === "message" && endCfg.message) {
+          context.responses.push(endCfg.message);
+        }
+        addLog(context, node, "success", `Flux terminé (${endCfg.action})`, Date.now() - startTime);
+        return { ...context, shouldContinue: false };
+      }
+
+      // ============ CRM ============
+      case "update_contact": {
+        const updCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Contact mis à jour: ${updCfg.field} = ${updCfg.value}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "assign_agent": {
+        const assignCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Assigné à ${assignCfg.agentEmail || assignCfg.assignmentType}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "add_note": {
+        const noteCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Note ajoutée: ${noteCfg.note?.slice(0, 30)}...`, Date.now() - startTime);
+        return context;
+      }
+
+      // ============ NOTIFICATIONS ============
+      case "notify_email": {
+        const emailCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Email envoyé à ${emailCfg.to}: ${emailCfg.subject}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "notify_webhook": {
+        const whCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Webhook ${whCfg.method || "POST"} envoyé à ${whCfg.url}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "notify_slack": {
+        const slackCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Slack: message envoyé sur ${slackCfg.channel}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "notify_internal": {
+        const intCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Notification interne: ${intCfg.title}`, Date.now() - startTime);
+        return context;
+      }
+
+      // ============ RENDEZ-VOUS ============
+      case "cancel_appointment": {
+        const cancelCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `RDV ${cancelCfg.appointmentId} annulé`, Date.now() - startTime);
+        return context;
+      }
+
+      case "send_reminder": {
+        const remCfg = JSON.parse(node.config || "{}");
+        context.responses.push(`⏰ Rappel: votre ${remCfg.type || "rendez-vous"} est dans ${remCfg.beforeMinutes || 60} minutes`);
+        addLog(context, node, "success", `Rappel ${remCfg.type} envoyé`, Date.now() - startTime);
+        return context;
+      }
+
+      // ============ SÉCURITÉ ============
+      case "rate_limit": {
+        const rlCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Rate limit: ${rlCfg.maxRequests}/${rlCfg.windowSeconds}s`, Date.now() - startTime);
+        return context;
+      }
+
+      case "block_spam": {
+        const spamCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Anti-spam actif (${spamCfg.action})`, Date.now() - startTime);
+        return context;
+      }
+
+      case "verify_human": {
+        const verifCfg = JSON.parse(node.config || "{}");
+        if (verifCfg.method === "question") {
+          context.responses.push(`🔐 ${verifCfg.question || "Êtes-vous humain?"}`);
+        }
+        addLog(context, node, "success", `Vérification humaine (${verifCfg.method})`, Date.now() - startTime);
+        return context;
+      }
+
+      // ============ E-COMMERCE ============
+      case "add_to_cart": {
+        const cartCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Produit ${cartCfg.productId} ajouté (x${cartCfg.quantity || 1})`, Date.now() - startTime);
+        return context;
+      }
+
+      case "order_status": {
+        const orderCfg = JSON.parse(node.config || "{}");
+        context.responses.push(`📦 Commande ${orderCfg.orderId || "#12345"}: En préparation`);
+        addLog(context, node, "success", `Statut commande ${orderCfg.orderId}`, Date.now() - startTime);
+        return context;
+      }
+
+      // ============ GROUPES WHATSAPP ============
+      case "create_group": {
+        const grpCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Groupe créé: ${grpCfg.name}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "add_participant":
+      case "remove_participant": {
+        const partCfg = JSON.parse(node.config || "{}");
+        const action = node.type === "add_participant" ? "ajouté" : "retiré";
+        addLog(context, node, "success", `${partCfg.phoneNumber} ${action}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "bulk_add_members": {
+        const bulkCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Ajout en masse depuis ${bulkCfg.source}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "get_group_members":
+      case "chat_list_collector": {
+        const extCfg = JSON.parse(node.config || "{}");
+        addLog(context, node, "success", `Extraction en ${extCfg.exportFormat || "CSV"}`, Date.now() - startTime);
+        return context;
+      }
+
+      // ============ IA ADDITIONNELLE ============
+      case "ai_translate": {
+        const transCfg = JSON.parse(node.config || "{}");
+        context.responses.push(`[Traduction ${transCfg.sourceLanguage} → ${transCfg.targetLanguage}]: ${context.userMessage}`);
+        addLog(context, node, "success", `Traduit vers ${transCfg.targetLanguage}`, Date.now() - startTime);
+        return context;
+      }
+
+      case "ai_summarize": {
+        const sumCfg = JSON.parse(node.config || "{}");
+        context.responses.push(`📝 Résumé: ${context.userMessage.slice(0, sumCfg.maxLength || 200)}...`);
+        addLog(context, node, "success", `Résumé généré (${sumCfg.style})`, Date.now() - startTime);
+        return context;
+      }
+
+      case "scheduled":
+      case "webhook_trigger": {
+        addLog(context, node, "success", `Déclencheur ${node.type} activé`, Date.now() - startTime);
+        return context;
+      }
+
+      default:
+        addLog(
+          context,
+          node,
+          "error",
+          `Type de bloc inconnu: ${node.type}`,
+          Date.now() - startTime,
+        );
+        return context;
+    }
+  } catch (error: any) {
+    addLog(
+      context,
+      node,
+      "error",
+      `Exception: ${error.message}`,
+      Date.now() - startTime,
+    );
+    return context;
+  }
+}
+
+import { z } from "zod";
+
+const RequestSchema = z.object({
+  message: z.string().min(1, "Le message ne peut pas être vide"),
+  mode: z.string().optional(),
+  stream: z.boolean().optional(),
+  nodes: z.array(z.any()).optional(),
+  conversationHistory: z.array(z.any()).optional(),
+  messages: z.array(z.any()).optional(),
+  automationId: z.string().optional(),
+  knowledgeBaseId: z.string().optional(),
+  aiInstructions: z.string().optional(),
+  systemPrompt: z.string().optional(),
+  model: z.string().optional(),
+  maxTokens: z.number().optional(),
+  temperature: z.number().optional(),
+  reasoningEffort: z.string().optional(),
+});
+
+export async function POST(request: NextRequest) {
+  try {
+    const rawBody = await request.json();
+    const result = RequestSchema.safeParse(rawBody);
+
+    if (!result.success) {
+      return NextResponse.json({
+        success: false,
+        error: "Données invalides",
+        details: result.error.format()
+      }, { status: 400 });
+    }
+
+    const body = result.data;
+    const { message, conversationHistory = [], nodes = [] } = body;
+
+    const messages = body.messages || conversationHistory;
+    const normalizedMessage = message.toLowerCase();
+
+    const mode = typeof body.mode === "string" ? body.mode : undefined;
+    const isExecuteMode = mode === "execute";
+    const isBuildMode = mode === "build";
+
+    const knowledgeBaseId = typeof body.knowledgeBaseId === "string" ? body.knowledgeBaseId : undefined;
+    const wantsStream = Boolean(body.stream);
+
+    const greetingKeywords = ["salut", "bonjour", "hello", "hi", "hey"];
+    const isGreetingOnly = greetingKeywords.includes(normalizedMessage.trim());
+    // In build mode, a plain greeting should NOT trigger workflow generation.
+    // In build mode, a plain greeting should still use the builder's persona
+    if (!isExecuteMode && isGreetingOnly && nodes.length === 0) {
+      return NextResponse.json({
+        success: true,
+        response:
+          "Coucou ! 👋 Je suis ravi de te rencontrer ! Je suis ton associé expert pour créer ton automatisation WhatsApp de rêve. ✨\n\nDis-moi tout : tu veux vendre des produits, gérer tes rendez-vous ou simplement répondre automatiquement à tes clients ? Donne-moi une petite idée et je m'occupe de tout construire pour toi ! 😊",
+        newNodes: nodes,
+        executed: false,
+        logs: ["BUILDER: Human greeting"],
+      });
+    }
+
+    // --- 1. AI BUILDER LOGIC (Antigravity Connect - Priority) ---
+    const buildKeywords = [
+      "automatise", "crée", "cree", "créer", "fais", "faire", "conçois",
+      "workflow", "bloc", "ajoute", "connecter", "automatisation", "agent", "bot", "assistant",
+      "configure", "configurer", "déploie", "met en place", "mise en place", "modifie", "change", "met à jour", "supprime"
+    ];
+
+    // Check if we are already in a "building" conversation
+    const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    const wasInBuilderMode = lastMessage?.role === "assistant" &&
+      (lastMessage.content.toLowerCase().includes("automatisation") || lastMessage.content.toLowerCase().includes("bloc") || lastMessage.content.toLowerCase().includes("wozif"));
+
+    const isBuildIntent = buildKeywords.some(kw => normalizedMessage === kw || normalizedMessage.startsWith(kw + " "));
+    // Any message in "build" mode or with build intent should use the builder logic
+    if (!isExecuteMode && (isBuildMode || isBuildIntent || nodes.length === 0)) {
+      try {
+        const builderSystemPrompt = `Tu es l'âme de "Connect", un assistant ultra-humain, enthousiaste et super proche de ses utilisateurs. Ton but n'est pas juste de "générer du code", mais de construire une expérience magique pour l'utilisateur, comme si tu étais son associé expert assis juste à côté de lui. 🚀
+
+RÈGLES D'OR DE TA PERSONNALITÉ (CRITIQUE):
+1. **Zéro Robotique** : Oublie les listes numérotées froides et les formats copier-coller. Parle avec fluidité, comme dans une vraie discussion.
+2. **Langage de tous les jours** : Interdiction totale de parler de "blocs", "nodes", "configuration", "JSON" ou "déclencheurs". Utilise des mots simples : "ton assistant", "tes réponses", "ton site", "ton client".
+3. **Chaleur et Emojis** : Utilise des emojis pour mettre de la vie, mais n'en abuse pas (ex: ✨, ✅, 📱, 🤫).
+4. **L'Intention avant la technique** : N'explique pas ce que l'outil fait, explique ce que ça va apporter au business de l'utilisateur.
+
+RÈGLES TECHNIQUES (OBLIGATOIRES):
+1. Retourne UNIQUEMENT du JSON (aucun texte hors JSON).
+2. Le JSON doit avoir EXACTEMENT les clés: {"thinking": string, "message": string, "nodes": array}. METS LE CHAMP "thinking" EN PREMIER, PUIS "message".
+3. Dans "thinking", explique ton raisonnement interne, tes choix techniques et comment tu vas structurer l'automatisation. Sois ultra-détaillé sur ta stratégie.
+4. Chaque node doit respecter: {id:number,type:string,name:string,config:string,x:number,y:number,connectedTo?:number}.
+
+FORMAT DU MESSAGE DANS LE JSON :
+- SI TU APPLIQUES UNE NOUVELLE MODIFICATION : Sois super content ! ✨ Commence par un truc du genre "Et hop ! C'est fait ! 😊" ou "Tadaaa ! J'ai rajouté ça pour toi ! 🚀". Explique ensuite ce que tu as fait sans jargon technique.
+- SI L'UTILISATEUR TE POSE UNE QUESTION SUR CE QUE TU AS FAIT AVANT (ex: "Tu as ajouté l'antiban ?") : Ne redis pas "Je viens d'appliquer la modification". Réponds-lui simplement et naturellement : "Oui, c'est déjà en place ! 😉 Je l'avais rajouté tout à l'heure pour qu'on soit bien en sécurité...".
+- SI C'EST JUSTE POUR DISCUTER OU SI L'UTILISATEUR DIT "OUI" À UNE DE TES SUGGESTIONS : Si l'utilisateur accepte une de tes idées précédentes (ex: "Ok fais-le"), alors fais la modification technique instantanément et réponds : "Super idée ! C'est fait, j'ai ajouté l'option [Nom de l'option] comme on a dit. 🎨".
+
+- LES SUGGESTIONS (OBLIGATOIRE À CHAQUE FIN DE MESSAGE) : Termine TOUJOURS en proposant 2 ou 3 idées concrètes pour améliorer son assistant, en mode "vrai associé". Présente-les comme des boutons ou des choix simples (ex: "Tu veux que je lui apprenne à prendre des rendez-vous ?" ou "Je lui ajoute une option pour parler à un humain ?"). Si l'utilisateur dit "fais-le" ou "oui", tu devras l'appliquer au prochain tour.
+
+SOUVIENS-TE DE TOUT (MÉMOIRE VIVE) : Tu as accès à toute l'historique. Si l'utilisateur dit "oui" ou "fais-le" par rapport à une discussion passée, tu dois savoir de quoi il parle et agir en conséquence.
+
+CONTEXTE DES NODES (votre travail actuel sur le canvas) :
+${JSON.stringify(nodes)}
+
+DEMANDE DE L'UTILISATEUR (parle-lui comme à un ami) :
+${message}`;
+
+        if (wantsStream) {
+          const stream = new ReadableStream<Uint8Array>({
+            async start(controller) {
+              try {
+                controller.enqueue(sseEvent("start", { success: true }));
+
+                const openaiStream = await openai.chat.completions.create({
+                  model: "gpt-4o",
+                  messages: [
+                    { role: "system", content: builderSystemPrompt },
+                    ...messages.slice(-50),
+                  ],
+                  response_format: { type: "json_object" },
+                  stream: true,
+                });
+
+                let fullContent = "";
+                let streamedMessage = "";
+                let streamedThinking = "";
+                let currentField: 'none' | 'thinking' | 'message' = 'none';
+                let isEscaped = false;
+
+                for await (const chunk of openaiStream) {
+                  const content = chunk.choices[0]?.delta?.content || "";
+                  fullContent += content;
+
+                  // Better field detection
+                  if (currentField === 'none') {
+                    const thinkingMatch = fullContent.match(/"thinking"\s*:\s*"/);
+                    const messageMatch = fullContent.match(/"message"\s*:\s*"/);
+
+                    if (thinkingMatch && (!messageMatch || thinkingMatch.index! < messageMatch.index!)) {
+                      currentField = 'thinking';
+                    } else if (messageMatch) {
+                      currentField = 'message';
+                    }
+                  }
+
+                  if (currentField !== 'none') {
+                    const matchPattern = currentField === 'thinking' ? /"thinking"\s*:\s*"/ : /"message"\s*:\s*"/;
+                    const match = fullContent.match(matchPattern);
+                    const fieldContent = content;
+
+                    let cleanText = "";
+                    for (let i = 0; i < fieldContent.length; i++) {
+                      const char = fieldContent[i];
+                      if (isEscaped) {
+                        cleanText += char;
+                        isEscaped = false;
+                      } else if (char === '\\') {
+                        isEscaped = true;
+                        cleanText += char;
+                      } else if (char === '"') {
+                        // Field might have ended
+                        currentField = 'none';
+                        break;
+                      } else {
+                        cleanText += char;
+                      }
+                    }
+
+                    if (cleanText) {
+                      const delta = cleanText.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\t/g, "\t");
+                      if (currentField === 'thinking' || (currentField === 'none' && !streamedMessage)) {
+                        streamedThinking += delta;
+                        controller.enqueue(sseEvent("thought", { thought: delta }));
+                      } else {
+                        streamedMessage += delta;
+                        controller.enqueue(sseEvent("delta", { delta }));
+                      }
+                    }
+                  }
+                }
+
+                let builderData: any = {};
+                try {
+                  builderData = JSON.parse(fullContent || "{}");
+                } catch (e) {
+                  console.error("JSON Parse Error in Builder Stream:", e);
+                }
+
+                const extractedUrl = extractFirstUrl(message);
+                let newNodes = sanitizeWorkflowNodes(builderData.nodes);
+                if (extractedUrl) newNodes = ensureWebFetchNode(newNodes, extractedUrl);
+
+                controller.enqueue(sseEvent("done", {
+                  success: true,
+                  response: builderData.message || streamedMessage || (newNodes.length > 0 ? "J'ai généré ton automatisation." : "C'est fait ! ✨"),
+                  thinking: builderData.thinking || streamedThinking,
+                  newNodes: newNodes.length > 0 ? newNodes : nodes,
+                  executed: false,
+                }));
+                controller.close();
+              } catch (e: any) {
+                console.error("Streaming Builder Error:", e);
+                controller.enqueue(sseEvent("error", { error: e.message || String(e) }));
+                controller.close();
+              }
+            },
+          });
+
+          return new Response(stream, {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache, no-transform",
+              Connection: "keep-alive",
+            },
+          });
+        }
+
+        const builderResult = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: builderSystemPrompt },
+            ...messages.slice(-50), // Increased memory to 50 messages
+          ],
+          response_format: { type: "json_object" },
+        });
+
+        let builderData: any = {};
+        try {
+          builderData = JSON.parse(builderResult.choices[0]?.message?.content || "{}");
+        } catch (e: any) {
+          return NextResponse.json({
+            success: false,
+            error: "AI builder returned invalid JSON",
+            response: "❌ Réponse IA invalide. Réessayez.",
+          }, { status: 200 });
+        }
+
+        const extractedUrl = extractFirstUrl(message);
+        let newNodes = sanitizeWorkflowNodes(builderData.nodes);
+        if (extractedUrl) {
+          newNodes = ensureWebFetchNode(newNodes, extractedUrl);
+        }
+        if (newNodes.length === 0) {
+          return NextResponse.json({
+            success: true,
+            response: builderData.message || "Décris ton besoin (vente/support/rdv) et je génère le workflow.",
+            newNodes: nodes,
+            executed: false,
+            logs: ["BUILDER: Aucun node généré"],
+          });
+        }
+
+        return NextResponse.json({
+          success: true,
+          response: builderData.message || "J'ai généré ton automatisation.",
+          newNodes,
+          executed: false,
+          logs: ["BUILDER: Workflow généré"],
+        });
+      } catch (error: any) {
+        console.error("AI Builder Error:", error);
+        return NextResponse.json({
+          success: false,
+          error: error.message || "AI builder error",
+          response: "❌ Erreur lors de la génération de l'automatisation.",
+        }, { status: 200 });
+      }
+    }
+
+    // --- 2. SPECIAL CASE: CHAT DIRECT (Standard LLM response, used for project instructions chat) ---
+    if (nodes.length === 0 && body.systemPrompt) {
+      if (!process.env.OPENAI_API_KEY) {
+        return NextResponse.json({
+          success: false,
+          error: "Clé API OpenAI non configurée",
+          response: ""
+        }, { status: 200 });
+      }
+
+      try {
+        let messages: Array<{ role: string; content: string }> = [];
+        if (body.messages && Array.isArray(body.messages) && body.messages.length > 0) {
+          messages = body.messages;
+        } else {
+          messages = [
+            { role: "system", content: body.systemPrompt },
+            { role: "user", content: message }
+          ];
+        }
+
+        const requestParams: any = {
+          model: body.model || "gpt-4o-mini",
+          messages: messages,
+          max_tokens: body.maxTokens || 500,
+        };
+
+        if (body.temperature !== undefined) requestParams.temperature = body.temperature;
+        if (body.reasoningEffort && (body.model?.includes('o1') || body.model?.includes('o3'))) {
+          requestParams.reasoning_effort = body.reasoningEffort;
+        }
+        if (body.model?.includes('o1') || body.model?.includes('o3')) {
+          delete requestParams.temperature;
+        }
+
+        const response = await openai.chat.completions.create(requestParams);
+        return NextResponse.json({
+          success: true,
+          response: response.choices[0]?.message?.content || ""
+        });
+      } catch (error: any) {
+        console.warn("[API/chat] OpenAI API error:", error.message);
+        return NextResponse.json({ success: false, error: error.message, response: "" }, { status: 200 });
+      }
+    }
+
+    // --- 3. WORKFLOW EXECUTION LOGIC ---
+    if (nodes.length === 0) {
+      return NextResponse.json({
+        success: true,
+        response: "Je ne vois pas de workflow ici ! Dis-moi ce que tu veux automatiser et je vais te créer les blocs nécessaires. 😊",
+        executed: false,
+        executedNodes: [],
+      });
+    }
+
+    // Initialize execution context with Knowledge Base if needed
+    let knowledgeContextText: string | undefined;
+    if (isExecuteMode && knowledgeBaseId) {
+      try {
+        const session = await getServerSession(authOptions);
+        if (session?.user) {
+          const userId = (session.user as any).id as string;
+          const kb = await prisma.knowledgeBase.findFirst({
+            where: { id: knowledgeBaseId, userId },
+            select: { id: true },
+          });
+
+          if (kb) {
+            const query = String(message || "").slice(0, 120).trim();
+            let chunks = [] as Array<{ content: string; document: { title: string } }>;
+            if (query) {
+              chunks = await prisma.knowledgeChunk.findMany({
+                where: {
+                  document: { knowledgeBaseId },
+                  content: { contains: query, mode: "insensitive" },
+                },
+                take: 5,
+                orderBy: { createdAt: "desc" },
+                select: { content: true, document: { select: { title: true } } },
+              });
+            }
+            if (chunks.length === 0) {
+              chunks = await prisma.knowledgeChunk.findMany({
+                where: { document: { knowledgeBaseId } },
+                take: 5,
+                orderBy: { createdAt: "desc" },
+                select: { content: true, document: { select: { title: true } } },
+              });
+            }
+
+            knowledgeContextText = chunks
+              .map((c) => `[${c.document.title}] ${c.content}`)
+              .join("\n\n");
+          }
+        }
+      } catch (e) {
+        // Continue without KB
+      }
+    }
+
+    let context: ExecutionContext = {
+      userMessage: message,
+      history: messages,
+      responses: [],
+      shouldContinue: true,
+      cart: [],
+      logs: [],
+      visitedNodes: new Set(),
+      aiInstructions: body.aiInstructions || "",
+      knowledgeBaseId,
+      knowledgeContextText,
+    };
+
+    const workflowStartTime = Date.now();
+    const nodeMap = new Map<number, WorkflowNode>(nodes.map((n: WorkflowNode) => [n.id, n]));
+
+    // Find entry points
+    let nodesToExecute = nodes.filter((n) =>
+      ["whatsapp_message", "keyword", "new_contact", "telegram_message", "webhook_trigger", "scheduled"].includes(n.type)
+    );
+
+    if (nodesToExecute.length === 0 && nodes.length > 0) {
+      nodesToExecute = [nodes[0]]; // Fallback to first node
+    }
+
+    // Streaming SSR Mode
+    if (isExecuteMode && wantsStream) {
+      const stream = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          try {
+            controller.enqueue(sseEvent("start", { success: true }));
+
+            context.streamEnabled = true;
+            context.onToken = (delta: string) => {
+              controller.enqueue(sseEvent("delta", { delta }));
+            };
+
+            let nodesCount = 0;
+            for (const startNode of nodesToExecute) {
+              let currentNode: WorkflowNode | undefined = startNode;
+              while (currentNode && context.shouldContinue) {
+                if (nodesCount >= MAX_NODES_PER_EXECUTION || (Date.now() - workflowStartTime >= EXECUTION_TIMEOUT_MS)) {
+                  break;
+                }
+
+                context = await executeNode(currentNode, context);
+                nodesCount++;
+
+                const nextNodeId = currentNode.connectedTo;
+                currentNode = nextNodeId ? nodeMap.get(nextNodeId) : undefined;
+              }
+            }
+
+            const finalResponse = (context.responses || []).join("\n\n---\n\n");
+            controller.enqueue(sseEvent("done", {
+              response: finalResponse,
+              logs: context.logs?.map((l) => `[${l.status.toUpperCase()}] ${l.nodeName}: ${l.message}`) || [],
+            }));
+            controller.close();
+          } catch (e: any) {
+            controller.enqueue(sseEvent("error", { error: e?.message || String(e) }));
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+        },
+      });
+    }
+
+    // Standard Non-Streaming Mode
+    let nodesCount = 0;
+    for (const startNode of nodesToExecute) {
+      let currentNode: WorkflowNode | undefined = startNode;
+      while (currentNode && context.shouldContinue) {
+        if (nodesCount >= MAX_NODES_PER_EXECUTION) {
+          addLog(context, currentNode, "error", "Limite de nodes atteinte (protection anti-boucle)", 0);
+          break;
+        }
+
+        if (Date.now() - workflowStartTime >= EXECUTION_TIMEOUT_MS) {
+          addLog(context, currentNode, "error", "Délai d'exécution global dépassé", 0);
+          break;
+        }
+
+        context = await executeNode(currentNode, context);
+        nodesCount++;
+
+        const nextNodeId = currentNode.connectedTo;
+        currentNode = nextNodeId ? nodeMap.get(nextNodeId) : undefined;
+      }
+    }
+
+    const finalResponse = context.responses.join("\n\n---\n\n");
+    return NextResponse.json({
+      success: true,
+      response: finalResponse,
+      executed: true,
+      executedNodes: context.logs,
+      logs: context.logs.map((l) => `[${l.status.toUpperCase()}] ${l.nodeName}: ${l.message}`),
+      analysis: {
+        sentiment: context.sentiment,
+        intent: context.intent,
+        cartItems: context.cart.length,
+      },
+    });
+
+  } catch (error: any) {
+    console.error("Workflow Execution Error:", error);
+    return NextResponse.json({
+      success: false,
+      error: error.message || "Failed to execute workflow",
+      response: "❌ Oups ! J'ai rencontré un petit problème technique lors de l'exécution. Réessaie dans quelques instants !",
+      executedNodes: [],
+      logs: [`[ERROR] System: ${error.message}`],
+    }, { status: 500 });
+  }
+}

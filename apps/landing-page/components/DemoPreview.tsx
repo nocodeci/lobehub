@@ -162,7 +162,7 @@ export default function DemoPreview() {
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
-                                whileHover={{ background: 'rgba(0,0,0,0.4)' }}
+                                whileHover={{ background: 'rgba(0,0,0,0.85)' }}
                                 style={{
                                     position: 'absolute',
                                     inset: 0,
@@ -170,8 +170,8 @@ export default function DemoPreview() {
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    background: 'rgba(0,0,0,0.2)',
-                                    backdropFilter: 'blur(2px)',
+                                    background: 'rgba(0,0,0,0.7)',
+                                    backdropFilter: 'blur(4px)',
                                     transition: 'background 0.3s ease'
                                 }}
                             >

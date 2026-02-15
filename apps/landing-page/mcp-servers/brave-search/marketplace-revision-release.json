@@ -1,0 +1,109 @@
+{
+    "Catalog": "AWSMarketplace",
+    "ChangeSet": [
+        {
+            "ChangeType": "AddDeliveryOptions",
+            "Entity": {
+                "Type": "ContainerProduct@1.0",
+                "Identifier": "prod-ixigokshzjrpw"
+            },
+            "DetailsDocument": {
+               "Version": {
+                  "ReleaseNotes": "",
+                  "VersionTitle": ""
+               },
+               "DeliveryOptions": [
+                    {
+                        "DeliveryOptionTitle": "Brave Search MCP Server",
+                        "Details": {
+                            "EcrDeliveryOptionDetails": {
+                                "UsageInstructions": "To obtain a Brave Search API key, go to https://aws.amazon.com/marketplace/pp/prodview-qjlabherxghtq and purchase a subscription.  \n\nPlease refer to Brave Search MCP Server usage documentation (https://brave-marketplace-artifacts-prod.s3.us-west-2.amazonaws.com/brave-search-mcp-server/MCP_Server_Usage_Instructions_md.md) for more details about configuration and usage of Brave Search MCP Server",
+                                "AgenticType": [
+                                    "MCP_SERVER"
+                                ],
+                                "CompatibleServices": [
+                                    "Bedrock-AgentCore"
+                                ],
+                                "Description": "",
+                                "DeploymentResources": [
+                                    {
+                                        "Url": "https://brave-marketplace-artifacts-prod.s3.us-west-2.amazonaws.com/brave-search-mcp-server/MCP_Server_Usage_Instructions_md.md",
+                                        "Name": "Brave Search MCP Usage Instructions"
+                                    }
+                                ],
+                                "ContainerImages": "",
+                                "EnvironmentVariables": [
+                                    {
+                                        "Name": "BRAVE_API_KEY",
+                                        "Description": "*Required* Brave Search API Key.  Obtain Brave Search API Key through AWS Marketplace Product (https://aws.amazon.com/marketplace/pp/prodview-qjlabherxghtq)"
+                                    },
+                                    {
+                                        "DefaultValue": "http",
+                                        "Name": "BRAVE_MCP_TRANSPORT",
+                                        "Description": "MCP protocol transport mode.  Supported values are \"http\" or \"stdio\", however Bedrock Agentcore only supports \"http\" (reference https://docs.aws.amazon.com/marketplace/latest/userguide/bedrock-agentcore-runtime.html#agentcore-container-requirements)."
+                                    },
+                                    {
+                                        "DefaultValue": "8080",
+                                        "Name": "BRAVE_MCP_PORT",
+                                        "Description": "HTTP server port (default: 8080).  Mandatory port for Bedrock Agentcore is 8080 (reference https://docs.aws.amazon.com/marketplace/latest/userguide/bedrock-agentcore-runtime.html#agentcore-container-requirements)."
+                                    },
+                                    {
+                                        "DefaultValue": "0.0.0.0",
+                                        "Name": "BRAVE_MCP_HOST",
+                                        "Description": "HTTP server host (default: 0.0.0.0).  Mandatory host value is 0.0.0.0 for Bedrock Agentcore (reference https://docs.aws.amazon.com/marketplace/latest/userguide/bedrock-agentcore-runtime.html#agentcore-container-requirements)."
+                                    },
+                                    {
+                                        "DefaultValue": "info",
+                                        "Name": "BRAVE_MCP_LOG_LEVEL",
+                                        "Description": "MCP supported logging level (reference https://modelcontextprotocol.io/specification/2025-03-26/server/utilities/logging#log-levels)"
+                                    },
+                                    {
+                                        "Name": "BRAVE_MCP_ENABLED_TOOLS",
+                                        "Description": "*Optional* When used, specifies a whitelist for supported tools"
+                                    },
+                                    {
+                                        "Name": "BRAVE_MCP_DISABLED_TOOLS",
+                                        "Description": "*Optional* When used, specifies a blacklist for supported tools"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "DeliveryOptionTitle": "Docker Image",
+                        "Details": {
+                            "EcrDeliveryOptionDetails": {
+                                "UsageInstructions": "",
+                                "CompatibleServices": [
+                                    "ECS",
+                                    "ECS-Anywhere",
+                                    "EKS",
+                                    "EKS-Anywhere"
+                                ],
+                                "Description": "",
+                                "DeploymentResources": [],
+                                "ContainerImages": ""
+                            }
+                        }
+                    }
+               ]
+            }
+        }
+    ],
+    "ChangeSetName": "",
+    "ClientRequestToken": "",
+    "ChangeSetTags": [
+        {
+            "Key": "Release",
+            "Value": ""
+        },
+        {
+            "Key": "CostEntity",
+            "Value": "SEZC"
+        },
+        {
+            "Key": "IPGroup",
+            "Value": "KY BAT Ledger Service"
+        }
+    ]
+}
