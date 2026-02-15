@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json();
+        const body = await request.json() as { event: string; data: Record<string, any> };
         const { event, data } = body;
 
         console.log(`[AfriFlow Webhook] Event: ${event}`, data);
