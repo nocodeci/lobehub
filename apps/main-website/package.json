@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@motionone/dom": "^10.18.0",
     "clsx": "^2.1.1",
     "framer-motion": "^11.15.0",
     "lucide-react": "^0.468.0",
@@ -17,7 +18,8 @@
     "react-dom": "^19.0.0",
     "react-globe.gl": "^2.37.0",
     "tailwind-merge": "^2.5.5",
-    "three": "^0.182.0"
+    "three": "^0.182.0",
+    "unframer": "^4.0.5"
   },
   "devDependencies": {
     "@types/node": "^20",
