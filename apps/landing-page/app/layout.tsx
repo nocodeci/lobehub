@@ -163,6 +163,7 @@ const jsonLd = {
         height: 512,
       },
       sameAs: [
+        "https://youtube.com/@wozif",
         "https://twitter.com/woziftech",
         "https://www.linkedin.com/company/wozif",
         "https://www.facebook.com/woziftech",

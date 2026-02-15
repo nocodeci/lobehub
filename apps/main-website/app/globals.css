@@ -118,6 +118,166 @@ body {
     }
 }
 
+/* ===== Framer Responsive Overrides =====
+   Framer components use fixed pixel widths (1200/810/390px).
+   Override them to use 100% width + max-width so they fill
+   any viewport correctly, especially on mobile phones.        */
+
+html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
+/* Section Hero */
+.framer-QYerR.framer-jgv1e3 {
+    width: 100% !important;
+    max-width: 1200px;
+}
+.framer-QYerR.framer-v-1gtq3pi.framer-jgv1e3 {
+    width: 100% !important;
+    max-width: 810px;
+}
+.framer-QYerR.framer-v-1o5mdr8.framer-jgv1e3 {
+    width: 100% !important;
+    max-width: 390px;
+}
+
+/* Testimonials */
+.framer-Q2RhS.framer-19ty2zb {
+    width: 100% !important;
+    max-width: 1200px;
+}
+.framer-Q2RhS.framer-v-fzvwcm.framer-19ty2zb {
+    width: 100% !important;
+    max-width: 810px;
+}
+.framer-Q2RhS.framer-v-z72qgo.framer-19ty2zb,
+.framer-Q2RhS.framer-v-1d1ykdu.framer-19ty2zb {
+    width: 100% !important;
+    max-width: 100%;
+}
+
+/* Footer */
+.framer-m0fRj.framer-1jgzcyg {
+    width: 100% !important;
+    max-width: 1200px;
+}
+.framer-m0fRj.framer-v-1wtvv4b.framer-1jgzcyg {
+    width: 100% !important;
+    max-width: 810px;
+}
+.framer-m0fRj.framer-v-327s6s.framer-1jgzcyg {
+    width: 100% !important;
+    max-width: 390px;
+}
+
+/* CTA */
+.framer-rbe9H.framer-1dlajkh {
+    width: 100% !important;
+    max-width: 1200px;
+}
+.framer-rbe9H.framer-v-nmn60l.framer-1dlajkh {
+    width: 100% !important;
+    max-width: 810px;
+}
+.framer-rbe9H.framer-v-1k5cmzq.framer-1dlajkh {
+    width: 100% !important;
+    max-width: 400px;
+}
+
+/* FAQ */
+.framer-hRS3l.framer-kfxks {
+    width: 100% !important;
+    max-width: 1200px;
+}
+.framer-hRS3l.framer-v-1vqslbi.framer-kfxks {
+    width: 100% !important;
+    max-width: 810px;
+}
+.framer-hRS3l.framer-v-11kiuik.framer-kfxks {
+    width: 100% !important;
+    max-width: 390px;
+}
+
+/* Navbar */
+.framer-2Ij1K.framer-o2t4x {
+    width: 100% !important;
+    max-width: 1200px;
+}
+
+/* Workflows Container */
+.framer-gr36a.framer-zcde8f,
+.framer-gr36a.framer-v-zcde8f,
+.framer-gr36a.framer-v-1euxws5,
+.framer-gr36a.framer-v-thfodr {
+    width: 100% !important;
+    max-width: 1120px;
+}
+
+@media (max-width: 809px) {
+    /* Stack image + card vertically on mobile */
+    .framer-gr36a .framer-cl4oz9 {
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+
+    /* Image container: full width, auto height */
+    .framer-gr36a .framer-4yc5xu {
+        flex: none !important;
+        width: 100% !important;
+        height: auto !important;
+        aspect-ratio: 16 / 9 !important;
+    }
+
+    /* Card container: full width, auto height */
+    .framer-gr36a .framer-lyvpxf-container {
+        flex: none !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 320px !important;
+        align-self: stretch !important;
+    }
+
+    /* Tabs row: wrap and reduce padding on mobile */
+    .framer-gr36a .framer-bqklyn {
+        padding: 20px 16px 0px 16px !important;
+        gap: 12px !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+    }
+
+    /* Tab items: smaller on mobile */
+    .framer-gr36a .framer-18npp15,
+    .framer-gr36a .framer-by0eey,
+    .framer-gr36a .framer-1oz5kju {
+        padding: 0px 0px 12px 0px !important;
+    }
+
+    /* Inner workflow card: full width on mobile */
+    .framer-DDCsE.framer-1mnydo9 {
+        width: 100% !important;
+        height: auto !important;
+        min-height: 360px;
+    }
+
+    /* Inner card sub-container: adapt text area */
+    .framer-DDCsE .framer-r82cej {
+        width: 100% !important;
+    }
+
+    /* Hide decorative overflow lines on mobile */
+    .framer-gr36a .framer-ev6rxp,
+    .framer-gr36a .framer-jx9zdb,
+    .framer-gr36a .framer-1mg7rr3,
+    .framer-gr36a .framer-jguw3m,
+    .framer-gr36a .framer-1omi0o5,
+    .framer-gr36a .framer-ylhmwa,
+    .framer-gr36a .framer-astjdi,
+    .framer-gr36a .framer-8p0edf {
+        display: none !important;
+    }
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
     width: 6px;

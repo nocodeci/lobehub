@@ -1340,21 +1340,15 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 									<ResolveLinks
 										links={[
 											{
-												href: {
-													webPageId: "BbnwfmMeL",
-												},
+												href: "/waitlist",
 												implicitPathVariables: void 0,
 											},
 											{
-												href: {
-													webPageId: "BbnwfmMeL",
-												},
+												href: "/waitlist",
 												implicitPathVariables: void 0,
 											},
 											{
-												href: {
-													webPageId: "BbnwfmMeL",
-												},
+												href: "/waitlist",
 												implicitPathVariables: void 0,
 											},
 										]}
@@ -1573,21 +1567,15 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 										<ResolveLinks
 											links={[
 												{
-													href: {
-														webPageId: "BbnwfmMeL",
-													},
+													href: "/waitlist",
 													implicitPathVariables: void 0,
 												},
 												{
-													href: {
-														webPageId: "BbnwfmMeL",
-													},
+													href: "/waitlist",
 													implicitPathVariables: void 0,
 												},
 												{
-													href: {
-														webPageId: "BbnwfmMeL",
-													},
+													href: "/waitlist",
 													implicitPathVariables: void 0,
 												},
 											]}
@@ -1699,21 +1687,15 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 										<ResolveLinks
 											links={[
 												{
-													href: {
-														webPageId: "Ai02WgZ_P",
-													},
+													href: "/a-propos",
 													implicitPathVariables: void 0,
 												},
 												{
-													href: {
-														webPageId: "Ai02WgZ_P",
-													},
+													href: "/a-propos",
 													implicitPathVariables: void 0,
 												},
 												{
-													href: {
-														webPageId: "Ai02WgZ_P",
-													},
+													href: "/a-propos",
 													implicitPathVariables: void 0,
 												},
 											]}

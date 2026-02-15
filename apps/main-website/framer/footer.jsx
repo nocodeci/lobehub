@@ -2517,7 +2517,7 @@ var Variants2 = motion3.create(React3.Fragment);
 var getProps3 = ({ height, id, link, newTab, text, width, ...props }) => {
 	return {
 		...props,
-		k35iLgODE: text ?? props.k35iLgODE ?? "support@ametrix.com",
+		k35iLgODE: text ?? props.k35iLgODE ?? "contact@wozif.com",
 		OMNs9Kt50: newTab ?? props.OMNs9Kt50,
 		tib4PO9YV: link ?? props.tib4PO9YV,
 	};
@@ -2630,7 +2630,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 																"var(--extracted-r6o4lv, var(--token-421e20c4-0040-4023-a28d-103276930f09, rgb(77, 77, 77)))",
 														}}
 													>
-														{"support@ametrix.com"}
+														{"contact@wozif.com"}
 													</motion3.p>
 												</React3.Fragment>
 											),
@@ -2649,7 +2649,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 												"var(--extracted-r6o4lv, var(--token-9ff70694-0783-4e61-9f6a-7b939313b3bd, rgb(38, 38, 38)))",
 										}}
 									>
-										{"support@ametrix.com"}
+										{"contact@wozif.com"}
 									</motion3.p>
 								</React3.Fragment>
 							</RichText2>
@@ -2732,7 +2732,7 @@ FramervEs04sOvc.defaultProps = {
 };
 addPropertyControls2(FramervEs04sOvc, {
 	k35iLgODE: {
-		defaultValue: "support@ametrix.com",
+		defaultValue: "contact@wozif.com",
 		displayTextArea: false,
 		title: "Text",
 		type: ControlType2.String,
@@ -3026,9 +3026,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 											layoutId={"nONMPThUN"}
 										>
 											<Link3
-												href={{
-													webPageId: "augiA20Il",
-												}}
+												href="/"
 												motionChild={true}
 												nodeId={"AZkz1qp6V"}
 												openInNewTab={false}
@@ -3152,7 +3150,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 																				"var(--extracted-r6o4lv, var(--token-9ff70694-0783-4e61-9f6a-7b939313b3bd, rgb(38, 38, 38)))",
 																		}}
 																	>
-																		{"AI agents for modern email workflows."}
+																		{"Solutions numériques pour l'Afrique."}
 																	</motion4.p>
 																</React4.Fragment>
 															),
@@ -3200,7 +3198,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 																"var(--extracted-r6o4lv, var(--token-9ff70694-0783-4e61-9f6a-7b939313b3bd, rgb(38, 38, 38)))",
 														}}
 													>
-														{"AI agents for modern email workflows."}
+														{"Solutions numériques pour l'Afrique."}
 													</motion4.p>
 												</React4.Fragment>
 											</RichText3>
@@ -3208,21 +3206,15 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 										<ResolveLinks
 											links={[
 												{
-													href: {
-														webPageId: "Ai02WgZ_P",
-													},
+													href: "/contact",
 													implicitPathVariables: void 0,
 												},
 												{
-													href: {
-														webPageId: "Ai02WgZ_P",
-													},
+													href: "/contact",
 													implicitPathVariables: void 0,
 												},
 												{
-													href: {
-														webPageId: "Ai02WgZ_P",
-													},
+													href: "/contact",
 													implicitPathVariables: void 0,
 												},
 											]}
@@ -3284,7 +3276,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 														{_jsx4(stdin_default5, {
 															height: "100%",
 															id: "sLEkGs79M",
-															kxsr9hB1V: "Contact us",
+															kxsr9hB1V: "Nous contacter",
 															layoutId: "sLEkGs79M",
 															m5s7pQQmA: resolvedLinks[0],
 															NHtMIEDfO: false,
@@ -3364,10 +3356,10 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 											{_jsx4(stdin_default10, {
 												height: "100%",
 												id: "qkh7EONEp",
-												k35iLgODE: "support@ametrix.com",
+												k35iLgODE: "contact@wozif.com",
 												layoutId: "qkh7EONEp",
 												OMNs9Kt50: true,
-												tib4PO9YV: "mailto:support@ametrix.com",
+												tib4PO9YV: "mailto:contact@wozif.com",
 												width: "100%",
 											})}
 										</SmartComponentScopedContainer>
@@ -3423,7 +3415,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 															"var(--extracted-r6o4lv, var(--token-ba30b1fc-582a-4b3f-8242-3b762d615637, rgb(0, 0, 0)))",
 													}}
 												>
-													{"Home"}
+													{"Accueil"}
 												</motion4.p>
 											</React4.Fragment>
 										</RichText3>
@@ -3458,10 +3450,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 														}}
 													>
 														<Link3
-															href={{
-																hash: ":Wc9Yn5HoD",
-																webPageId: "augiA20Il",
-															}}
+															href="/#features"
 															motionChild={true}
 															nodeId={"IqUz3WYKQ"}
 															openInNewTab={false}
@@ -3473,7 +3462,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 																className={"framer-styles-preset-1bl38bt"}
 																data-styles-preset={"QVCp6_jWk"}
 															>
-																{"Features"}
+																{"Fonctionnalit\u00e9s"}
 															</motion4.a>
 														</Link3>
 													</motion4.p>
@@ -3504,10 +3493,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 														}}
 													>
 														<Link3
-															href={{
-																hash: ":qok7pDDa5",
-																webPageId: "augiA20Il",
-															}}
+															href="/#avantages"
 															motionChild={true}
 															nodeId={"vtyrXT3x6"}
 															openInNewTab={false}
@@ -3519,7 +3505,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 																className={"framer-styles-preset-1bl38bt"}
 																data-styles-preset={"QVCp6_jWk"}
 															>
-																{"Benefits"}
+																{"Avantages"}
 															</motion4.a>
 														</Link3>
 													</motion4.p>
@@ -3555,10 +3541,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 															}}
 														>
 															<Link3
-																href={{
-																	hash: ":HXeAXKNS5",
-																	webPageId: "augiA20Il",
-																}}
+																href="/contact"
 																motionChild={true}
 																nodeId={"oSZnjZggq"}
 																openInNewTab={false}
@@ -3570,7 +3553,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 																	className={"framer-styles-preset-1bl38bt"}
 																	data-styles-preset={"QVCp6_jWk"}
 																>
-																	{"Integrations"}
+																	{"Contact"}
 																</motion4.a>
 															</Link3>
 														</motion4.p>
@@ -3652,10 +3635,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 														}}
 													>
 														<Link3
-															href={{
-																hash: ":Lxw_lLA1K",
-																webPageId: "augiA20Il",
-															}}
+															href="/a-propos"
 															motionChild={true}
 															nodeId={"yQ8G4Ubro"}
 															openInNewTab={false}
@@ -3667,7 +3647,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 																className={"framer-styles-preset-1bl38bt"}
 																data-styles-preset={"QVCp6_jWk"}
 															>
-																{"Pricing"}
+																{"À propos"}
 															</motion4.a>
 														</Link3>
 													</motion4.p>
@@ -3698,10 +3678,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 														}}
 													>
 														<Link3
-															href={{
-																hash: ":xyoU2hwd8",
-																webPageId: "augiA20Il",
-															}}
+															href="/#temoignages"
 															motionChild={true}
 															nodeId={"PhKYgAfSO"}
 															openInNewTab={false}
@@ -3713,7 +3690,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 																className={"framer-styles-preset-1bl38bt"}
 																data-styles-preset={"QVCp6_jWk"}
 															>
-																{"Comparison"}
+																{"T\u00e9moignages"}
 															</motion4.a>
 														</Link3>
 													</motion4.p>
@@ -3744,10 +3721,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 														}}
 													>
 														<Link3
-															href={{
-																hash: ":HtWjRnBPS",
-																webPageId: "augiA20Il",
-															}}
+															href="/#faq"
 															motionChild={true}
 															nodeId={"tk1PAPnnh"}
 															openInNewTab={false}
@@ -3759,7 +3733,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 																className={"framer-styles-preset-1bl38bt"}
 																data-styles-preset={"QVCp6_jWk"}
 															>
-																{"Testimonials"}
+																{"FAQ"}
 															</motion4.a>
 														</Link3>
 													</motion4.p>
@@ -3790,10 +3764,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 														}}
 													>
 														<Link3
-															href={{
-																hash: ":N5Lw8nplL",
-																webPageId: "augiA20Il",
-															}}
+															href="/blog"
 															motionChild={true}
 															nodeId={"KRGycUtk1"}
 															openInNewTab={false}
@@ -3805,7 +3776,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 																className={"framer-styles-preset-1bl38bt"}
 																data-styles-preset={"QVCp6_jWk"}
 															>
-																{"FAQ\u2019s"}
+																{"Blog"}
 															</motion4.a>
 														</Link3>
 													</motion4.p>
@@ -3906,9 +3877,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 														}}
 													>
 														<Link3
-															href={{
-																webPageId: "Ai02WgZ_P",
-															}}
+															href="/contact"
 															motionChild={true}
 															nodeId={"AId0r2KST"}
 															openInNewTab={false}
@@ -3920,7 +3889,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 																className={"framer-styles-preset-1bl38bt"}
 																data-styles-preset={"QVCp6_jWk"}
 															>
-																{"Contact"}
+																{"Nous contacter"}
 															</motion4.a>
 														</Link3>
 													</motion4.p>
@@ -3951,9 +3920,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 														}}
 													>
 														<Link3
-															href={{
-																webPageId: "zGhAaHm9M",
-															}}
+															href="/a-propos"
 															motionChild={true}
 															nodeId={"ykvytAIcy"}
 															openInNewTab={false}
@@ -3965,7 +3932,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 																className={"framer-styles-preset-1bl38bt"}
 																data-styles-preset={"QVCp6_jWk"}
 															>
-																{"Pricing"}
+																{"Tarifs"}
 															</motion4.a>
 														</Link3>
 													</motion4.p>
@@ -3996,9 +3963,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 														}}
 													>
 														<Link3
-															href={{
-																webPageId: "rqjL3v2I6",
-															}}
+															href="/blog"
 															motionChild={true}
 															nodeId={"KBWyo_RYz"}
 															openInNewTab={false}
@@ -4010,7 +3975,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 																className={"framer-styles-preset-1bl38bt"}
 																data-styles-preset={"QVCp6_jWk"}
 															>
-																{"Blogs"}
+																{"Blog"}
 															</motion4.a>
 														</Link3>
 													</motion4.p>
@@ -4041,9 +4006,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 														}}
 													>
 														<Link3
-															href={{
-																webPageId: "BbnwfmMeL",
-															}}
+															href="/a-propos"
 															motionChild={true}
 															nodeId={"KeunL6JWw"}
 															openInNewTab={false}
@@ -4055,7 +4018,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 																className={"framer-styles-preset-1bl38bt"}
 																data-styles-preset={"QVCp6_jWk"}
 															>
-																{"Waitlist"}
+																{"À propos"}
 															</motion4.a>
 														</Link3>
 													</motion4.p>
@@ -4086,9 +4049,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 														}}
 													>
 														<Link3
-															href={{
-																webPageId: "fQgil8iUm",
-															}}
+															href="/conditions"
 															motionChild={true}
 															nodeId={"pedSF3F13"}
 															openInNewTab={false}
@@ -4100,7 +4061,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 																className={"framer-styles-preset-1bl38bt"}
 																data-styles-preset={"QVCp6_jWk"}
 															>
-																{"Changelog"}
+																{"Conditions"}
 															</motion4.a>
 														</Link3>
 													</motion4.p>
@@ -4131,9 +4092,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 														}}
 													>
 														<Link3
-															href={{
-																webPageId: "K8EUxnZHA",
-															}}
+															href="/confidentialite"
 															motionChild={true}
 															nodeId={"GKEkexmDh"}
 															openInNewTab={false}
@@ -4145,7 +4104,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 																className={"framer-styles-preset-1bl38bt"}
 																data-styles-preset={"QVCp6_jWk"}
 															>
-																{"404"}
+																{"Confidentialité"}
 															</motion4.a>
 														</Link3>
 													</motion4.p>
@@ -4265,7 +4224,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 														height: "100%",
 														id: "G7hf41WRW",
 														layoutId: "G7hf41WRW",
-														vMpBxmeS9: "youtube.com",
+														vMpBxmeS9: "https://youtube.com/@wozif?si=JdXohSZlB7ucFYj7",
 														width: "100%",
 														...addPropertyOverrides3(
 															{
@@ -4823,21 +4782,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 										gestureVariant,
 									)}
 								>
-									<SmartComponentScopedContainer
-										className={"framer-1pvowtc-container"}
-										layoutDependency={layoutDependency}
-										layoutId={"VFgiksRVB-container"}
-										nodeId={"VFgiksRVB"}
-										rendersWithMotion={true}
-										scopeId={"j5jGFb_Jn"}
-									>
-										{_jsx4(stdin_default9, {
-											height: "100%",
-											id: "VFgiksRVB",
-											layoutId: "VFgiksRVB",
-											width: "100%",
-										})}
-									</SmartComponentScopedContainer>
+									{null}
 								</ComponentViewportProvider>
 								<motion4.div
 									className={"framer-9agv1i"}
@@ -4893,13 +4838,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 																							data-styles-preset={"QowBsUafH"}
 																						>
 																							<Link3
-																								href={{
-																									pathVariables: {
-																										gUfctbVHc:
-																											gUfctbVHcJ3YEvMUjZ2,
-																									},
-																									webPageId: "h6yzSQHO2",
-																								}}
+																								href="/conditions"
 																								motionChild={true}
 																								nodeId={"OS6oyi063"}
 																								openInNewTab={false}
@@ -4915,7 +4854,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 																										"QVCp6_jWk"
 																									}
 																								>
-																									{"Terms & Conditions"}
+																									{"Conditions g\u00e9n\u00e9rales"}
 																								</motion4.a>
 																							</Link3>
 																						</motion4.p>
@@ -4935,9 +4874,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 								</motion4.div>
 							</motion4.div>
 							<Link3
-								href={{
-									webPageId: "augiA20Il",
-								}}
+								href="/"
 								motionChild={true}
 								nodeId={"KjTqgH3Se"}
 								openInNewTab={false}

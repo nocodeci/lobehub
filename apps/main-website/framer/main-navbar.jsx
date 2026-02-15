@@ -486,7 +486,7 @@ var getProps2 = ({
 		ECq8dOjsB: hover ?? props.ECq8dOjsB,
 		GbCnNnFQ_: newTab ?? props.GbCnNnFQ_,
 		LhfJW_gOd: link ?? props.LhfJW_gOd,
-		NCBua8EeV: text ?? props.NCBua8EeV ?? "Home",
+		NCBua8EeV: text ?? props.NCBua8EeV ?? "Accueil",
 		variant:
 			humanReadableVariantMap2[props.variant] ?? props.variant ?? "cwO4pIe4b",
 	};
@@ -714,7 +714,7 @@ var Component2 = /* @__PURE__ */ React2.forwardRef(function (props, ref) {
 																"var(--extracted-r6o4lv, var(--token-325dbb34-3704-4fe8-9b79-64c8d834b7a6, rgb(255, 255, 255)))",
 														}}
 													>
-														{"Home"}
+														{"Accueil"}
 													</motion2.p>
 												</React2.Fragment>
 											),
@@ -730,7 +730,7 @@ var Component2 = /* @__PURE__ */ React2.forwardRef(function (props, ref) {
 																"var(--extracted-r6o4lv, var(--token-325dbb34-3704-4fe8-9b79-64c8d834b7a6, rgb(255, 255, 255)))",
 														}}
 													>
-														{"Home"}
+														{"Accueil"}
 													</motion2.p>
 												</React2.Fragment>
 											),
@@ -746,7 +746,7 @@ var Component2 = /* @__PURE__ */ React2.forwardRef(function (props, ref) {
 																"var(--extracted-r6o4lv, var(--token-325dbb34-3704-4fe8-9b79-64c8d834b7a6, rgb(255, 255, 255)))",
 														}}
 													>
-														{"Home"}
+														{"Accueil"}
 													</motion2.p>
 												</React2.Fragment>
 											),
@@ -763,7 +763,7 @@ var Component2 = /* @__PURE__ */ React2.forwardRef(function (props, ref) {
 																"var(--extracted-r6o4lv, var(--token-c7b05702-f4f7-4d3f-be76-7f336e408407, rgb(224, 224, 224)))",
 														}}
 													>
-														{"Home"}
+														{"Accueil"}
 													</motion2.p>
 												</React2.Fragment>
 											),
@@ -780,7 +780,7 @@ var Component2 = /* @__PURE__ */ React2.forwardRef(function (props, ref) {
 																"var(--extracted-r6o4lv, var(--token-325dbb34-3704-4fe8-9b79-64c8d834b7a6, rgb(255, 255, 255)))",
 														}}
 													>
-														{"Home"}
+														{"Accueil"}
 													</motion2.p>
 												</React2.Fragment>
 											),
@@ -797,7 +797,7 @@ var Component2 = /* @__PURE__ */ React2.forwardRef(function (props, ref) {
 																"var(--extracted-r6o4lv, var(--token-c7b05702-f4f7-4d3f-be76-7f336e408407, rgb(224, 224, 224)))",
 														}}
 													>
-														{"Home"}
+														{"Accueil"}
 													</motion2.p>
 												</React2.Fragment>
 											),
@@ -816,7 +816,7 @@ var Component2 = /* @__PURE__ */ React2.forwardRef(function (props, ref) {
 												"var(--extracted-r6o4lv, var(--token-9ff70694-0783-4e61-9f6a-7b939313b3bd, rgb(38, 38, 38)))",
 										}}
 									>
-										{"Home"}
+										{"Accueil"}
 									</motion2.p>
 								</React2.Fragment>
 							</RichText>
@@ -916,7 +916,7 @@ addPropertyControls2(Framern2YbHgol1, {
 		type: ControlType2.Boolean,
 	},
 	NCBua8EeV: {
-		defaultValue: "Home",
+		defaultValue: "Accueil",
 		displayTextArea: false,
 		title: "Text",
 		type: ControlType2.String,
@@ -1182,9 +1182,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 							<ResolveLinks
 								links={[
 									{
-										href: {
-											webPageId: "Ai02WgZ_P",
-										},
+										href: "/contact",
 										implicitPathVariables: void 0,
 									},
 								]}
@@ -1226,7 +1224,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 													width: "100%",
 												},
 												variant: "FdRf7bWBO",
-												WB6m_In3A: "Contact",
+												WB6m_In3A: "Nous contacter",
 												width: "100%",
 												Y6bbgR64g: "10px 16px 10px 16px",
 												ZSfEeTznX: 1,
@@ -1238,9 +1236,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 							<ResolveLinks
 								links={[
 									{
-										href: {
-											webPageId: "zGhAaHm9M",
-										},
+										href: "/a-propos",
 										implicitPathVariables: void 0,
 									},
 								]}
@@ -1282,7 +1278,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 													width: "100%",
 												},
 												variant: "FdRf7bWBO",
-												WB6m_In3A: "Pricing",
+												WB6m_In3A: "À propos",
 												width: "100%",
 												Y6bbgR64g: "10px 16px 10px 16px",
 												ZSfEeTznX: 0.3,
@@ -1294,9 +1290,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 							<ResolveLinks
 								links={[
 									{
-										href: {
-											webPageId: "rqjL3v2I6",
-										},
+										href: "/blog",
 										implicitPathVariables: void 0,
 									},
 								]}
@@ -1338,7 +1332,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 													width: "100%",
 												},
 												variant: "FdRf7bWBO",
-												WB6m_In3A: "Blogs",
+												WB6m_In3A: "Blog",
 												width: "100%",
 												Y6bbgR64g: "10px 16px 10px 16px",
 												ZSfEeTznX: 0.4,
@@ -1350,9 +1344,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 							<ResolveLinks
 								links={[
 									{
-										href: {
-											webPageId: "BbnwfmMeL",
-										},
+										href: "/contact",
 										implicitPathVariables: void 0,
 									},
 								]}
@@ -1394,7 +1386,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 													width: "100%",
 												},
 												variant: "FdRf7bWBO",
-												WB6m_In3A: "Waitlist",
+												WB6m_In3A: "Nous contacter",
 												width: "100%",
 												Y6bbgR64g: "10px 16px 10px 16px",
 												ZSfEeTznX: 1,
@@ -1406,9 +1398,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 							<ResolveLinks
 								links={[
 									{
-										href: {
-											webPageId: "fQgil8iUm",
-										},
+										href: "/conditions",
 										implicitPathVariables: void 0,
 									},
 								]}
@@ -1450,7 +1440,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 													width: "100%",
 												},
 												variant: "FdRf7bWBO",
-												WB6m_In3A: "Changelog",
+												WB6m_In3A: "Conditions",
 												width: "100%",
 												Y6bbgR64g: "10px 16px 10px 16px",
 												ZSfEeTznX: 0.3,
@@ -1462,9 +1452,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 							<ResolveLinks
 								links={[
 									{
-										href: {
-											webPageId: "K8EUxnZHA",
-										},
+										href: "/confidentialite",
 										implicitPathVariables: void 0,
 									},
 								]}
@@ -1506,7 +1494,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 													width: "100%",
 												},
 												variant: "FdRf7bWBO",
-												WB6m_In3A: "404",
+												WB6m_In3A: "Confidentialité",
 												width: "100%",
 												Y6bbgR64g: "10px 16px 10px 16px",
 												ZSfEeTznX: 1,
@@ -1518,18 +1506,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 							<ResolveLinks
 								links={[
 									{
-										href: {
-											pathVariables: {
-												gUfctbVHc: "terms-conditions",
-											},
-											unresolvedPathSlugs: {
-												gUfctbVHc: {
-													collectionId: "Le21BPsv9",
-													collectionItemId: "qREnY17c3",
-												},
-											},
-											webPageId: "h6yzSQHO2",
-										},
+										href: "/conditions",
 										implicitPathVariables: void 0,
 									},
 								]}
@@ -1571,7 +1548,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 													width: "100%",
 												},
 												variant: "FdRf7bWBO",
-												WB6m_In3A: "Terms & Conditions",
+												WB6m_In3A: "Conditions générales",
 												width: "100%",
 												Y6bbgR64g: "10px 16px 10px 16px",
 												ZSfEeTznX: 0.4,
@@ -1583,18 +1560,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 							<ResolveLinks
 								links={[
 									{
-										href: {
-											pathVariables: {
-												gUfctbVHc: "privacy-policy",
-											},
-											unresolvedPathSlugs: {
-												gUfctbVHc: {
-													collectionId: "Le21BPsv9",
-													collectionItemId: "uvntoceej",
-												},
-											},
-											webPageId: "h6yzSQHO2",
-										},
+										href: "/confidentialite",
 										implicitPathVariables: void 0,
 									},
 								]}
@@ -1636,7 +1602,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 													width: "100%",
 												},
 												variant: "FdRf7bWBO",
-												WB6m_In3A: "Privacy Policy",
+												WB6m_In3A: "Confidentialité",
 												width: "100%",
 												Y6bbgR64g: "10px 16px 10px 16px",
 												ZSfEeTznX: 1,
@@ -1888,9 +1854,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 						>
 							{isDisplayed() && (
 								<Link2
-									href={{
-										webPageId: "augiA20Il",
-									}}
+									href="/"
 									motionChild={true}
 									nodeId={"lKgsVh5j0"}
 									openInNewTab={false}
@@ -1935,7 +1899,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 															"var(--extracted-r6o4lv, var(--token-88615e37-f88b-4d72-9af9-51da6ee30827, rgb(153, 153, 153)))",
 													}}
 												>
-													{"Home"}
+													{"Accueil"}
 												</motion4.p>
 											</React4.Fragment>
 										</RichText2>
@@ -1944,9 +1908,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 							)}
 							{isDisplayed() && (
 								<Link2
-									href={{
-										webPageId: "zGhAaHm9M",
-									}}
+									href="/a-propos"
 									motionChild={true}
 									nodeId={"GfsYOjFDW"}
 									openInNewTab={false}
@@ -1991,7 +1953,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 															"var(--extracted-r6o4lv, var(--token-88615e37-f88b-4d72-9af9-51da6ee30827, rgb(153, 153, 153)))",
 													}}
 												>
-													{"Pricing"}
+													{"À propos"}
 												</motion4.p>
 											</React4.Fragment>
 										</RichText2>
@@ -2000,9 +1962,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 							)}
 							{isDisplayed() && (
 								<Link2
-									href={{
-										webPageId: "rqjL3v2I6",
-									}}
+									href="/blog"
 									motionChild={true}
 									nodeId={"s_0pTaTBQ"}
 									openInNewTab={false}
@@ -2047,7 +2007,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 															"var(--extracted-r6o4lv, var(--token-88615e37-f88b-4d72-9af9-51da6ee30827, rgb(153, 153, 153)))",
 													}}
 												>
-													{"Blogs"}
+													{"Blog"}
 												</motion4.p>
 											</React4.Fragment>
 										</RichText2>
@@ -2093,7 +2053,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 														"var(--extracted-r6o4lv, var(--token-88615e37-f88b-4d72-9af9-51da6ee30827, rgb(153, 153, 153)))",
 												}}
 											>
-												{"All Pages"}
+												{"Menu"}
 											</motion4.p>
 										</React4.Fragment>
 									</RichText2>
@@ -2156,7 +2116,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 														"var(--extracted-r6o4lv, var(--token-325dbb34-3704-4fe8-9b79-64c8d834b7a6, rgb(255, 255, 255)))",
 												}}
 											>
-												{"All Pages"}
+												{"Menu"}
 											</motion4.p>
 										</React4.Fragment>
 									</RichText2>
@@ -2182,9 +2142,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 							)}
 							{isDisplayed1() && (
 								<Link2
-									href={{
-										webPageId: "Ai02WgZ_P",
-									}}
+									href="/contact"
 									motionChild={true}
 									nodeId={"V4tVgrayF"}
 									openInNewTab={false}
@@ -2240,9 +2198,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 							)}
 							{isDisplayed1() && (
 								<Link2
-									href={{
-										webPageId: "zGhAaHm9M",
-									}}
+									href="/a-propos"
 									motionChild={true}
 									nodeId={"mTVZSIjQv"}
 									openInNewTab={false}
@@ -2289,7 +2245,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 															"var(--extracted-r6o4lv, var(--token-88615e37-f88b-4d72-9af9-51da6ee30827, rgb(153, 153, 153)))",
 													}}
 												>
-													{"Pricing"}
+													{"À propos"}
 												</motion4.p>
 											</React4.Fragment>
 										</RichText2>
@@ -2298,9 +2254,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 							)}
 							{isDisplayed1() && (
 								<Link2
-									href={{
-										webPageId: "rqjL3v2I6",
-									}}
+									href="/blog"
 									motionChild={true}
 									nodeId={"X4bKVDcnQ"}
 									openInNewTab={false}
@@ -2347,7 +2301,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 															"var(--extracted-r6o4lv, var(--token-88615e37-f88b-4d72-9af9-51da6ee30827, rgb(153, 153, 153)))",
 													}}
 												>
-													{"Blogs"}
+													{"Blog"}
 												</motion4.p>
 											</React4.Fragment>
 										</RichText2>
@@ -2356,67 +2310,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 							)}
 							{isDisplayed1() && (
 								<Link2
-									href={{
-										webPageId: "BbnwfmMeL",
-									}}
-									motionChild={true}
-									nodeId={"xl2YuL7NB"}
-									openInNewTab={false}
-									scopeId={"rZwx4ADjk"}
-									smoothScroll={true}
-								>
-									<motion4.a
-										className={"framer-eox2k2 framer-hiyo74"}
-										data-framer-name={"Button/Secondary Button"}
-										data-highlight={true}
-										layoutDependency={layoutDependency}
-										layoutId={"xl2YuL7NB"}
-										onTap={onTap3qi1h0}
-										style={{
-											borderBottomLeftRadius: 100,
-											borderBottomRightRadius: 100,
-											borderTopLeftRadius: 100,
-											borderTopRightRadius: 100,
-											boxShadow:
-												"0px 1px 1px 0px rgba(0, 0, 0, 0), 0px 3px 3px 0px rgba(0, 0, 0, 0), inset 0px 3px 12px 0px rgba(255, 255, 255, 0)",
-										}}
-									>
-										<RichText2
-											__fromCanvasComponent={true}
-											className={"framer-1ddyons"}
-											data-framer-name={"Text"}
-											fonts={["Inter"]}
-											layoutDependency={layoutDependency}
-											layoutId={"YmAuzy3yu"}
-											style={{
-												"--extracted-r6o4lv":
-													"var(--token-88615e37-f88b-4d72-9af9-51da6ee30827, rgb(153, 153, 153))",
-												"--framer-paragraph-spacing": "0px",
-											}}
-											verticalAlignment={"top"}
-											withExternalLayout={true}
-										>
-											<React4.Fragment>
-												<motion4.p
-													className={"framer-styles-preset-1dqim52"}
-													data-styles-preset={"QowBsUafH"}
-													style={{
-														"--framer-text-color":
-															"var(--extracted-r6o4lv, var(--token-88615e37-f88b-4d72-9af9-51da6ee30827, rgb(153, 153, 153)))",
-													}}
-												>
-													{"Waitlist"}
-												</motion4.p>
-											</React4.Fragment>
-										</RichText2>
-									</motion4.a>
-								</Link2>
-							)}
-							{isDisplayed1() && (
-								<Link2
-									href={{
-										webPageId: "fQgil8iUm",
-									}}
+									href="/conditions"
 									motionChild={true}
 									nodeId={"LnYZn2w7M"}
 									openInNewTab={false}
@@ -2463,7 +2357,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 															"var(--extracted-r6o4lv, var(--token-88615e37-f88b-4d72-9af9-51da6ee30827, rgb(153, 153, 153)))",
 													}}
 												>
-													{"Changelog"}
+													{"Conditions"}
 												</motion4.p>
 											</React4.Fragment>
 										</RichText2>
@@ -2472,9 +2366,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 							)}
 							{isDisplayed1() && (
 								<Link2
-									href={{
-										webPageId: "K8EUxnZHA",
-									}}
+									href="/confidentialite"
 									motionChild={true}
 									nodeId={"S0emBYHHZ"}
 									openInNewTab={false}
@@ -2521,7 +2413,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 															"var(--extracted-r6o4lv, var(--token-88615e37-f88b-4d72-9af9-51da6ee30827, rgb(153, 153, 153)))",
 													}}
 												>
-													{"404"}
+													{"Confidentialité"}
 												</motion4.p>
 											</React4.Fragment>
 										</RichText2>
@@ -2530,18 +2422,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 							)}
 							{isDisplayed1() && (
 								<Link2
-									href={{
-										pathVariables: {
-											gUfctbVHc: "terms-conditions",
-										},
-										unresolvedPathSlugs: {
-											gUfctbVHc: {
-												collectionId: "Le21BPsv9",
-												collectionItemId: "qREnY17c3",
-											},
-										},
-										webPageId: "h6yzSQHO2",
-									}}
+									href="/conditions"
 									motionChild={true}
 									nodeId={"wyZv_mXMY"}
 									openInNewTab={false}
@@ -2588,7 +2469,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 															"var(--extracted-r6o4lv, var(--token-88615e37-f88b-4d72-9af9-51da6ee30827, rgb(153, 153, 153)))",
 													}}
 												>
-													{"Terms & Conditions"}
+													{"Conditions générales"}
 												</motion4.p>
 											</React4.Fragment>
 										</RichText2>
@@ -2597,18 +2478,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 							)}
 							{isDisplayed1() && (
 								<Link2
-									href={{
-										pathVariables: {
-											gUfctbVHc: "privacy-policy",
-										},
-										unresolvedPathSlugs: {
-											gUfctbVHc: {
-												collectionId: "Le21BPsv9",
-												collectionItemId: "uvntoceej",
-											},
-										},
-										webPageId: "h6yzSQHO2",
-									}}
+									href="/confidentialite"
 									motionChild={true}
 									nodeId={"yqW0hP2iw"}
 									openInNewTab={false}
@@ -2655,7 +2525,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 															"var(--extracted-r6o4lv, var(--token-88615e37-f88b-4d72-9af9-51da6ee30827, rgb(153, 153, 153)))",
 													}}
 												>
-													{"Privacy Policy"}
+													{"Confidentialité"}
 												</motion4.p>
 											</React4.Fragment>
 										</RichText2>
@@ -2673,9 +2543,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 								<ResolveLinks2
 									links={[
 										{
-											href: {
-												webPageId: "BbnwfmMeL",
-											},
+											href: "/contact",
 											implicitPathVariables: void 0,
 										},
 									]}
@@ -2718,7 +2586,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 														width: "100%",
 													},
 													variant: "U2t_Okweq",
-													WB6m_In3A: "Join Waitlist",
+													WB6m_In3A: "Nous contacter",
 													width: "100%",
 													Y6bbgR64g: "10px 16px 10px 16px",
 													ZSfEeTznX: 1,
@@ -2730,9 +2598,7 @@ var Component4 = /* @__PURE__ */ React4.forwardRef(function (props, ref) {
 								<ResolveLinks2
 									links={[
 										{
-											href: {
-												webPageId: "Ai02WgZ_P",
-											},
+											href: "/contact",
 											implicitPathVariables: void 0,
 										},
 									]}
@@ -3226,27 +3092,19 @@ var Component5 = /* @__PURE__ */ React5.forwardRef(function (props, ref) {
 									<ResolveLinks3
 										links={[
 											{
-												href: {
-													webPageId: "augiA20Il",
-												},
+												href: "/",
 												implicitPathVariables: void 0,
 											},
 											{
-												href: {
-													webPageId: "augiA20Il",
-												},
+												href: "/",
 												implicitPathVariables: void 0,
 											},
 											{
-												href: {
-													webPageId: "augiA20Il",
-												},
+												href: "/",
 												implicitPathVariables: void 0,
 											},
 											{
-												href: {
-													webPageId: "augiA20Il",
-												},
+												href: "/",
 												implicitPathVariables: void 0,
 											},
 										]}
@@ -3278,7 +3136,7 @@ var Component5 = /* @__PURE__ */ React5.forwardRef(function (props, ref) {
 														id: "QSl7FOf2p",
 														layoutId: "QSl7FOf2p",
 														LhfJW_gOd: resolvedLinks[0],
-														NCBua8EeV: "Home",
+														NCBua8EeV: "Accueil",
 														variant: matchVariant("e4m5NEIZS"),
 														width: "100%",
 														...addPropertyOverrides4(
@@ -3307,27 +3165,19 @@ var Component5 = /* @__PURE__ */ React5.forwardRef(function (props, ref) {
 									<ResolveLinks3
 										links={[
 											{
-												href: {
-													webPageId: "zGhAaHm9M",
-												},
+												href: "/a-propos",
 												implicitPathVariables: void 0,
 											},
 											{
-												href: {
-													webPageId: "zGhAaHm9M",
-												},
+												href: "/a-propos",
 												implicitPathVariables: void 0,
 											},
 											{
-												href: {
-													webPageId: "zGhAaHm9M",
-												},
+												href: "/a-propos",
 												implicitPathVariables: void 0,
 											},
 											{
-												href: {
-													webPageId: "zGhAaHm9M",
-												},
+												href: "/a-propos",
 												implicitPathVariables: void 0,
 											},
 										]}
@@ -3359,7 +3209,7 @@ var Component5 = /* @__PURE__ */ React5.forwardRef(function (props, ref) {
 														id: "xIKEfgctb",
 														layoutId: "xIKEfgctb",
 														LhfJW_gOd: resolvedLinks1[0],
-														NCBua8EeV: "Pricing",
+														NCBua8EeV: "À propos",
 														variant: matchVariant("HDo2339nv"),
 														width: "100%",
 														...addPropertyOverrides4(
@@ -3386,27 +3236,19 @@ var Component5 = /* @__PURE__ */ React5.forwardRef(function (props, ref) {
 									<ResolveLinks3
 										links={[
 											{
-												href: {
-													webPageId: "rqjL3v2I6",
-												},
+												href: "/blog",
 												implicitPathVariables: void 0,
 											},
 											{
-												href: {
-													webPageId: "rqjL3v2I6",
-												},
+												href: "/blog",
 												implicitPathVariables: void 0,
 											},
 											{
-												href: {
-													webPageId: "rqjL3v2I6",
-												},
+												href: "/blog",
 												implicitPathVariables: void 0,
 											},
 											{
-												href: {
-													webPageId: "rqjL3v2I6",
-												},
+												href: "/blog",
 												implicitPathVariables: void 0,
 											},
 										]}
@@ -3438,7 +3280,7 @@ var Component5 = /* @__PURE__ */ React5.forwardRef(function (props, ref) {
 														id: "N9IR_kZPL",
 														layoutId: "N9IR_kZPL",
 														LhfJW_gOd: resolvedLinks2[0],
-														NCBua8EeV: "Blogs",
+														NCBua8EeV: "Blog",
 														variant: matchVariant("HDo2339nv"),
 														width: "100%",
 														...addPropertyOverrides4(
@@ -3498,7 +3340,7 @@ var Component5 = /* @__PURE__ */ React5.forwardRef(function (props, ref) {
 															height: "100%",
 															id: "v4BupWTWr",
 															layoutId: "v4BupWTWr",
-															NCBua8EeV: "All Pages",
+															NCBua8EeV: "Menu",
 															variant: matchVariant(
 																overlay.visible && "GPqyWj8vI",
 																overlay.visible ? "GPqyWj8vI" : "fs1HzS7aN",
@@ -3576,9 +3418,7 @@ var Component5 = /* @__PURE__ */ React5.forwardRef(function (props, ref) {
 								</motion5.div>
 							)}
 							<Link3
-								href={{
-									webPageId: "augiA20Il",
-								}}
+								href="/"
 								motionChild={true}
 								nodeId={"G7BAaaCAq"}
 								openInNewTab={false}
@@ -3651,27 +3491,19 @@ var Component5 = /* @__PURE__ */ React5.forwardRef(function (props, ref) {
 									<ResolveLinks3
 										links={[
 											{
-												href: {
-													webPageId: "BbnwfmMeL",
-												},
+												href: "/contact",
 												implicitPathVariables: void 0,
 											},
 											{
-												href: {
-													webPageId: "BbnwfmMeL",
-												},
+												href: "/contact",
 												implicitPathVariables: void 0,
 											},
 											{
-												href: {
-													webPageId: "BbnwfmMeL",
-												},
+												href: "/contact",
 												implicitPathVariables: void 0,
 											},
 											{
-												href: {
-													webPageId: "BbnwfmMeL",
-												},
+												href: "/contact",
 												implicitPathVariables: void 0,
 											},
 										]}
@@ -3708,7 +3540,7 @@ var Component5 = /* @__PURE__ */ React5.forwardRef(function (props, ref) {
 															"var(--token-aa15e029-4bb1-434e-9852-151a8d809557, rgb(26, 26, 26))",
 														rNXUHBS8V: resolvedLinks3[0],
 														variant: matchVariant("U2t_Okweq"),
-														WB6m_In3A: "Join Waitlist",
+														WB6m_In3A: "Nous contacter",
 														width: "100%",
 														Y6bbgR64g: "10px 16px 10px 16px",
 														ZSfEeTznX: 1,
@@ -3735,27 +3567,19 @@ var Component5 = /* @__PURE__ */ React5.forwardRef(function (props, ref) {
 									<ResolveLinks3
 										links={[
 											{
-												href: {
-													webPageId: "Ai02WgZ_P",
-												},
+												href: "/contact",
 												implicitPathVariables: void 0,
 											},
 											{
-												href: {
-													webPageId: "Ai02WgZ_P",
-												},
+												href: "/contact",
 												implicitPathVariables: void 0,
 											},
 											{
-												href: {
-													webPageId: "Ai02WgZ_P",
-												},
+												href: "/contact",
 												implicitPathVariables: void 0,
 											},
 											{
-												href: {
-													webPageId: "Ai02WgZ_P",
-												},
+												href: "/contact",
 												implicitPathVariables: void 0,
 											},
 										]}

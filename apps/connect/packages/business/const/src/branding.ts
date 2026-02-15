@@ -21,8 +21,8 @@ export const SOCIAL_URL = {
   discord: 'https://discord.gg/wozif',
   github: 'https://github.com/wozif',
   medium: undefined,
-  x: 'https://x.com/wozif',
-  youtube: undefined,
+  x: 'https://x.com/woziftech',
+  youtube: 'https://youtube.com/@wozif',
 };
 
 export const FILE_URL = {
@@ -30,8 +30,8 @@ export const FILE_URL = {
 };
 
 export const BRANDING_EMAIL = {
-  business: 'hello@wozif.ai',
-  support: 'support@wozif.ai',
+  business: 'hello@wozif.com',
+  support: 'support@wozif.com',
 };
 
 export const BRANDING_PROVIDER = 'wozif';

@@ -22,6 +22,10 @@ export const generateMetadata = async (props: DynamicLayoutProps) => {
       statusBarStyle: 'black-translucent',
       title: BRANDING_NAME,
     },
+    authors: [{ name: 'Wozif', url: 'https://wozif.com' }],
+    category: 'technology',
+    classification: 'Business Software',
+    creator: 'Wozif Technologies',
     description: t('chat.description', { appName: BRANDING_NAME }),
     icons: isCustomBranding
       ? BRANDING_LOGO_URL
@@ -30,6 +34,18 @@ export const generateMetadata = async (props: DynamicLayoutProps) => {
           icon: isDev ? '/favicon-dev.ico' : '/favicon.ico?v=1',
           shortcut: isDev ? '/favicon-32x32-dev.ico' : '/favicon-32x32.ico?v=1',
         },
+    keywords: [
+      'connect wozif', 'automatisation whatsapp', 'chatbot whatsapp',
+      'agent IA whatsapp', 'whatsapp business automation',
+      'intelligence artificielle whatsapp', 'IA whatsapp afrique',
+      'crm whatsapp', 'réponse automatique whatsapp',
+      'whatsapp api business', 'marketing whatsapp',
+      'service client whatsapp', 'support client automatisé',
+      'automatisation whatsapp côte d\'ivoire', 'chatbot whatsapp sénégal',
+      'whatsapp business cameroun', 'agent IA afrique francophone',
+      'comment automatiser whatsapp', 'meilleur chatbot whatsapp',
+      'outil whatsapp business afrique',
+    ],
     manifest: '/manifest.json',
     metadataBase: new URL(OFFICIAL_URL),
     openGraph: {
@@ -43,10 +59,23 @@ export const generateMetadata = async (props: DynamicLayoutProps) => {
         },
       ],
       locale: DEFAULT_LANG,
-      siteName: BRANDING_NAME,
-      title: BRANDING_NAME,
+      siteName: `${BRANDING_NAME} by Wozif`,
+      title: t('chat.title', { appName: BRANDING_NAME }),
       type: 'website',
       url: OFFICIAL_URL,
+    },
+    publisher: 'Wozif',
+    referrer: 'origin-when-cross-origin' as const,
+    robots: {
+      follow: true,
+      googleBot: {
+        follow: true,
+        index: true,
+        'max-image-preview': 'large' as const,
+        'max-snippet': -1,
+        'max-video-preview': -1,
+      },
+      index: true,
     },
     title: {
       default: t('chat.title', { appName: BRANDING_NAME }),
@@ -54,9 +83,10 @@ export const generateMetadata = async (props: DynamicLayoutProps) => {
     },
     twitter: {
       card: 'summary_large_image',
+      creator: '@woziftech',
       description: t('chat.description', { appName: BRANDING_NAME }),
       images: [OG_URL],
-      site: isCustomORG ? `@${ORG_NAME}` : '@lobehub',
+      site: '@woziftech',
       title: t('chat.title', { appName: BRANDING_NAME }),
     },
   };

@@ -248,7 +248,7 @@ export default function SolutionsSection() {
             </div>
 
             {/* Right: Preview */}
-            <div className="flex-1 p-3 lg:p-4 flex items-center justify-center max-w-[50%]">
+            <div className="flex-1 p-3 lg:p-4 flex items-center justify-center max-w-full lg:max-w-[50%]">
               {active.previewUrl ? (
                 <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden bg-[rgb(18,18,18)] group cursor-pointer">
                   <div
@@ -317,7 +317,7 @@ export default function SolutionsSection() {
           <div
             key={i}
             className={`flex items-start gap-3 p-6 ${
-              i > 0 ? "border-l border-[rgb(224,224,224)]" : ""
+              i > 0 ? "border-t md:border-t-0 md:border-l border-[rgb(224,224,224)]" : ""
             }`}
           >
             <div

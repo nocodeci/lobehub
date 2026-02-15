@@ -3322,8 +3322,8 @@ import { WithFramerBreakpoints } from "unframer";
 import { jsx } from "react/jsx-runtime";
 var locales = [];
 var defaultResponsiveVariants = {
-	base: "jBAhsocA6",
-	md: "dkw9iMgNl",
+	base: "jxSKImVP4",
+	md: "jxSKImVP4",
 	xl: "jxSKImVP4",
 };
 /** @type {function(Props): any} */

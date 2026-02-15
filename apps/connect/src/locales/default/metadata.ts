@@ -2,8 +2,8 @@ export default {
   'changelog.description': 'Stay updated on the new features and improvements of {{appName}}',
   'changelog.title': 'Changelog',
   'chat.description':
-    '{{appName}} is a work-and-lifestyle space to find, build, and collaborate with agent teams that grow with you.',
-  'chat.title': '{{appName}} · Connect : Des assistants IA qui grandissent avec vous',
+    '{{appName}} par Wozif — Automatisation WhatsApp avec Intelligence Artificielle. Créez des agents IA, chatbots et réponses automatiques pour votre business en Afrique.',
+  'chat.title': '{{appName}} — Automatisation WhatsApp avec IA | Agents, Chatbots & CRM',
   'discover.assistants.description':
     'Content, Q&A, images, video, voice, workflows—browse and add Agents from the Community.',
   'discover.assistants.title': 'Agent Community',

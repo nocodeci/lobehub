@@ -24,24 +24,34 @@ export default function HomePage() {
             </div>
 
             {/* Logos / Partners */}
-            <LogoContainer.Responsive />
+            <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+                <LogoContainer.Responsive />
+            </div>
 
             {/* Solutions Wozif */}
-            <SolutionsSection />
+            <div id="features" style={{ width: "100%" }}>
+                <SolutionsSection />
+            </div>
 
             {/* Workflows */}
-            <WorkflowsContainer.Responsive
-                direction="Horizontal"
-            />
+            <div id="avantages" style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+                <WorkflowsContainer.Responsive direction="Horizontal" style={{ width: "100%", maxWidth: 1200 }} />
+            </div>
 
             {/* Testimonials */}
-            <TestimonialsSection.Responsive />
+            <div id="temoignages" style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+                <TestimonialsSection.Responsive style={{ width: "100%", maxWidth: 1200 }} />
+            </div>
 
             {/* FAQ */}
-            <FaqSection.Responsive />
+            <div id="faq" style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+                <FaqSection.Responsive style={{ width: "100%", maxWidth: 1200 }} />
+            </div>
 
             {/* CTA */}
-            <CtaSection.Responsive />
+            <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+                <CtaSection.Responsive style={{ width: "100%", maxWidth: 1200 }} />
+            </div>
 
             {/* Footer */}
             <FooterFramer.Responsive />

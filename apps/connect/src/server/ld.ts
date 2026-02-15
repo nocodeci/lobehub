@@ -87,17 +87,17 @@ export class Ld {
     return {
       '@id': this.getId(OFFICIAL_URL, '#organization'),
       '@type': 'Organization',
-      'alternateName': 'LobeHub',
+      'alternateName': 'Connect by Wozif',
       'contactPoint': {
         '@type': 'ContactPoint',
         'contactType': 'customer support',
         'email': BRANDING_EMAIL.support,
       },
       'description':
-        'Connect : Des assistants IA qui grandissent avec vous\n' +
-        'Connect est un espace de travail et de vie pour trouver, créer et collaborer avec des équipes d\'agents IA qui évoluent à vos côtés.',
+        'Connect by Wozif : Automatisation WhatsApp avec Intelligence Artificielle.\n' +
+        'Créez des agents IA, chatbots, réponses automatiques et intégrations CRM pour votre business en Afrique.',
       'email': BRANDING_EMAIL.business,
-      'founders': [this.getAuthors(['arvinxx']), this.getAuthors(['canisminor'])],
+      'founders': [{ '@type': 'Organization', 'name': 'Wozif Technologies', 'url': 'https://wozif.com' }],
       'image': urlJoin(OFFICIAL_SITE, '/icon-512x512.png'),
       'logo': {
         '@type': 'ImageObject',
@@ -105,8 +105,8 @@ export class Ld {
         'url': urlJoin(OFFICIAL_SITE, '/icon-512x512.png'),
         'width': 512,
       },
-      'name': 'LobeHub',
-      'sameAs': [SOCIAL_URL.x, SOCIAL_URL.github, SOCIAL_URL.medium, SOCIAL_URL.youtube],
+      'name': 'Wozif',
+      'sameAs': [SOCIAL_URL.x, SOCIAL_URL.github, SOCIAL_URL.youtube].filter(Boolean),
       'url': OFFICIAL_SITE,
     };
   }
