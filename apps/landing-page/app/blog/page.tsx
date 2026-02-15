@@ -122,14 +122,32 @@ const useStyles = createStyles(({ css }) => ({
 
 const posts = [
     {
+        slug: "connect-vs-wazzap-ai-comparatif",
+        title: "Connect vs Wazzap AI : Comparatif complet 2026",
+        desc: "Analyse détaillée des deux plateformes d'automatisation WhatsApp. Découvrez pourquoi Connect offre plus de puissance, de flexibilité et un meilleur rapport qualité-prix.",
+        category: "Comparatif",
+        date: "15 Fév 2026",
+        readTime: "12 min",
+        image: "/blog/connect-vs-wazzap.png",
+        featured: true
+    },
+    {
+        slug: "top-10-alternatives-automatisation-whatsapp",
+        title: "Top 10 des outils d'automatisation WhatsApp en 2026",
+        desc: "Comparatif complet des meilleures plateformes : Connect, Wazzap AI, Respond.io, WATI, Tidio, ManyChat et plus. Lequel choisir pour votre business ?",
+        category: "Comparatif",
+        date: "14 Fév 2026",
+        readTime: "15 min",
+        image: "/blog/top-10-tools.png",
+    },
+    {
         slug: "ia-experience-client-whatsapp",
         title: "L'IA au service de l'Expérience Client sur WhatsApp",
         desc: "Comment les agents intelligents transforment radicalement la manière dont les entreprises interagissent avec leurs clients.",
         category: "Intelligence Artificielle",
         date: "8 Fév 2026",
         readTime: "5 min",
-        image: "https://images.unsplash.com/photo-1596524430615-b46475ddff6e?q=80&w=2070&auto=format&fit=crop",
-        featured: true
+        image: "/blog/ai-customer-experience.png",
     },
     {
         slug: "automatisation-agents-autonomes",
@@ -138,7 +156,7 @@ const posts = [
         category: "Innovation",
         date: "5 Fév 2026",
         readTime: "8 min",
-        image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?q=80&w=2070&auto=format&fit=crop"
+        image: "/blog/autonomous-agents.png"
     },
     {
         slug: "guide-whatsapp-collect",
@@ -147,7 +165,7 @@ const posts = [
         category: "Tutoriel",
         date: "2 Fév 2026",
         readTime: "12 min",
-        image: "https://images.unsplash.com/photo-1611746872915-64382b5c76da?q=80&w=2070&auto=format&fit=crop"
+        image: "/blog/whatsapp-collect-guide.png"
     },
     {
         slug: "erreurs-automatisation-whatsapp",
@@ -156,7 +174,7 @@ const posts = [
         category: "Conseils",
         date: "28 Jan 2026",
         readTime: "6 min",
-        image: "https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2070&auto=format&fit=crop"
+        image: "/blog/automation-errors.png"
     },
     {
         slug: "roi-automatisation-whatsapp",
@@ -165,7 +183,7 @@ const posts = [
         category: "Études de cas",
         date: "25 Jan 2026",
         readTime: "10 min",
-        image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=2070&auto=format&fit=crop"
+        image: "/blog/roi-case-study.png"
     },
     {
         slug: "whatsapp-business-api-vs-cloud-api",
@@ -174,7 +192,7 @@ const posts = [
         category: "Technique",
         date: "20 Jan 2026",
         readTime: "8 min",
-        image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop"
+        image: "/blog/whatsapp-api-vs-cloud.png"
     }
 ];
 

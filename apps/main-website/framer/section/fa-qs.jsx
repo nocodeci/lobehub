@@ -819,7 +819,7 @@ var Component2 = /* @__PURE__ */ React2.forwardRef(function (props, ref) {
 										{_jsx2(stdin_default2, {
 											height: "100%",
 											id: "rdnhIyHwL",
-											kxsr9hB1V: "View All",
+											kxsr9hB1V: "Voir tout",
 											layoutId: "rdnhIyHwL",
 											NHtMIEDfO: false,
 											style: {
@@ -1624,7 +1624,7 @@ var Component3 = /* @__PURE__ */ React3.forwardRef(function (props, ref) {
 														"var(--token-325dbb34-3704-4fe8-9b79-64c8d834b7a6, rgb(255, 255, 255))",
 													rNXUHBS8V: resolvedLinks[0],
 													variant: "TPQ7ZZWjk",
-													WB6m_In3A: "Contact Us",
+													WB6m_In3A: "Contactez-nous",
 													width: "100%",
 													Y6bbgR64g: "14px 18px 14px 18px",
 													ZSfEeTznX: 1,

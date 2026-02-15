@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, useScroll, useTransform, useSpring, AnimatePresence } from 'framer-motion';
 import { Loader2, ExternalLink, MousePointerClick } from 'lucide-react';
 
@@ -7,8 +7,33 @@ export default function DemoPreview() {
     const [isMobile, setIsMobile] = useState(false);
     const [scaleFactor, setScaleFactor] = useState(1);
     const [isInteractive, setIsInteractive] = useState(false);
+    const [shouldLoadIframe, setShouldLoadIframe] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const iframeContainerRef = useRef<HTMLDivElement>(null);
+
+    // Only load iframe when the user has scrolled the component into view
+    useEffect(() => {
+        let timeout: ReturnType<typeof setTimeout>;
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    // Delay iframe load to avoid scroll jump on initial render
+                    timeout = setTimeout(() => {
+                        setShouldLoadIframe(true);
+                    }, 300);
+                    observer.disconnect();
+                }
+            },
+            { rootMargin: '0px', threshold: 0.1 }
+        );
+        if (containerRef.current) {
+            observer.observe(containerRef.current);
+        }
+        return () => {
+            clearTimeout(timeout);
+            observer.disconnect();
+        };
+    }, []);
 
     // Initial check and resize listener for responsiveness
     useEffect(() => {
@@ -282,19 +307,28 @@ export default function DemoPreview() {
                         left: 0,
                         pointerEvents: isInteractive ? 'auto' : 'none'
                     }}>
-                        <iframe
-                            src="https://app.connect.wozif.com/demo"
-                            title="Connect - Plateforme d'automatisation IA"
-                            loading="lazy"
-                            allow="clipboard-write"
-                            onLoad={() => setLoading(false)}
-                            style={{
-                                width: '100%',
-                                height: '100%',
-                                border: 'none',
-                                display: 'block',
-                            }}
-                        />
+                        {shouldLoadIframe && (
+                            <iframe
+                                src="https://app.connect.wozif.com/demo"
+                                title="Connect - Plateforme d'automatisation IA"
+                                loading="lazy"
+                                allow="clipboard-write"
+                                tabIndex={-1}
+                                onLoad={() => {
+                                    const scrollY = window.scrollY;
+                                    setLoading(false);
+                                    requestAnimationFrame(() => {
+                                        window.scrollTo(0, scrollY);
+                                    });
+                                }}
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    border: 'none',
+                                    display: 'block',
+                                }}
+                            />
+                        )}
                     </div>
                 </div>
 

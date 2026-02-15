@@ -667,7 +667,7 @@ var Component = /* @__PURE__ */ React.forwardRef(function (props, ref) {
 										{_jsx(stdin_default, {
 											height: "100%",
 											id: "rdnhIyHwL",
-											kxsr9hB1V: "View All",
+											kxsr9hB1V: "Voir tout",
 											layoutId: "rdnhIyHwL",
 											NHtMIEDfO: false,
 											style: {
