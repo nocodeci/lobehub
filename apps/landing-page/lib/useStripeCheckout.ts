@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-type PlanKey = 'base' | 'premium' | 'ultimate';
+type PlanKey = 'free' | 'starter' | 'base' | 'pro' | 'premium' | 'business' | 'ultimate' | 'enterprise';
 type BillingCycle = 'monthly' | 'yearly';
 
 const APP_URL = 'https://app.connect.wozif.com';
