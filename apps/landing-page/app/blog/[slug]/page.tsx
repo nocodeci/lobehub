@@ -322,7 +322,7 @@ Si les deux promettent d'automatiser WhatsApp, les différences sont **considér
 
 ### Connect by Wozif
 
-Connect est une **plateforme d'automatisation WhatsApp complète** propulsée par l'IA. Née de la technologie open source LobeHub, elle offre un accès à plus de 50 modèles IA, un système d'orchestration multi-agents, un CRM intégré, et des intégrations avancées. Connect est conçue pour les entreprises de toutes tailles, du freelance à l'enterprise.
+Connect est une **plateforme d'automatisation WhatsApp complète** propulsée par l'IA. Elle offre un accès à plus de 50 modèles IA, un système d'orchestration multi-agents, un CRM intégré, et des intégrations avancées. Connect est conçue pour les entreprises de toutes tailles, du freelance à l'enterprise.
 
 ### Wazzap AI
 
