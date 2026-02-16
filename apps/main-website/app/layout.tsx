@@ -138,6 +138,7 @@ const jsonLd = {
                 "https://twitter.com/woziftech",
                 "https://www.linkedin.com/company/wozif",
                 "https://www.instagram.com/woziftech",
+                "https://discord.gg/FX9N3Cq8",
             ],
             contactPoint: {
                 "@type": "ContactPoint",
