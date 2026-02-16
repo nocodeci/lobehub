@@ -149,13 +149,7 @@ const KlavisToolAuthItem = memo<KlavisToolAuthItemProps>(({ tool, onAuthComplete
       cleanup();
       setIsWaitingAuth(true);
 
-      const oauthWindow = window.open(oauthUrl, '_blank', 'width=600,height=700');
-      if (oauthWindow) {
-        oauthWindowRef.current = oauthWindow;
-        startWindowMonitor(oauthWindow, identifier);
-      } else {
-        startFallbackPolling(identifier);
-      }
+      window.location.href = oauthUrl;
     },
     [cleanup, startWindowMonitor, startFallbackPolling],
   );

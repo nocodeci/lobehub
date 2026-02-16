@@ -147,15 +147,7 @@ const KlavisServerItem = memo<KlavisServerItemProps>(
         cleanup();
         setIsWaitingAuth(true);
 
-        // 打开 OAuth 窗口
-        const oauthWindow = window.open(oauthUrl, '_blank', 'width=600,height=700');
-        if (oauthWindow) {
-          oauthWindowRef.current = oauthWindow;
-          startWindowMonitor(oauthWindow, serverName);
-        } else {
-          // 窗口被阻止，直接用轮询
-          startFallbackPolling(serverName);
-        }
+        window.location.href = oauthUrl;
       },
       [cleanup, startWindowMonitor, startFallbackPolling, t],
     );

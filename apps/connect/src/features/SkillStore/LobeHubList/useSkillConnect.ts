@@ -158,14 +158,7 @@ export const useSkillConnect = ({ identifier, serverName, type }: UseSkillConnec
       cleanup();
       setIsWaitingAuth(true);
 
-      const oauthWindow = window.open(oauthUrl, '_blank', 'width=600,height=700');
-      if (oauthWindow) {
-        oauthWindowRef.current = oauthWindow;
-        startWindowMonitor(oauthWindow, serverIdOrName);
-      } else {
-        // Popup was blocked by the browser — navigate directly instead
-        window.location.href = oauthUrl;
-      }
+      window.location.href = oauthUrl;
     },
     [cleanup, startWindowMonitor],
   );

@@ -117,13 +117,7 @@ const LobehubSkillServerItem = memo<LobehubSkillServerItemProps>(({ provider, la
       cleanup();
       setIsWaitingAuth(true);
 
-      const oauthWindow = window.open(authorizeUrl, '_blank', 'width=600,height=700');
-      if (oauthWindow) {
-        oauthWindowRef.current = oauthWindow;
-        startWindowMonitor(oauthWindow);
-      } else {
-        startFallbackPolling();
-      }
+      window.location.href = authorizeUrl;
     },
     [cleanup, startWindowMonitor, startFallbackPolling],
   );

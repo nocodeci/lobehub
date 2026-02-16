@@ -605,6 +605,257 @@ const SubscriptionPage = memo(() => {
         })}
       </Flexbox>
 
+      {/* Detailed Comparison Table */}
+      <Card style={{ borderRadius: 16, overflow: 'auto' }}>
+        <Flexbox gap={16}>
+          <Title level={4} style={{ margin: 0 }}>
+            Comparaison détaillée des plans
+          </Title>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            Retrouvez toutes les fonctionnalités incluses dans chaque plan Connect.
+          </Text>
+        </Flexbox>
+
+        <div style={{ overflowX: 'auto', marginTop: 24 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 700 }}>
+            <thead>
+              <tr style={{ borderBottom: `2px solid ${cssVar.colorBorderSecondary}` }}>
+                <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 700, fontSize: 14, width: '30%' }}>Fonctionnalité</th>
+                {PLANS.map((p) => (
+                  <th key={p.planKey} style={{
+                    textAlign: 'center',
+                    padding: '12px 8px',
+                    fontWeight: 700,
+                    fontSize: 14,
+                    color: p.planKey === currentPlan && isActive ? cssVar.colorPrimary : undefined,
+                  }}>
+                    {p.name}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {/* Category: General */}
+              <tr style={{ background: cssVar.colorFillQuaternary }}>
+                <td colSpan={PLANS.length + 1} style={{ padding: '10px 16px', fontWeight: 700, fontSize: 13, color: cssVar.colorPrimary }}>
+                  Général
+                </td>
+              </tr>
+              <tr style={{ borderBottom: `1px solid ${cssVar.colorBorderSecondary}` }}>
+                <td style={{ padding: '10px 16px' }}>Agents IA</td>
+                {PLANS.map((p) => (
+                  <td key={p.planKey} style={{ textAlign: 'center', padding: '10px 8px', fontWeight: 500 }}>
+                    {p.agents === -1 ? 'Illimités' : p.agents}
+                  </td>
+                ))}
+              </tr>
+              <tr style={{ borderBottom: `1px solid ${cssVar.colorBorderSecondary}` }}>
+                <td style={{ padding: '10px 16px' }}>Crédits / mois</td>
+                {PLANS.map((p) => (
+                  <td key={p.planKey} style={{ textAlign: 'center', padding: '10px 8px', fontWeight: 500 }}>
+                    {p.credits}
+                  </td>
+                ))}
+              </tr>
+              <tr style={{ borderBottom: `1px solid ${cssVar.colorBorderSecondary}` }}>
+                <td style={{ padding: '10px 16px' }}>Stockage</td>
+                {PLANS.map((p) => (
+                  <td key={p.planKey} style={{ textAlign: 'center', padding: '10px 8px', fontWeight: 500 }}>
+                    {p.storage}
+                  </td>
+                ))}
+              </tr>
+              <tr style={{ borderBottom: `1px solid ${cssVar.colorBorderSecondary}` }}>
+                <td style={{ padding: '10px 16px' }}>Comptes WhatsApp</td>
+                {(['1', '2', '5', '20', 'Illimités']).map((val, i) => (
+                  <td key={i} style={{ textAlign: 'center', padding: '10px 8px', fontWeight: 500 }}>
+                    {val}
+                  </td>
+                ))}
+              </tr>
+
+              {/* Category: AI Models */}
+              <tr style={{ background: cssVar.colorFillQuaternary }}>
+                <td colSpan={PLANS.length + 1} style={{ padding: '10px 16px', fontWeight: 700, fontSize: 13, color: cssVar.colorPrimary }}>
+                  Modèles IA
+                </td>
+              </tr>
+              {[
+                { label: 'GPT-4o / GPT-4o-mini', plans: [true, true, true, true, true] },
+                { label: 'Claude 3.5 Sonnet / Haiku', plans: [true, true, true, true, true] },
+                { label: 'DeepSeek V3 / R1', plans: [true, true, true, true, true] },
+                { label: 'Gemini 2.0 Flash', plans: [true, true, true, true, true] },
+                { label: 'Priorité d\'accès aux modèles', plans: [false, false, false, true, true] },
+              ].map((row) => (
+                <tr key={row.label} style={{ borderBottom: `1px solid ${cssVar.colorBorderSecondary}` }}>
+                  <td style={{ padding: '10px 16px' }}>{row.label}</td>
+                  {row.plans.map((val, i) => (
+                    <td key={i} style={{ textAlign: 'center', padding: '10px 8px' }}>
+                      {val ? (
+                        <Icon icon={Check} size={16} style={{ color: cssVar.colorSuccess }} />
+                      ) : (
+                        <span style={{ color: cssVar.colorTextQuaternary }}>—</span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+
+              {/* Category: WhatsApp Features */}
+              <tr style={{ background: cssVar.colorFillQuaternary }}>
+                <td colSpan={PLANS.length + 1} style={{ padding: '10px 16px', fontWeight: 700, fontSize: 13, color: cssVar.colorPrimary }}>
+                  WhatsApp & Messagerie
+                </td>
+              </tr>
+              {[
+                { label: 'Connexion WhatsApp (QR Code)', plans: [true, true, true, true, true] },
+                { label: 'Réponses automatiques', plans: [true, true, true, true, true] },
+                { label: 'Messages programmés', plans: [false, true, true, true, true] },
+                { label: 'Groupes WhatsApp', plans: [false, false, false, true, true] },
+                { label: 'Diffusion en masse', plans: [false, false, true, true, true] },
+              ].map((row) => (
+                <tr key={row.label} style={{ borderBottom: `1px solid ${cssVar.colorBorderSecondary}` }}>
+                  <td style={{ padding: '10px 16px' }}>{row.label}</td>
+                  {row.plans.map((val, i) => (
+                    <td key={i} style={{ textAlign: 'center', padding: '10px 8px' }}>
+                      {val ? (
+                        <Icon icon={Check} size={16} style={{ color: cssVar.colorSuccess }} />
+                      ) : (
+                        <span style={{ color: cssVar.colorTextQuaternary }}>—</span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+
+              {/* Category: Agent Features */}
+              <tr style={{ background: cssVar.colorFillQuaternary }}>
+                <td colSpan={PLANS.length + 1} style={{ padding: '10px 16px', fontWeight: 700, fontSize: 13, color: cssVar.colorPrimary }}>
+                  Agents & Automatisation
+                </td>
+              </tr>
+              {[
+                { label: 'Prompt système personnalisé', plans: [true, true, true, true, true] },
+                { label: 'Base de connaissances (RAG)', plans: [false, true, true, true, true] },
+                { label: 'Outils & Compétences (MCP)', plans: [false, true, true, true, true] },
+                { label: 'Groupes d\'agents (Teams)', plans: [false, false, false, true, true] },
+                { label: 'Workflows automatisés', plans: [false, false, true, true, true] },
+              ].map((row) => (
+                <tr key={row.label} style={{ borderBottom: `1px solid ${cssVar.colorBorderSecondary}` }}>
+                  <td style={{ padding: '10px 16px' }}>{row.label}</td>
+                  {row.plans.map((val, i) => (
+                    <td key={i} style={{ textAlign: 'center', padding: '10px 8px' }}>
+                      {val ? (
+                        <Icon icon={Check} size={16} style={{ color: cssVar.colorSuccess }} />
+                      ) : (
+                        <span style={{ color: cssVar.colorTextQuaternary }}>—</span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+
+              {/* Category: Integrations */}
+              <tr style={{ background: cssVar.colorFillQuaternary }}>
+                <td colSpan={PLANS.length + 1} style={{ padding: '10px 16px', fontWeight: 700, fontSize: 13, color: cssVar.colorPrimary }}>
+                  Intégrations
+                </td>
+              </tr>
+              {[
+                { label: 'Google Calendar', plans: [false, true, true, true, true] },
+                { label: 'Gmail', plans: [false, true, true, true, true] },
+                { label: 'Connecteurs CRM natifs', plans: [false, false, true, true, true] },
+                { label: 'Webhooks', plans: [false, false, true, true, true] },
+                { label: 'API REST', plans: [false, false, true, true, true] },
+              ].map((row) => (
+                <tr key={row.label} style={{ borderBottom: `1px solid ${cssVar.colorBorderSecondary}` }}>
+                  <td style={{ padding: '10px 16px' }}>{row.label}</td>
+                  {row.plans.map((val, i) => (
+                    <td key={i} style={{ textAlign: 'center', padding: '10px 8px' }}>
+                      {val ? (
+                        <Icon icon={Check} size={16} style={{ color: cssVar.colorSuccess }} />
+                      ) : (
+                        <span style={{ color: cssVar.colorTextQuaternary }}>—</span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+
+              {/* Category: Security & Admin */}
+              <tr style={{ background: cssVar.colorFillQuaternary }}>
+                <td colSpan={PLANS.length + 1} style={{ padding: '10px 16px', fontWeight: 700, fontSize: 13, color: cssVar.colorPrimary }}>
+                  Sécurité & Administration
+                </td>
+              </tr>
+              {[
+                { label: 'BYOK (Bring Your Own Key)', plans: [false, false, true, true, true] },
+                { label: 'SSO (Google, etc.)', plans: [false, false, false, true, true] },
+                { label: 'Logs d\'audit', plans: [false, false, false, true, true] },
+                { label: 'Multi-utilisateurs', plans: [false, false, false, true, true] },
+                { label: 'Infrastructure dédiée', plans: [false, false, false, false, true] },
+                { label: 'SLA 99.9%', plans: [false, false, false, false, true] },
+              ].map((row) => (
+                <tr key={row.label} style={{ borderBottom: `1px solid ${cssVar.colorBorderSecondary}` }}>
+                  <td style={{ padding: '10px 16px' }}>{row.label}</td>
+                  {row.plans.map((val, i) => (
+                    <td key={i} style={{ textAlign: 'center', padding: '10px 8px' }}>
+                      {val ? (
+                        <Icon icon={Check} size={16} style={{ color: cssVar.colorSuccess }} />
+                      ) : (
+                        <span style={{ color: cssVar.colorTextQuaternary }}>—</span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+
+              {/* Category: Support */}
+              <tr style={{ background: cssVar.colorFillQuaternary }}>
+                <td colSpan={PLANS.length + 1} style={{ padding: '10px 16px', fontWeight: 700, fontSize: 13, color: cssVar.colorPrimary }}>
+                  Support
+                </td>
+              </tr>
+              {[
+                { label: 'Support communauté', values: ['✓', '✓', '✓', '✓', '✓'] },
+                { label: 'Support email', values: ['—', '✓', '✓', '✓', '✓'] },
+                { label: 'Support prioritaire 24/7', values: ['—', '—', '✓', '✓', '✓'] },
+                { label: 'Account Manager dédié', values: ['—', '—', '—', '✓', '✓'] },
+                { label: 'Onboarding personnalisé', values: ['—', '—', '—', '—', '✓'] },
+              ].map((row) => (
+                <tr key={row.label} style={{ borderBottom: `1px solid ${cssVar.colorBorderSecondary}` }}>
+                  <td style={{ padding: '10px 16px' }}>{row.label}</td>
+                  {row.values.map((val, i) => (
+                    <td key={i} style={{ textAlign: 'center', padding: '10px 8px' }}>
+                      {val === '✓' ? (
+                        <Icon icon={Check} size={16} style={{ color: cssVar.colorSuccess }} />
+                      ) : (
+                        <span style={{ color: cssVar.colorTextQuaternary }}>—</span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+
+              {/* Category: Pricing extras */}
+              <tr style={{ background: cssVar.colorFillQuaternary }}>
+                <td colSpan={PLANS.length + 1} style={{ padding: '10px 16px', fontWeight: 700, fontSize: 13, color: cssVar.colorPrimary }}>
+                  Crédits supplémentaires
+                </td>
+              </tr>
+              <tr style={{ borderBottom: `1px solid ${cssVar.colorBorderSecondary}` }}>
+                <td style={{ padding: '10px 16px' }}>Prix / 10M crédits</td>
+                {['—', '15€', '12€', '10€', 'Sur devis'].map((val, i) => (
+                  <td key={i} style={{ textAlign: 'center', padding: '10px 8px', fontWeight: 600, color: val === '—' ? cssVar.colorTextQuaternary : undefined }}>
+                    {val}
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
       {/* Manage Billing */}
       {stripeCustomerId && (
         <Card style={{ borderRadius: 12 }}>

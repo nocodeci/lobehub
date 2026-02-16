@@ -166,13 +166,7 @@ const KlavisSkillItem = memo<KlavisSkillItemProps>(({ serverType, server }) => {
       cleanup();
       setIsWaitingAuth(true);
 
-      const oauthWindow = window.open(oauthUrl, '_blank', 'width=600,height=700');
-      if (oauthWindow) {
-        oauthWindowRef.current = oauthWindow;
-        startWindowMonitor(oauthWindow, serverName);
-      } else {
-        startFallbackPolling(serverName);
-      }
+      window.location.href = oauthUrl;
     },
     [cleanup, startWindowMonitor, startFallbackPolling],
   );

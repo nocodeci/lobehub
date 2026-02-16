@@ -151,29 +151,31 @@ export const Footer = () => {
                         </Flexbox>
 
                         <Flexbox gap={16}>
-                            <span style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", color: "#075e54", opacity: 0.6 }}>Produits</span>
+                            <span style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", color: "#075e54", opacity: 0.6 }}>Produit</span>
                             <Flexbox gap={10}>
-                                {["Orchestrateur IA", "Agents WhatsApp", "WhatsApp Collect", "School Automation", "API Direct"].map(l => (
-                                    <a key={l} href="#" style={{ color: "#000", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{l}</a>
-                                ))}
+                                <a href="/#features" style={{ color: "#000", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Fonctionnalités</a>
+                                <a href="/pricing" style={{ color: "#000", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Tarifs</a>
+                                <a href="/blog" style={{ color: "#000", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Blog</a>
+                                <a href="https://app.connect.wozif.com" target="_blank" rel="noopener noreferrer" style={{ color: "#000", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Lancer Connect</a>
                             </Flexbox>
                         </Flexbox>
 
                         <Flexbox gap={16}>
-                            <span style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", color: "#075e54", opacity: 0.6 }}>Développeurs</span>
+                            <span style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", color: "#075e54", opacity: 0.6 }}>Ressources</span>
                             <Flexbox gap={10}>
-                                {["Bien démarrer", "Documentation API", "Guides & Tutoriels", "SDKs", "Statut"].map(l => (
-                                    <a key={l} href="#" style={{ color: "#000", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{l}</a>
-                                ))}
+                                <a href="/documentation" style={{ color: "#000", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Documentation</a>
+                                <a href="/documentation/getting-started/create-account" style={{ color: "#000", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Bien démarrer</a>
+                                <a href="/tutoriel" style={{ color: "#000", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Tutoriels vidéo</a>
+                                <a href="/documentation/integrations/api" style={{ color: "#000", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Documentation API</a>
                             </Flexbox>
                         </Flexbox>
 
                         <Flexbox gap={16}>
                             <span style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", color: "#075e54", opacity: 0.6 }}>Légal</span>
                             <Flexbox gap={10}>
-                                {["Conditions", "Confidentialité", "Cookies", "Mentions légales"].map(l => (
-                                    <a key={l} href="#" style={{ color: "#000", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>{l}</a>
-                                ))}
+                                <a href="/cgu" style={{ color: "#000", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Conditions générales</a>
+                                <a href="/politique-confidentialite" style={{ color: "#000", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Confidentialité</a>
+                                <a href="/mentions-legales" style={{ color: "#000", textDecoration: "none", fontSize: 14, fontWeight: 500 }}>Mentions légales</a>
                             </Flexbox>
                         </Flexbox>
                     </div>

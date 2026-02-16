@@ -278,6 +278,24 @@ html, body {
     }
 }
 
+/* Hide Hero bottom: video/screenshot, product cards, stats, logos, decorative lines */
+.framer-QYerR .framer-i8umo,
+.framer-QYerR .framer-ct194-container,
+.framer-QYerR .framer-cddtsr,
+.framer-QYerR .framer-1i0mc9r,
+.framer-QYerR .framer-ozwdz5 {
+    display: none !important;
+}
+/* Force Hero to shrink to visible content (title + CTA only) */
+.framer-QYerR.framer-jgv1e3,
+.framer-QYerR.framer-v-1gtq3pi.framer-jgv1e3,
+.framer-QYerR.framer-v-1o5mdr8.framer-jgv1e3 {
+    height: min-content !important;
+    min-height: unset !important;
+    padding-bottom: 60px !important;
+    overflow: hidden !important;
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
     width: 6px;
