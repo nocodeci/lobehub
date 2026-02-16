@@ -131,6 +131,8 @@ export const createRuntimeExecutors = (
         if (!creditCheck.allowed) {
           throw new Error(creditCheck.message || 'Crédits IA insuffisants.');
         }
+        // Deduct credits optimistically before LLM call (await to guarantee DB write)
+        await deductCredits(ctx.serverDB, ctx.userId, model);
       }
 
       // Initialize ModelRuntime (read user's keyVaults from database)
@@ -352,13 +354,6 @@ export const createRuntimeExecutors = (
       });
 
       log('[%s:%d] call_llm completed', operationId, stepIndex);
-
-      // Deduct credits after successful LLM call
-      if (ctx.userId) {
-        deductCredits(ctx.serverDB, ctx.userId, model).catch((err) => {
-          console.error('[call_llm] Failed to deduct credits:', err);
-        });
-      }
 
       // ===== 1. First save original usage to message.metadata =====
       // Determine final content - use serialized parts if has images, otherwise plain text

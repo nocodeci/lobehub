@@ -3,6 +3,7 @@ import {
   type SendMessageServerResponse,
   StructureOutputSchema,
 } from '@lobechat/types';
+import { TRPCError } from '@trpc/server';
 import debug from 'debug';
 
 import { LOADING_FLAT } from '@/const/message';
@@ -11,6 +12,7 @@ import { MessageModel } from '@/database/models/message';
 import { ThreadModel } from '@/database/models/thread';
 import { TopicModel } from '@/database/models/topic';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
+import { checkCredits, deductCredits } from '@/libs/subscription/credits';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { initModelRuntimeFromDB } from '@/server/modules/ModelRuntime';
 import { resolveContext } from '@/server/routers/lambda/_helpers/resolveContext';
@@ -39,6 +41,18 @@ export const aiChatRouter = router({
     log('outputJSON called with provider: %s, model: %s', input.provider, input.model);
     log('messages count: %d', input.messages.length);
     log('schema: %O', input.schema);
+
+    // Check credit limits before AI call
+    const creditCheck = await checkCredits(ctx.serverDB, ctx.userId, input.model, input.provider);
+    if (!creditCheck.allowed) {
+      throw new TRPCError({
+        code: 'TOO_MANY_REQUESTS',
+        message: creditCheck.message || 'Limite de crédits IA atteinte.',
+      });
+    }
+
+    // Deduct credits optimistically before AI call (await to guarantee DB write)
+    await deductCredits(ctx.serverDB, ctx.userId, input.model);
 
     log('initializing model runtime from DB with provider: %s', input.provider);
     // Read user's provider config from database

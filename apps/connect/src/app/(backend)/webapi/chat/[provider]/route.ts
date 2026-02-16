@@ -6,6 +6,7 @@ import {
 import { ChatErrorType } from '@lobechat/types';
 
 import { checkAuth } from '@/app/(backend)/middleware/auth';
+import { checkCredits, deductCredits } from '@/libs/subscription/credits';
 import { createTraceOptions, initModelRuntimeFromDB } from '@/server/modules/ModelRuntime';
 import { type ChatStreamPayload } from '@/types/openai/chat';
 import { createErrorResponse } from '@/utils/errorResponse';
@@ -20,7 +21,20 @@ export const POST = checkAuth(
     const provider = (await params)!.provider!;
 
     try {
-      // ============  1. init chat model   ============ //
+      // ============  0. parse request to get model  ============ //
+      const data = (await req.json()) as ChatStreamPayload;
+      const model = data.model;
+
+      // ============  1. check credit limit + provider restriction  ============ //
+      const creditCheck = await checkCredits(serverDB, userId, model, provider);
+      if (!creditCheck.allowed) {
+        return createErrorResponse(ChatErrorType.SubscriptionPlanLimit, {
+          error: { message: creditCheck.message },
+          provider,
+        });
+      }
+
+      // ============  2. init chat model   ============ //
       let modelRuntime: ModelRuntime;
       if (createRuntime) {
         // Legacy support for custom runtime creation
@@ -30,9 +44,10 @@ export const POST = checkAuth(
         modelRuntime = await initModelRuntimeFromDB(serverDB, userId, provider);
       }
 
-      // ============  2. create chat completion   ============ //
+      // ============  3. deduct credits before LLM call (optimistic)  ============ //
+      await deductCredits(serverDB, userId, model);
 
-      const data = (await req.json()) as ChatStreamPayload;
+      // ============  4. create chat completion   ============ //
 
       const tracePayload = getTracePayload(req);
 
@@ -42,11 +57,13 @@ export const POST = checkAuth(
         traceOptions = createTraceOptions(data, { provider, trace: tracePayload });
       }
 
-      return await modelRuntime.chat(data, {
+      const response = await modelRuntime.chat(data, {
         user: userId,
         ...traceOptions,
         signal: req.signal,
       });
+
+      return response;
     } catch (e) {
       const {
         errorType = ChatErrorType.InternalServerError,
