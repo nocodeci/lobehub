@@ -79,6 +79,67 @@ const MODEL_COSTS: Record<string, number> = {
   // DeepSeek
   'deepseek-chat': 1,
   'deepseek-reasoner': 2,
+
+  // ==================== OpenRouter models (provider/model format) ==================== //
+
+  // OpenRouter Auto
+  'openrouter/auto': 2,
+
+  // OpenAI via OpenRouter
+  'openai/gpt-4o-mini': 1,
+  'openai/gpt-4o': 3,
+  'openai/gpt-4.1': 5,
+  'openai/gpt-4.1-mini': 2,
+  'openai/gpt-4.1-nano': 1,
+  'openai/o1-mini': 2,
+  'openai/o1-preview': 5,
+  'openai/o3-mini': 3,
+  'openai/o3-mini-high': 3,
+  'openai/o3': 10,
+  'openai/o4-mini': 3,
+  'openai/o4-mini-high': 3,
+
+  // Google via OpenRouter
+  'google/gemini-2.5-pro': 5,
+  'google/gemini-2.5-pro-preview': 5,
+  'google/gemini-2.5-flash': 1,
+  'google/gemini-2.5-flash-preview': 1,
+  'google/gemini-2.5-flash-preview:thinking': 2,
+  'google/gemini-2.5-flash-image-preview': 2,
+
+  // DeepSeek via OpenRouter
+  'deepseek/deepseek-chat-v3.1': 1,
+  'deepseek/deepseek-chat-v3-0324': 1,
+  'deepseek/deepseek-chat-v3-0324:free': 1,
+  'deepseek/deepseek-r1': 3,
+  'deepseek/deepseek-r1:free': 1,
+  'deepseek/deepseek-r1-0528': 2,
+  'deepseek/deepseek-r1-0528:free': 1,
+
+  // Anthropic via OpenRouter
+  'anthropic/claude-3-haiku': 2,
+  'anthropic/claude-sonnet-4.5': 5,
+  'anthropic/claude-opus-4.5': 20,
+
+  // Qwen via OpenRouter
+  'qwen/qwen3-8b:free': 1,
+  'qwen/qwen3-14b:free': 1,
+  'qwen/qwen3-14b': 1,
+  'qwen/qwen3-30b-a3b:free': 1,
+  'qwen/qwen3-30b-a3b': 1,
+  'qwen/qwen3-32b:free': 1,
+  'qwen/qwen3-32b': 1,
+  'qwen/qwen3-235b-a22b:free': 1,
+  'qwen/qwen3-235b-a22b': 2,
+
+  // GLM via OpenRouter
+  'thudm/glm-4-32b:free': 1,
+  'thudm/glm-4-32b': 1,
+  'thudm/glm-z1-32b': 2,
+  'thudm/glm-z1-rumination-32b': 2,
+
+  // Other OpenRouter free models
+  'tngtech/deepseek-r1t-chimera:free': 1,
 };
 
 /** Default cost for unknown models */

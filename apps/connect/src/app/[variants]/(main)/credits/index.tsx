@@ -15,6 +15,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -40,16 +41,37 @@ const TOPUP_OPTIONS = [
 ];
 
 const MODEL_PRICING = [
+  // OpenAI (direct)
   { cost: '$0.01', credits: 1, model: 'GPT-4o-mini', provider: 'OpenAI' },
   { cost: '$0.03', credits: 3, model: 'GPT-4o', provider: 'OpenAI' },
+  // Google (direct)
   { cost: '$0.01', credits: 1, model: 'Gemini Flash', provider: 'Google' },
   { cost: '$0.02', credits: 2, model: 'Gemini 1.5 Pro', provider: 'Google' },
+  // DeepSeek (direct)
   { cost: '$0.01', credits: 1, model: 'DeepSeek Chat', provider: 'DeepSeek' },
   { cost: '$0.02', credits: 2, model: 'DeepSeek Reasoner', provider: 'DeepSeek' },
+  // Groq
   { cost: '$0.01', credits: 1, model: 'Llama 3.1 (Groq)', provider: 'Groq' },
+  // Anthropic (Pro+)
   { cost: '$0.02', credits: 2, model: 'Claude Haiku', pro: true, provider: 'Anthropic' },
   { cost: '$0.05', credits: 5, model: 'Claude Sonnet', pro: true, provider: 'Anthropic' },
   { cost: '$0.20', credits: 20, model: 'Claude Opus', pro: true, provider: 'Anthropic' },
+  // OpenRouter
+  { cost: '$0.02', credits: 2, model: 'Auto (best for prompt)', provider: 'OpenRouter' },
+  { cost: '$0.05', credits: 5, model: 'GPT-4.1', provider: 'OpenRouter' },
+  { cost: '$0.02', credits: 2, model: 'GPT-4.1 mini', provider: 'OpenRouter' },
+  { cost: '$0.01', credits: 1, model: 'GPT-4.1 nano', provider: 'OpenRouter' },
+  { cost: '$0.10', credits: 10, model: 'o3', provider: 'OpenRouter' },
+  { cost: '$0.03', credits: 3, model: 'o4-mini', provider: 'OpenRouter' },
+  { cost: '$0.05', credits: 5, model: 'Gemini 2.5 Pro', provider: 'OpenRouter' },
+  { cost: '$0.01', credits: 1, model: 'Gemini 2.5 Flash', provider: 'OpenRouter' },
+  { cost: '$0.01', credits: 1, model: 'DeepSeek V3.1', provider: 'OpenRouter' },
+  { cost: '$0.03', credits: 3, model: 'DeepSeek R1', provider: 'OpenRouter' },
+  { cost: '$0.02', credits: 2, model: 'DeepSeek R1 0528', provider: 'OpenRouter' },
+  { cost: '$0.05', credits: 5, model: 'Claude Sonnet 4.5', pro: true, provider: 'OpenRouter' },
+  { cost: '$0.20', credits: 20, model: 'Claude Opus 4.5', pro: true, provider: 'OpenRouter' },
+  { cost: '$0.01', credits: 1, model: 'Qwen3 32B', provider: 'OpenRouter' },
+  { cost: '$0.02', credits: 2, model: 'Qwen3 235B', provider: 'OpenRouter' },
 ];
 
 const CreditsPage = memo(() => {
@@ -58,6 +80,7 @@ const CreditsPage = memo(() => {
   const [topUpLoading, setTopUpLoading] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState<number>(10);
 
+  const navigate = useNavigate();
   const isFree = creditSummary?.plan === 'Gratuit';
   const canTopUp = !isFree;
 
@@ -274,7 +297,7 @@ const CreditsPage = memo(() => {
                   </Text>
                   <Button
                     onClick={() => {
-                      window.location.hash = '#/subscription';
+                      navigate('/subscription');
                     }}
                     size="small"
                     style={{ marginTop: 8, width: 'fit-content' }}

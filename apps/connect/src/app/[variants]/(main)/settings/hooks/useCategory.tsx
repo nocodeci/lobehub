@@ -6,6 +6,7 @@ import {
   Brain,
   BrainCircuit,
   ChartColumnBigIcon,
+  Code2,
   Coins,
   CreditCard,
   Database,
@@ -206,6 +207,11 @@ export const useCategory = () => {
 
     // 系统组 - 系统相关设置
     const systemItems: CategoryItem[] = [
+      {
+        icon: Code2,
+        key: SettingsTabs.Developer,
+        label: 'Développeur',
+      },
       isDesktop && {
         icon: EthernetPort,
         key: SettingsTabs.Proxy,

@@ -21,7 +21,7 @@ export const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
   free: {
     agents: 1,
     byokAllowed: false,
-    credits: 250,
+    credits: 100,       // $1.00 (coûte ~$0.50 réel)
     name: 'Gratuit',
     storage: 500,
     whatsappAccounts: 1,
@@ -29,7 +29,7 @@ export const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
   starter: {
     agents: 3,
     byokAllowed: false,
-    credits: 5_000_000,
+    credits: 1_500,     // $15.00
     name: 'Starter',
     storage: 5_000,
     whatsappAccounts: 2,
@@ -37,7 +37,7 @@ export const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
   pro: {
     agents: 10,
     byokAllowed: true,
-    credits: 40_000_000,
+    credits: 5_000,     // $50.00 — Claude débloqué
     name: 'Pro',
     storage: 20_000,
     whatsappAccounts: 5,
@@ -45,7 +45,7 @@ export const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
   business: {
     agents: 50,
     byokAllowed: true,
-    credits: 150_000_000,
+    credits: 20_000,    // $200.00
     name: 'Business',
     storage: 100_000,
     whatsappAccounts: 20,
@@ -53,7 +53,7 @@ export const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
   enterprise: {
     agents: -1,
     byokAllowed: true,
-    credits: -1,
+    credits: -1,        // Illimité
     name: 'Enterprise',
     storage: -1,
     whatsappAccounts: -1,

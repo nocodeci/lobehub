@@ -43,6 +43,7 @@ export enum SettingsTabs {
   Agent = 'agent',
   ChatAppearance = 'chat-appearance',
   Common = 'common',
+  Developer = 'developer',
   Hotkey = 'hotkey',
   Image = 'image',
   LLM = 'llm',

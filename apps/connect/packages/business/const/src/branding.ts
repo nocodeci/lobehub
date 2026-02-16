@@ -4,7 +4,7 @@
 
 export const LOBE_CHAT_CLOUD = 'Connect Cloud';
 
-export const BRANDING_NAME = 'Connect';
+export const BRANDING_NAME = 'Connect AI';
 export const BRANDING_LOGO_URL = '/branding/wozif-elephant.png';
 
 export const ORG_NAME = 'Wozif';

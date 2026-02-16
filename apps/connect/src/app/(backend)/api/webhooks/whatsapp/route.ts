@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { getServerDB } from '@/database/core/db-adaptor';
+import { checkCredits, deductCredits } from '@/libs/subscription/credits';
 import { agents } from '@lobechat/database/schemas';
 import { and, isNotNull, like, ne, sql } from 'drizzle-orm';
 
@@ -272,6 +273,7 @@ async function getActiveWhatsAppAgent(): Promise<{
     provider: string;
     systemRole: string;
     title: string;
+    userId: string;
 } | null> {
     try {
         const db = await getServerDB();
@@ -285,10 +287,11 @@ async function getActiveWhatsAppAgent(): Promise<{
                 provider: agents.provider,
                 systemRole: agents.systemRole,
                 title: agents.title,
+                userId: agents.userId,
             })
             .from(agents)
             .where(
-                like(sql`${agents.plugins}::text`, '%lobe-whatsapp-local%')
+                like(sql`${agents.plugins}::text`, '%lobe-whatsapp-local%') as any
             )
             .limit(5);
 
@@ -314,6 +317,7 @@ async function getActiveWhatsAppAgent(): Promise<{
             provider: agent.provider || 'openai',
             systemRole: agent.systemRole || 'Tu es un assistant utile.',
             title: agent.title || 'Agent WhatsApp',
+            userId: agent.userId,
         };
     } catch (error) {
         console.error('[WhatsApp Webhook] Error getting active agent:', error);
@@ -536,6 +540,14 @@ export async function POST(req: NextRequest) {
 
         console.log(`[WhatsApp Webhook] Using agent: ${agent.title} (${agent.id})`);
 
+        // Check credit limits before making AI call
+        const db = await getServerDB();
+        const creditCheck = await checkCredits(db, agent.userId, agent.model, agent.provider);
+        if (!creditCheck.allowed) {
+            console.warn(`[WhatsApp Webhook] Credit limit reached for user ${agent.userId}: ${creditCheck.message}`);
+            return NextResponse.json({ error: 'Credit limit reached', status: 'credit_limit_reached' }, { status: 429 });
+        }
+
         // Generate response using the agent with conversation context
         const response = await generateAgentResponse(agent, bridgeUrl, chat_jid, content, sessionId);
 
@@ -571,6 +583,11 @@ export async function POST(req: NextRequest) {
         }
 
         console.log('[WhatsApp Webhook] Response sent successfully');
+
+        // Deduct credits after successful response
+        deductCredits(db, agent.userId, agent.model).catch((err) => {
+            console.error('[WhatsApp Webhook] Failed to deduct credits:', err);
+        });
 
         return NextResponse.json({
             response: response.substring(0, 100),

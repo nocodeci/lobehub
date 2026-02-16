@@ -13,6 +13,7 @@ import {
     Brain,
     Users,
     Link2,
+    Code2,
     CreditCard,
     Shield,
     HelpCircle,
@@ -86,6 +87,18 @@ const NAV_SECTIONS = [
             { label: 'Webhooks', href: '/documentation/integrations/webhooks' },
             { label: 'API REST', href: '/documentation/integrations/api' },
             { label: 'Zapier & Make', href: '/documentation/integrations/zapier' },
+        ],
+    },
+    {
+        title: 'API & Développeur',
+        id: 'api-developer',
+        icon: <Code2 size={16} />,
+        items: [
+            { label: 'Introduction à l\'API', href: '/documentation/api' },
+            { label: 'Clés API', href: '/documentation/api/keys' },
+            { label: 'Authentification', href: '/documentation/api/authentication' },
+            { label: 'Endpoints', href: '/documentation/api/endpoints' },
+            { label: 'Exemples d\'intégration', href: '/documentation/api/examples' },
         ],
     },
     {
