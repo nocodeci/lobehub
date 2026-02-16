@@ -10,7 +10,6 @@ import {
   Feather,
   FileClockIcon,
   FlaskConical,
-  Github,
   Mail,
   Rocket,
 } from 'lucide-react';
@@ -21,7 +20,7 @@ import { useTranslation } from 'react-i18next';
 import ChangelogModal from '@/components/ChangelogModal';
 import HighlightNotification from '@/components/HighlightNotification';
 import LabsModal from '@/components/LabsModal';
-import { DOCUMENTS_REFER_URL, GITHUB, mailTo } from '@/const/url';
+import { DOCUMENTS_REFER_URL, mailTo } from '@/const/url';
 import ThemeButton from '@/features/User/UserPanel/ThemeButton';
 import { useFeedbackModal } from '@/hooks/useFeedbackModal';
 import { useGlobalStore } from '@/store/global';
@@ -192,8 +191,8 @@ const Footer = memo(() => {
             <ActionIcon aria-label={t('userPanel.help')} icon={CircleHelp} size={16} />
           </DropdownMenu>
           {!hideGitHub && (
-            <a aria-label={'GitHub'} href={GITHUB} rel="noopener noreferrer" target={'_blank'}>
-              <ActionIcon icon={Github} size={16} title={'GitHub'} />
+            <a aria-label={'Discord'} href={SOCIAL_URL.discord} rel="noopener noreferrer" target={'_blank'}>
+              <ActionIcon icon={DiscordIcon} size={16} title={'Discord'} />
             </a>
           )}
         </Flexbox>
