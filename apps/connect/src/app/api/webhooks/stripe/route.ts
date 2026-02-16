@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { userSettings } from '@/database/schemas/user';
 import { users } from '@/database/schemas/user';
 import { serverDB } from '@/database/server';
+import { addTopUpCredits } from '@/libs/subscription/credits';
 import { getStripe } from '@/libs/stripe';
 
 // ═══════════════════════════════════════════════
@@ -56,6 +57,17 @@ async function notifySubscriptionCancelled(userEmail: string, userName: string, 
   const pn = PLAN_NAMES[plan] || plan;
   await sendMailtrap(ADMIN_EMAIL, `[Connect] ❌ Abonnement annulé: ${userName || userEmail} — ${pn}`, adminTemplate('Abonnement annulé', `<h2 style="color:#ef4444;margin:0 0 16px;">Abonnement annulé</h2><table style="width:100%;"><tr><td style="padding:8px 0;color:#a1a1aa;">Utilisateur</td><td style="padding:8px 0;color:#fff;">${userName || userEmail}</td></tr><tr><td style="padding:8px 0;color:#a1a1aa;">Plan annulé</td><td style="padding:8px 0;color:#ef4444;font-weight:600;">${pn}</td></tr><tr><td style="padding:8px 0;color:#a1a1aa;">Nouveau plan</td><td style="padding:8px 0;color:#71717a;">Gratuit</td></tr></table>`), 'Connect Admin');
   await sendMailtrap(userEmail, `Votre abonnement ${pn} a été annulé`, userTemplate('Abonnement annulé', `<h2 style="color:#dc2626;margin:0 0 8px;font-size:20px;">Abonnement annulé</h2><p style="color:#4b5563;font-size:14px;margin:0 0 16px;">Votre abonnement <strong>${pn}</strong> a été annulé. Vous êtes sur le plan <strong>Gratuit</strong>.</p><div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px;"><p style="color:#991b1b;font-weight:600;margin:0 0 8px;">Ce que vous perdez :</p><ul style="color:#991b1b;font-size:12px;margin:0;padding-left:20px;line-height:1.8;"><li>Limite réduite à 1 agent et 250 crédits/mois</li><li>Pas d'accès BYOK</li><li>Stockage limité à 500 MB</li></ul></div><div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin:16px 0 0;"><p style="color:#166534;font-size:13px;margin:0;">Réactivez à tout moment depuis votre tableau de bord.</p></div>`), 'Connect by Wozif');
+}
+
+async function notifyCreditTopUp(userEmail: string, userName: string, amountDollars: number, credits: number) {
+  await sendMailtrap(ADMIN_EMAIL, `[Connect] 💰 Recharge crédits: ${userName || userEmail} — $${amountDollars}`, adminTemplate('Recharge de crédits', `<h2 style="color:#10b981;margin:0 0 16px;">Recharge de crédits</h2><table style="width:100%;"><tr><td style="padding:8px 0;color:#a1a1aa;">Utilisateur</td><td style="padding:8px 0;color:#fff;font-weight:600;">${userName || userEmail}</td></tr><tr><td style="padding:8px 0;color:#a1a1aa;">Montant</td><td style="padding:8px 0;color:#10b981;font-weight:700;">$${amountDollars.toFixed(2)}</td></tr><tr><td style="padding:8px 0;color:#a1a1aa;">Crédits ajoutés</td><td style="padding:8px 0;color:#fff;">${credits}</td></tr></table>`), 'Connect Admin');
+  await sendMailtrap(userEmail, `Crédits ajoutés : $${amountDollars.toFixed(2)} 💰`, userTemplate('Crédits ajoutés', `<h2 style="color:#059669;margin:0 0 8px;font-size:22px;">Crédits ajoutés avec succès !</h2><p style="color:#4b5563;font-size:14px;margin:0 0 20px;">Votre recharge de <strong>$${amountDollars.toFixed(2)}</strong> (${credits} crédits) a été traitée.</p><div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:16px;"><table style="width:100%;"><tr><td style="padding:6px 0;color:#047857;font-weight:600;">Montant</td><td style="color:#1f2937;font-weight:700;">$${amountDollars.toFixed(2)}</td></tr><tr><td style="padding:6px 0;color:#047857;font-weight:600;">Crédits</td><td style="color:#1f2937;">${credits} crédits</td></tr><tr><td style="padding:6px 0;color:#047857;font-weight:600;">Statut</td><td style="color:#059669;font-weight:700;">✅ Ajouté</td></tr></table></div><p style="color:#6b7280;font-size:12px;margin:16px 0 0;">Les crédits top-up ne sont pas réinitialisés mensuellement et restent disponibles jusqu'à utilisation.</p>`), 'Connect by Wozif');
+}
+
+export async function notifyCreditsExhausted(userEmail: string, userName: string, plan: string) {
+  const pn = PLAN_NAMES[plan] || plan;
+  await sendMailtrap(ADMIN_EMAIL, `[Connect] ⚠️ Crédits épuisés: ${userName || userEmail}`, adminTemplate('Crédits épuisés', `<h2 style="color:#f59e0b;margin:0 0 16px;">Crédits épuisés</h2><table style="width:100%;"><tr><td style="padding:8px 0;color:#a1a1aa;">Utilisateur</td><td style="padding:8px 0;color:#fff;">${userName || userEmail}</td></tr><tr><td style="padding:8px 0;color:#a1a1aa;">Plan</td><td style="padding:8px 0;color:#f59e0b;font-weight:600;">${pn}</td></tr></table>`), 'Connect Admin');
+  await sendMailtrap(userEmail, `⚠️ Vos crédits IA sont épuisés`, userTemplate('Crédits épuisés', `<h2 style="color:#dc2626;margin:0 0 8px;font-size:20px;">Crédits IA épuisés</h2><p style="color:#4b5563;font-size:14px;margin:0 0 16px;">Vos crédits IA pour le plan <strong>${pn}</strong> sont épuisés. L'accès à l'IA (chat, WhatsApp, agents) est suspendu.</p><div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px;margin:0 0 16px;"><p style="color:#991b1b;font-weight:600;margin:0 0 8px;">Pour continuer :</p><ul style="color:#991b1b;font-size:13px;margin:0;padding-left:20px;line-height:1.8;"><li>Rechargez vos crédits depuis la page Crédits</li><li>Ou attendez le renouvellement mensuel</li><li>Ou passez à un plan supérieur</li></ul></div><div style="text-align:center;margin:20px 0;"><a href="${CONNECT_APP_URL}/credits" style="display:inline-block;background:#f97316;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:700;">Recharger mes crédits</a></div>`), 'Connect by Wozif');
 }
 
 async function notifyPaymentFailed(userEmail: string, userName: string, plan: string) {
@@ -184,6 +196,33 @@ export async function POST(req: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as any;
+        const metadataType = session.metadata?.type;
+
+        // Handle credit top-up payments
+        if (metadataType === 'credit_topup') {
+          const userId = session.metadata?.userId;
+          const credits = parseInt(session.metadata?.credits || '0', 10);
+          const amountDollars = credits * 0.01;
+          console.log('[Stripe Webhook] Credit top-up completed:', { userId, credits, amountDollars });
+
+          if (userId && credits > 0) {
+            await addTopUpCredits(serverDB, userId, credits);
+            console.log(`[Stripe Webhook] Added ${credits} top-up credits to user ${userId}`);
+
+            // Send email notification
+            const userRes = await serverDB
+              .select({ email: users.email, fullName: users.fullName })
+              .from(users)
+              .where(eq(users.id, userId) as any);
+            const u = userRes[0];
+            if (u) {
+              await notifyCreditTopUp((u as any).email || '', (u as any).fullName || '', amountDollars, credits);
+            }
+          }
+          break;
+        }
+
+        // Handle subscription checkout
         const plan = session.metadata?.plan;
         const customerId = session.customer;
         console.log('[Stripe Webhook] Checkout completed:', {

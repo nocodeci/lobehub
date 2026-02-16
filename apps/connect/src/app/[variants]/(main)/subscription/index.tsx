@@ -4,8 +4,9 @@ import { Icon } from '@lobehub/ui';
 import { Flexbox } from '@lobehub/ui';
 import { Button, Card, Divider, Spin, Switch, Tag, Typography, message } from 'antd';
 import { cssVar } from 'antd-style';
-import { Atom, Check, CreditCard, ExternalLink, Sparkle, Zap } from 'lucide-react';
+import { Atom, Check, Coins, CreditCard, ExternalLink, Sparkle, Zap } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { useUserStore } from '@/store/user';
 import { settingsSelectors } from '@/store/user/slices/settings/selectors';
@@ -41,13 +42,13 @@ const PLANS: PlanConfig[] = [
     description: 'Idéal pour tester la plateforme',
     planKey: 'free',
     agents: 1,
-    credits: '250',
+    credits: '$1.00',
     storage: '500 MB',
     features: [
       '1 agent WhatsApp',
-      '250 crédits/mois (~25 messages)',
+      '$1.00 de crédits IA/mois',
+      'GPT-4o-mini, Gemini, DeepSeek',
       'Stockage 500 MB',
-      'Branding "Powered by Connect"',
       'Support communauté',
     ],
     icon: Sparkle,
@@ -59,15 +60,15 @@ const PLANS: PlanConfig[] = [
     description: 'Pour petites entreprises et freelances',
     planKey: 'starter',
     agents: 3,
-    credits: '5,000,000',
+    credits: '$15.00',
     storage: '5 GB',
     features: [
       '3 agents WhatsApp',
-      '5,000,000 crédits/mois',
-      'Tous les modèles IA (GPT-4o, Claude, DeepSeek)',
+      '$15.00 de crédits IA/mois',
+      'GPT-4o, Gemini, DeepSeek',
+      'Recharge de crédits disponible',
       'Stockage 5 GB',
       'Support email',
-      'Crédits supplémentaires : 15€/10M',
     ],
     icon: Zap,
     monthlyPrice: 29,
@@ -79,16 +80,16 @@ const PLANS: PlanConfig[] = [
     description: 'Pour PME et agences en croissance',
     planKey: 'pro',
     agents: 10,
-    credits: '40,000,000',
+    credits: '$50.00',
     storage: '20 GB',
     features: [
       '10 agents WhatsApp',
-      '40M crédits (~56,000 messages)',
-      'Tous les modèles IA (GPT-4o, Claude, DeepSeek)',
+      '$50.00 de crédits IA/mois',
+      'Tous les modèles IA (+ Claude)',
+      'Recharge de crédits disponible',
       'Stockage 20 GB',
       'Connecteurs CRM natifs',
       'Support prioritaire 24/7',
-      'Crédits supplémentaires : 12€/10M',
     ],
     icon: Atom,
     monthlyPrice: 79,
@@ -104,17 +105,17 @@ const PLANS: PlanConfig[] = [
     description: 'Pour grandes entreprises',
     planKey: 'business',
     agents: 50,
-    credits: '150,000,000',
+    credits: '$200.00',
     storage: '100 GB',
     features: [
       '50 agents WhatsApp',
-      '150M crédits',
-      'Tous les modèles IA + priorité',
+      '$200.00 de crédits IA/mois',
+      'Tous les modèles IA (+ Claude) + priorité',
+      'Recharge de crédits disponible',
       'Stockage 100 GB',
       'Multi-utilisateurs (5 sièges inclus)',
       'SSO & Logs d\'audit',
       'Account Manager dédié',
-      'Crédits supplémentaires : 10€/10M',
     ],
     icon: CreditCard,
     monthlyPrice: 199,
@@ -132,7 +133,8 @@ const PLANS: PlanConfig[] = [
     storage: 'Illimité',
     features: [
       'Agents WhatsApp illimités',
-      'Crédits personnalisés',
+      'Crédits IA illimités',
+      'Tous les modèles IA + priorité',
       'Infrastructure dédiée',
       'Stockage illimité',
       'Multi-utilisateurs illimités',
@@ -161,6 +163,20 @@ interface SubscriptionStatus {
   subscription: SubscriptionData | null;
 }
 
+interface CreditSummary {
+  creditValueDollars: string;
+  limit: number;
+  periodEnd: string;
+  periodStart: string;
+  plan: string;
+  remaining: number;
+  remainingDollars: string;
+  topUp: number;
+  topUpDollars: string;
+  used: number;
+  usedDollars: string;
+}
+
 const SubscriptionPage = memo(() => {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
   const [pricingMode, setPricingMode] = useState<PricingMode>('standard');
@@ -168,6 +184,8 @@ const SubscriptionPage = memo(() => {
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [creditSummary, setCreditSummary] = useState<CreditSummary | null>(null);
+  const navigate = useNavigate();
 
   const userSettings = useUserStore(settingsSelectors.currentSettings);
   const setSettings = useUserStore((s) => s.setSettings);
@@ -190,9 +208,23 @@ const SubscriptionPage = memo(() => {
     }
   }, [stripeCustomerId]);
 
+  // Fetch credit summary
+  const fetchCredits = useCallback(async () => {
+    try {
+      const res = await fetch('/api/subscription/credits');
+      if (res.ok) {
+        const data = await res.json();
+        setCreditSummary(data);
+      }
+    } catch {
+      // silently fail
+    }
+  }, []);
+
   useEffect(() => {
     fetchStatus();
-  }, [fetchStatus]);
+    fetchCredits();
+  }, [fetchStatus, fetchCredits]);
 
   // Start checkout
   const handleCheckout = useCallback(
@@ -396,6 +428,67 @@ const SubscriptionPage = memo(() => {
           )}
         </Flexbox>
       </Card>
+
+      {/* Credit Balance Card */}
+      {creditSummary && (
+        <Card style={{ borderRadius: 12 }}>
+          <Flexbox gap={16}>
+            <Flexbox align="center" gap={8} horizontal justify="space-between" style={{ flexWrap: 'wrap' }}>
+              <Flexbox align="center" gap={8} horizontal>
+                <Icon icon={Coins} size={20} style={{ color: '#faad14' }} />
+                <Title level={5} style={{ margin: 0 }}>Crédits IA</Title>
+              </Flexbox>
+              <Button
+                onClick={() => navigate('/credits')}
+                size="small"
+                type="primary"
+              >
+                Gérer les crédits
+              </Button>
+            </Flexbox>
+
+            <Flexbox gap={8}>
+              <Flexbox align="center" gap={16} horizontal justify="space-between">
+                <Text strong style={{ fontSize: 20 }}>
+                  {creditSummary.remainingDollars}
+                </Text>
+                <Text type="secondary" style={{ fontSize: 13 }}>
+                  sur {creditSummary.creditValueDollars}
+                </Text>
+              </Flexbox>
+
+              {/* Usage bar */}
+              {creditSummary.limit > 0 && (
+                <div style={{ background: 'rgba(0,0,0,0.06)', borderRadius: 4, height: 8, overflow: 'hidden', width: '100%' }}>
+                  <div
+                    style={{
+                      background: creditSummary.remaining / creditSummary.limit < 0.2
+                        ? '#ff4d4f'
+                        : creditSummary.remaining / creditSummary.limit < 0.5
+                          ? '#faad14'
+                          : '#52c41a',
+                      borderRadius: 4,
+                      height: '100%',
+                      transition: 'width 0.3s',
+                      width: `${Math.max(0, Math.min(100, (creditSummary.remaining / creditSummary.limit) * 100))}%`,
+                    }}
+                  />
+                </div>
+              )}
+
+              <Flexbox align="center" gap={16} horizontal justify="space-between" style={{ flexWrap: 'wrap' }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Utilisé : {creditSummary.usedDollars}
+                  {creditSummary.topUp > 0 && ` | Top-up : ${creditSummary.topUpDollars}`}
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Renouvellement : {new Date(creditSummary.periodEnd).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                </Text>
+              </Flexbox>
+            </Flexbox>
+          </Flexbox>
+        </Card>
+      )}
 
       {/* Pricing Mode Toggle - Only for Pro and above */}
       <Card style={{ borderRadius: 16, padding: '20px 24px' }}>
@@ -689,7 +782,7 @@ const SubscriptionPage = memo(() => {
               </tr>
               {[
                 { label: 'GPT-4o / GPT-4o-mini', plans: [true, true, true, true, true] },
-                { label: 'Claude 3.5 Sonnet / Haiku', plans: [true, true, true, true, true] },
+                { label: 'Claude 3.5 Sonnet / Haiku', plans: [false, false, true, true, true] },
                 { label: 'DeepSeek V3 / R1', plans: [true, true, true, true, true] },
                 { label: 'Gemini 2.0 Flash', plans: [true, true, true, true, true] },
                 { label: 'Priorité d\'accès aux modèles', plans: [false, false, false, true, true] },

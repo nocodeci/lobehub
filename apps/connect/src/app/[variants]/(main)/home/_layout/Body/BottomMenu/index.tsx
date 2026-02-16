@@ -37,6 +37,12 @@ const BottomMenu = memo(() => {
           url: '/subscription',
         },
         {
+          icon: getRouteById('credits')!.icon,
+          key: SidebarTabKey.Credits,
+          title: 'Crédits',
+          url: '/credits',
+        },
+        {
           icon: getRouteById('settings')!.icon,
           key: SidebarTabKey.Setting,
           title: t('tab.setting'),

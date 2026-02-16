@@ -414,6 +414,25 @@ export const desktopRoutes: RouteConfig[] = [
         path: 'subscription',
       },
 
+      // Credits routes
+      {
+        children: [
+          {
+            element: dynamicElement(
+              () => import('../(main)/credits'),
+              'Desktop > Credits',
+            ),
+            index: true,
+          },
+        ],
+        element: dynamicElement(
+          () => import('../(main)/credits/_layout'),
+          'Desktop > Credits > Layout',
+        ),
+        errorElement: <ErrorBoundary resetPath="/credits" />,
+        path: 'credits',
+      },
+
       ...BusinessDesktopRoutesWithMainLayout,
 
       // Pages routes

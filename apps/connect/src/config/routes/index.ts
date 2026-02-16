@@ -1,6 +1,7 @@
 import {
   BarChart3,
   BrainCircuit,
+  Coins,
   CreditCard,
   FilePenIcon,
   Image,
@@ -114,6 +115,15 @@ export const NAVIGATION_ROUTES: NavigationRoute[] = [
     keywords: ['usage', 'statistics', 'consumption', 'credits', 'quota'],
     path: '/usage',
     pathPrefix: '/usage',
+  },
+  {
+    cmdkKey: 'cmdk.credits',
+    electronKey: 'navigation.credits',
+    icon: Coins,
+    id: 'credits',
+    keywords: ['credits', 'balance', 'topup', 'recharge', 'crédits'],
+    path: '/credits',
+    pathPrefix: '/credits',
   },
 ];
 
