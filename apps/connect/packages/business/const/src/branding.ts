@@ -18,7 +18,7 @@ export const BRANDING_URL = {
 };
 
 export const SOCIAL_URL = {
-  discord: 'https://discord.gg/wozif',
+  discord: 'https://discord.gg/FX9N3Cq8',
   github: 'https://github.com/wozif',
   medium: undefined,
   x: 'https://x.com/woziftech',
