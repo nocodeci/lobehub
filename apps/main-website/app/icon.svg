@@ -1,16 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 101 101" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
   <defs>
     <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#FF9933"/>
       <stop offset="100%" stop-color="#FF5500"/>
     </linearGradient>
   </defs>
-  <rect width="101" height="101" rx="22" fill="#1A1A1A"/>
-  <g transform="translate(16, 24)">
-    <rect x="0" y="0" width="10" height="54" rx="5" fill="url(#g1)"/>
-    <rect x="12" y="20" width="10" height="34" rx="5" fill="url(#g1)" transform="rotate(-12, 17, 54)"/>
-    <rect x="30" y="14" width="10" height="40" rx="5" fill="url(#g1)"/>
-    <rect x="48" y="20" width="10" height="34" rx="5" fill="url(#g1)" transform="rotate(12, 53, 54)"/>
-    <rect x="60" y="0" width="10" height="54" rx="5" fill="url(#g1)"/>
+  <rect width="512" height="512" rx="108" fill="#0D0D0D"/>
+  <g transform="translate(80, 120)">
+    <rect x="0" y="0" width="50" height="272" rx="25" fill="url(#g1)"/>
+    <rect x="50" y="100" width="50" height="172" rx="25" fill="url(#g1)" transform="rotate(-10, 75, 272)"/>
+    <rect x="145" y="70" width="50" height="202" rx="25" fill="url(#g1)"/>
+    <rect x="245" y="100" width="50" height="172" rx="25" fill="url(#g1)" transform="rotate(10, 270, 272)"/>
+    <rect x="302" y="0" width="50" height="272" rx="25" fill="url(#g1)"/>
   </g>
 </svg>

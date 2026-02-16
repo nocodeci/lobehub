@@ -67,7 +67,7 @@ export const metadata: Metadata = {
         description: "Automatisation WhatsApp avec IA, création de sites web en 1h, et paiements Mobile Money. Wozif accompagne les entreprises africaines dans leur transformation numérique.",
         images: [
             {
-                url: "/og-image.png",
+                url: "/opengraph-image",
                 width: 1200,
                 height: 630,
                 alt: "Wozif — Solutions numériques intelligentes pour l'Afrique",
@@ -81,20 +81,28 @@ export const metadata: Metadata = {
         description: "Automatisation WhatsApp IA, sites web en 1h, paiements Mobile Money. La tech au service des entreprises africaines.",
         creator: "@woziftech",
         site: "@woziftech",
-        images: ["/og-image.png"],
+        images: ["/opengraph-image"],
     },
     alternates: {
         canonical: siteUrl,
+        languages: {
+            "fr-FR": siteUrl,
+        },
     },
     icons: {
-        icon: [{ url: "/favicon.ico" }],
-        apple: [{ url: "/apple-touch-icon.png" }],
+        icon: [
+            { url: "/icon.svg", type: "image/svg+xml" },
+        ],
+        apple: [
+            { url: "/apple-icon", type: "image/png", sizes: "180x180" },
+        ],
     },
     category: "technology",
     classification: "Business Software",
     other: {
         "msapplication-TileColor": "#1a1a1a",
-        "google-site-verification": "votre-code-google-search-console",
+        "geo.region": "CI",
+        "geo.placename": "Abidjan",
     },
 };
 
@@ -119,7 +127,7 @@ const jsonLd = {
             url: siteUrl,
             logo: {
                 "@type": "ImageObject",
-                url: `${siteUrl}/logo.png`,
+                url: `${siteUrl}/icon.svg`,
                 width: 512,
                 height: 512,
             },
