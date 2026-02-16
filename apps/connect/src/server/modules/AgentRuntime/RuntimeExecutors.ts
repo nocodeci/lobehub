@@ -14,6 +14,7 @@ import debug from 'debug';
 
 import { type MessageModel } from '@/database/models/message';
 import { type LobeChatDatabase } from '@/database/type';
+import { checkCredits, deductCredits } from '@/libs/subscription/credits';
 import { initModelRuntimeFromDB } from '@/server/modules/ModelRuntime';
 import { type ToolExecutionService } from '@/server/services/toolExecution';
 
@@ -123,6 +124,14 @@ export const createRuntimeExecutors = (
       let reasoningParts: ContentPart[] = [];
       let hasContentImages = false;
       let hasReasoningImages = false;
+
+      // Check credit limits before LLM call
+      if (ctx.userId) {
+        const creditCheck = await checkCredits(ctx.serverDB, ctx.userId, model, provider);
+        if (!creditCheck.allowed) {
+          throw new Error(creditCheck.message || 'Crédits IA insuffisants.');
+        }
+      }
 
       // Initialize ModelRuntime (read user's keyVaults from database)
       const modelRuntime = await initModelRuntimeFromDB(ctx.serverDB, ctx.userId!, provider);
@@ -343,6 +352,13 @@ export const createRuntimeExecutors = (
       });
 
       log('[%s:%d] call_llm completed', operationId, stepIndex);
+
+      // Deduct credits after successful LLM call
+      if (ctx.userId) {
+        deductCredits(ctx.serverDB, ctx.userId, model).catch((err) => {
+          console.error('[call_llm] Failed to deduct credits:', err);
+        });
+      }
 
       // ===== 1. First save original usage to message.metadata =====
       // Determine final content - use serialized parts if has images, otherwise plain text

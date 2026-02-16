@@ -2,6 +2,7 @@ import debug from 'debug';
 import { type NextRequest, NextResponse } from 'next/server';
 
 import { getServerDB } from '@/database/core/db-adaptor';
+import { checkCredits } from '@/libs/subscription/credits';
 import { AiAgentService } from '@/server/services/aiAgent';
 
 const log = debug('api-route:agent:exec');
@@ -113,9 +114,20 @@ export async function POST(request: NextRequest) {
 
     // Initialize service
     const serverDB = await getServerDB();
+
+    // Check credit limits before executing agent
+    const creditCheck = await checkCredits(serverDB, userId);
+    if (!creditCheck.allowed) {
+      return NextResponse.json(
+        { error: creditCheck.message || 'Credit limit reached' },
+        { status: 429 },
+      );
+    }
+
     const aiAgentService = new AiAgentService(serverDB, userId);
 
     // Execute agent
+    // Note: credits are deducted per LLM call inside RuntimeExecutors.call_llm
     const result = await aiAgentService.execAgent({
       agentId,
       appContext,
