@@ -159,7 +159,7 @@ const CreditsPage = memo(() => {
       {/* Credit Balance */}
       <Card
         style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #ff7a00 0%, #ff5500 100%)',
           border: 'none',
           borderRadius: 16,
           color: '#fff',
