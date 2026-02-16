@@ -61,7 +61,7 @@ const InputArea = () => {
             }}
             onSend={send}
             sendButtonProps={{
-              disabled: loading,
+              disabled: loading || !inputActiveMode,
               generating: loading,
               onStop: () => {},
               shape: 'round',

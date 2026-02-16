@@ -415,7 +415,9 @@ export async function deductCredits(
 ): Promise<void> {
   try {
     const cost = getModelCost(model);
+    console.log(`[deductCredits] userId=${userId}, model=${model}, cost=${cost}`);
     const { general, usage } = await getCreditUsage(serverDB, userId);
+    console.log(`[deductCredits] Before: used=${usage.used}, topUp=${usage.topUp}`);
 
     const updatedUsage: CreditUsage = {
       periodStart: usage.periodStart,
@@ -445,6 +447,7 @@ export async function deductCredits(
         id: userId,
       } as any);
     }
+    console.log(`[deductCredits] Success: used=${updatedUsage.used} (was ${usage.used}, cost=${cost})`);
   } catch (error) {
     console.error('[deductCredits] Error deducting credits:', error);
   }

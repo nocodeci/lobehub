@@ -56,17 +56,8 @@ export const useSend = () => {
         }
 
         default: {
-          // Default inbox behavior
-          if (!inboxAgentId) return;
-
-          sendMessage({
-            context: { agentId: inboxAgentId },
-            contexts: contextList,
-            files: fileList,
-            message: inputMessage,
-          });
-
-          router.push(SESSION_CHAT_URL(inboxAgentId, false));
+          // No mode selected — user must pick an action first (agent/group/page)
+          return;
         }
       }
     } finally {

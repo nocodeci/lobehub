@@ -89,7 +89,7 @@ export function useSubscription(customerId: string | null, agentCount: number = 
     limits: limitsData?.limits || {
       agents: 1,
       byokAllowed: false,
-      credits: 250,
+      credits: 100,
       name: 'Gratuit',
       storage: 500,
     },
