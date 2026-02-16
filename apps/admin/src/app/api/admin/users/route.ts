@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         ]);
 
         // Format users
-        const formattedUsers = users.map(user => ({
+        const formattedUsers = users.map((user: any) => ({
             id: user.id,
             name: user.name,
             email: user.email,

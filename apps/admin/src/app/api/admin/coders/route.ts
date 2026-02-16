@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
         // Calculate total earnings for each coder
         const codersWithEarnings = await Promise.all(
-            coders.map(async (coder) => {
+            coders.map(async (coder: any) => {
                 const earnings = await prisma.coderEarning.aggregate({
                     where: { coderId: coder.id },
                     _sum: { amount: true },
@@ -63,9 +63,9 @@ export async function GET(request: NextRequest) {
         // Stats
         const stats = {
             total: coders.length,
-            online: coders.filter(c => c.status === 'online').length,
-            busy: coders.filter(c => c.status === 'busy').length,
-            offline: coders.filter(c => c.status === 'offline').length,
+            online: coders.filter((c: any) => c.status === 'online').length,
+            busy: coders.filter((c: any) => c.status === 'busy').length,
+            offline: coders.filter((c: any) => c.status === 'offline').length,
         };
 
         return NextResponse.json({

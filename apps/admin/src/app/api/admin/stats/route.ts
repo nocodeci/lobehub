@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
         const successfulPayments = await prisma.paymentRecord.findMany({
             where: { status: 'SUCCESS' },
         });
-        const totalRevenue = successfulPayments.reduce((sum, p) => sum + p.amount, 0);
+        const totalRevenue = successfulPayments.reduce((sum: number, p: any) => sum + p.amount, 0);
 
         const paymentsThisMonth = await prisma.paymentRecord.findMany({
             where: {
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
                 createdAt: { gte: startOfMonth },
             },
         });
-        const revenueThisMonth = paymentsThisMonth.reduce((sum, p) => sum + p.amount, 0);
+        const revenueThisMonth = paymentsThisMonth.reduce((sum: number, p: any) => sum + p.amount, 0);
 
         const paymentsLastMonth = await prisma.paymentRecord.findMany({
             where: {
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
                 createdAt: { gte: startOfLastMonth, lt: startOfMonth },
             },
         });
-        const revenueLastMonth = paymentsLastMonth.reduce((sum, p) => sum + p.amount, 0);
+        const revenueLastMonth = paymentsLastMonth.reduce((sum: number, p: any) => sum + p.amount, 0);
         const revenueGrowth = revenueLastMonth > 0
             ? ((revenueThisMonth - revenueLastMonth) / revenueLastMonth * 100).toFixed(1)
             : 0;

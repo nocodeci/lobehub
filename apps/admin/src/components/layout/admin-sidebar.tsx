@@ -41,6 +41,13 @@ const mainNavItems = [
     { icon: Globe, label: "Projets Gnata", href: "/dashboard/gnata", badge: true },
 ];
 
+const connectNavItems = [
+    { icon: MessageSquare, label: "Vue d'ensemble", href: "/dashboard/connect", color: "text-orange-400" },
+    { icon: Users, label: "Utilisateurs", href: "/dashboard/connect/users", color: "text-orange-400" },
+    { icon: Shield, label: "Monitoring", href: "/dashboard/connect/monitoring", color: "text-red-400" },
+    { icon: Bell, label: "Notifications", href: "/dashboard/connect/notifications", color: "text-blue-400" },
+];
+
 const appsNavItems = [
     { icon: Globe, label: "AfriFlow", href: "/dashboard/apps/afriflow", color: "text-emerald-400" },
     { icon: Zap, label: "Gnata", href: "/dashboard/apps/gnata", color: "text-purple-400" },
@@ -149,6 +156,55 @@ export function AdminSidebar() {
                                             layoutId="activeIndicator"
                                             className="ml-auto size-1.5 rounded-full bg-purple-500"
                                         />
+                                    )}
+                                </Link>
+                            );
+
+                            if (isCollapsed) {
+                                return (
+                                    <Tooltip key={item.href}>
+                                        <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
+                                        <TooltipContent side="right">{item.label}</TooltipContent>
+                                    </Tooltip>
+                                );
+                            }
+                            return <div key={item.href}>{linkContent}</div>;
+                        })}
+                    </div>
+
+                    {/* Connect */}
+                    <div className="space-y-1">
+                        {!isCollapsed && (
+                            <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-orange-600/60">
+                                Connect
+                            </p>
+                        )}
+                        {connectNavItems.map((item) => {
+                            const isActive = pathname === item.href || (item.href !== "/dashboard/connect" && pathname.startsWith(item.href));
+                            const Icon = item.icon;
+
+                            const linkContent = (
+                                <Link
+                                    href={item.href}
+                                    className={cn(
+                                        "group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200",
+                                        isActive
+                                            ? "bg-orange-600/10 text-white border border-orange-500/20"
+                                            : "text-zinc-400 hover:text-white hover:bg-white/5",
+                                        isCollapsed && "justify-center px-0"
+                                    )}
+                                >
+                                    <div className={cn(
+                                        "size-8 rounded-lg flex items-center justify-center",
+                                        isActive ? "bg-orange-500/20 text-orange-400" : item.color
+                                    )}>
+                                        <Icon className="size-4" />
+                                    </div>
+                                    {!isCollapsed && (
+                                        <span className="text-sm font-medium">{item.label}</span>
+                                    )}
+                                    {isActive && !isCollapsed && (
+                                        <motion.div className="ml-auto size-1.5 rounded-full bg-orange-500" />
                                     )}
                                 </Link>
                             );
