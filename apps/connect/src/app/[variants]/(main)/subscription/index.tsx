@@ -469,7 +469,7 @@ const SubscriptionPage = memo(() => {
                 border: isCurrent
                   ? `2px solid ${cssVar.colorPrimary}`
                   : plan.popular
-                    ? '2px solid #075e54'
+                    ? '2px solid #ff7a00'
                     : undefined,
                 borderRadius: 16,
                 flex: '1 1 280px',
@@ -481,16 +481,23 @@ const SubscriptionPage = memo(() => {
                 <Tag
                   color="default"
                   style={{
-                    background: '#075e54',
+                    background: 'linear-gradient(135deg, #ff7a00, #ff5500)',
                     border: 'none',
+                    borderRadius: 20,
+                    boxShadow: '0 2px 8px rgba(255, 85, 0, 0.4)',
                     color: '#fff',
+                    fontSize: 12,
+                    fontWeight: 700,
                     left: '50%',
+                    letterSpacing: 0.5,
+                    padding: '4px 16px',
                     position: 'absolute',
-                    top: -12,
+                    top: -14,
                     transform: 'translateX(-50%)',
+                    zIndex: 2,
                   }}
                 >
-                  Populaire
+                  ⭐ Populaire
                 </Tag>
               )}
               {showByokBadge && !isCurrent && (
@@ -584,7 +591,7 @@ const SubscriptionPage = memo(() => {
                   onClick={() => handleCheckout(plan.planKey)}
                   style={
                     plan.popular && !isCurrent
-                      ? { '--ant-color-primary-text': '#fff', background: '#075e54', border: 'none', color: '#fff', fontWeight: 700, height: 44 } as React.CSSProperties
+                      ? { '--ant-color-primary-text': '#fff', background: 'linear-gradient(135deg, #ff7a00, #ff5500)', border: 'none', borderRadius: 14, color: '#fff', fontWeight: 700, height: 48 } as React.CSSProperties
                       : { fontWeight: 600, height: 44 }
                   }
                   type={plan.popular ? 'primary' : 'default'}
