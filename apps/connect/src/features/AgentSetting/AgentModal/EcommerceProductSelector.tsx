@@ -80,8 +80,8 @@ const EcommerceProductSelector = memo<EcommerceProductSelectorProps>(({ value = 
   const selectedCount = (value || []).length;
 
   return (
-    <Flexbox gap={4} style={{ maxHeight: 300, overflowY: 'auto', width: '100%' }}>
-      <Flexbox horizontal align="center" justify="space-between" style={{ marginBottom: 4 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflowY: 'auto', width: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
         <Text type="secondary" style={{ fontSize: 11 }}>
           {selectedCount === 0
             ? 'Tous les produits (aucune sélection)'
@@ -97,21 +97,21 @@ const EcommerceProductSelector = memo<EcommerceProductSelectorProps>(({ value = 
             Tout désélectionner
           </span>
         )}
-      </Flexbox>
+      </div>
       {products.map((product) => {
         const isSelected = (value || []).includes(product.id);
         return (
-          <Flexbox
+          <div
             key={product.id}
-            horizontal
-            align="center"
-            gap={8}
             onClick={() => handleToggle(product.id)}
             style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
               border: `1px solid ${isSelected ? '#6366f1' : '#f0f0f0'}`,
               borderRadius: 8,
               cursor: 'pointer',
-              padding: '6px 10px',
+              padding: '8px 12px',
               background: isSelected ? 'rgba(99, 102, 241, 0.05)' : 'transparent',
               transition: 'all 0.2s',
             }}
@@ -122,19 +122,19 @@ const EcommerceProductSelector = memo<EcommerceProductSelectorProps>(({ value = 
                 src={product.imageUrl}
                 alt={product.name}
                 style={{
-                  width: 28,
-                  height: 28,
+                  width: 32,
+                  height: 32,
                   borderRadius: 6,
                   objectFit: 'cover',
                   flexShrink: 0,
                 }}
               />
             )}
-            <Flexbox style={{ flex: 1, minWidth: 0 }}>
-              <Text strong style={{ fontSize: 12, lineHeight: 1.3 }} ellipsis>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Text strong style={{ fontSize: 12, lineHeight: 1.4 }} ellipsis>
                 {product.name}
               </Text>
-              <Flexbox horizontal align="center" gap={4}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Text type="secondary" style={{ fontSize: 11 }}>
                   {formatPrice(product.price, product.currency)}
                 </Text>
@@ -144,12 +144,12 @@ const EcommerceProductSelector = memo<EcommerceProductSelectorProps>(({ value = 
                 >
                   {product.inStock ? 'En stock' : 'Épuisé'}
                 </Tag>
-              </Flexbox>
-            </Flexbox>
-          </Flexbox>
+              </div>
+            </div>
+          </div>
         );
       })}
-    </Flexbox>
+    </div>
   );
 });
 

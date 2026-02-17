@@ -9,6 +9,7 @@ export default {
   'interests.area.other': 'Other Fields',
   'interests.area.product': 'Product & Management',
   'interests.area.sales': 'Sales & Customer Relations',
+  'interests.area.agentReselling': 'AI Agent Reselling',
   'interests.area.writing': 'Content Creation',
   'interests.hint': 'You can change this anytime in settings',
   'interests.placeholder': 'Enter your interests...',

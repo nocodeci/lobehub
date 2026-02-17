@@ -22,9 +22,11 @@ import {
 import {
   Bot,
   Crown,
+  ExternalLink,
   Mail,
   MoreVertical,
   Shield,
+  Share2,
   Trash2,
   UserPlus,
   UsersRound,
@@ -54,6 +56,15 @@ interface TeamLimits {
   current: number;
   limit: number;
   plan: string;
+}
+
+interface MembershipTeam {
+  agents: { avatar?: string; id: string; title: string }[];
+  ownerEmail?: string;
+  ownerId: string;
+  ownerName?: string;
+  role: string;
+  status: string;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -99,6 +110,8 @@ const TeamPage = memo(() => {
   const [agentModalOpen, setAgentModalOpen] = useState(false);
   const [agentModalMember, setAgentModalMember] = useState<TeamMember | null>(null);
   const [agentModalSelected, setAgentModalSelected] = useState<string[]>([]);
+  const [memberships, setMemberships] = useState<MembershipTeam[]>([]);
+  const [membershipLoading, setMembershipLoading] = useState(true);
   const [form] = Form.useForm();
 
   const fetchMembers = useCallback(async () => {
@@ -118,9 +131,25 @@ const TeamPage = memo(() => {
     }
   }, []);
 
+  const fetchMemberships = useCallback(async () => {
+    try {
+      setMembershipLoading(true);
+      const res = await fetch('/api/team/my-membership');
+      if (res.ok) {
+        const data = await res.json();
+        setMemberships(data.memberships || []);
+      }
+    } catch {
+      // silently fail — membership is not critical
+    } finally {
+      setMembershipLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchMembers();
-  }, [fetchMembers]);
+    fetchMemberships();
+  }, [fetchMembers, fetchMemberships]);
 
   const handleInvite = async (values: { assignedAgentIds?: string[]; email: string; name?: string; role: string }) => {
     try {
@@ -385,10 +414,10 @@ const TeamPage = memo(() => {
           <UsersRound size={28} color="#fff" />
           <Flexbox>
             <Title level={4} style={{ color: '#fff', margin: 0 }}>
-              Gestion de l'équipe
+              Gestion d'équipe & Revente d'agents
             </Title>
             <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13 }}>
-              Gérez les membres de votre espace de travail
+              Invitez vos clients, assignez-leur des agents IA et gérez leurs accès
             </Text>
           </Flexbox>
         </Flexbox>
@@ -409,6 +438,102 @@ const TeamPage = memo(() => {
           </Tooltip>
         </Flexbox>
       </Flexbox>
+
+      {/* Shared Agents Section (memberships from resellers) */}
+      {!membershipLoading && memberships.length > 0 && (
+        <Flexbox style={{ padding: '24px 32px 0' }}>
+          <Flexbox horizontal align="center" gap={8} style={{ marginBottom: 16 }}>
+            <Share2 size={18} color="#6366f1" />
+            <Title level={5} style={{ margin: 0 }}>Agents partagés avec vous</Title>
+          </Flexbox>
+          <Flexbox gap={16}>
+            {memberships.map((team) => (
+              <Card
+                key={team.ownerId}
+                size="small"
+                style={{
+                  borderRadius: 12,
+                  border: '1px solid #e5e7eb',
+                }}
+              >
+                <Flexbox gap={12}>
+                  <Flexbox horizontal align="center" justify="space-between">
+                    <Flexbox horizontal align="center" gap={10}>
+                      <Avatar
+                        style={{
+                          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                          color: '#fff',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {(team.ownerName || team.ownerEmail || 'R').charAt(0).toUpperCase()}
+                      </Avatar>
+                      <Flexbox>
+                        <Text strong style={{ fontSize: 14 }}>
+                          {team.ownerName || 'Reseller'}
+                        </Text>
+                        {team.ownerEmail && (
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            {team.ownerEmail}
+                          </Text>
+                        )}
+                      </Flexbox>
+                    </Flexbox>
+                    <Flexbox horizontal align="center" gap={8}>
+                      <Tag color={ROLE_COLORS[team.role] || 'default'}>
+                        {ROLE_LABELS[team.role] || team.role}
+                      </Tag>
+                      <Badge
+                        color={STATUS_COLORS[team.status] || 'default'}
+                        text={<Text style={{ fontSize: 11 }}>{STATUS_LABELS[team.status] || team.status}</Text>}
+                      />
+                    </Flexbox>
+                  </Flexbox>
+
+                  {team.agents.length === 0 ? (
+                    <Text type="secondary" style={{ fontSize: 12, fontStyle: 'italic' }}>
+                      Aucun agent assigné pour le moment.
+                    </Text>
+                  ) : (
+                    <Flexbox gap={8}>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {team.agents.length} agent{team.agents.length > 1 ? 's' : ''} accessible{team.agents.length > 1 ? 's' : ''}
+                      </Text>
+                      <Flexbox horizontal gap={8} style={{ flexWrap: 'wrap' }}>
+                        {team.agents.map((agent) => (
+                          <Card
+                            key={agent.id}
+                            size="small"
+                            hoverable
+                            style={{
+                              borderRadius: 10,
+                              minWidth: 160,
+                              cursor: 'pointer',
+                            }}
+                            onClick={() => {
+                              window.open(`/chat?agent=${agent.id}&owner=${team.ownerId}`, '_blank');
+                            }}
+                          >
+                            <Flexbox horizontal align="center" gap={8}>
+                              <Bot size={18} color="#6366f1" />
+                              <Flexbox style={{ flex: 1, minWidth: 0 }}>
+                                <Text strong style={{ fontSize: 13 }} ellipsis>
+                                  {agent.title}
+                                </Text>
+                              </Flexbox>
+                              <ExternalLink size={14} color="#9ca3af" />
+                            </Flexbox>
+                          </Card>
+                        ))}
+                      </Flexbox>
+                    </Flexbox>
+                  )}
+                </Flexbox>
+              </Card>
+            ))}
+          </Flexbox>
+        </Flexbox>
+      )}
 
       {/* Content */}
       <Flexbox style={{ flex: 1, padding: '24px 32px' }}>
@@ -438,19 +563,58 @@ const TeamPage = memo(() => {
             <Spin size="large" />
           </Flexbox>
         ) : members.length === 0 ? (
-          <Empty
-            description="Aucun membre dans votre équipe. Invitez des collaborateurs pour commencer."
-            style={{ padding: 80 }}
+          <Card
+            style={{
+              background: 'linear-gradient(135deg, #f0f0ff 0%, #e8e0ff 100%)',
+              border: '1px dashed #c4b5fd',
+              borderRadius: 16,
+              padding: '32px 24px',
+              textAlign: 'center',
+            }}
           >
-            <Button
-              disabled={!canInvite}
-              icon={<UserPlus size={16} />}
-              onClick={() => setInviteModalOpen(true)}
-              type="primary"
-            >
-              Inviter votre premier membre
-            </Button>
-          </Empty>
+            <Flexbox align="center" gap={16}>
+              <div style={{
+                width: 64,
+                height: 64,
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Bot size={32} color="#fff" />
+              </div>
+              <Title level={5} style={{ margin: 0 }}>
+                Commencez à revendre vos agents IA
+              </Title>
+              <Text type="secondary" style={{ fontSize: 13, maxWidth: 420 }}>
+                Créez des agents IA, invitez vos clients ici et assignez-leur les agents auxquels ils auront accès. Chaque client ne verra que ses agents assignés.
+              </Text>
+              <Flexbox horizontal gap={12} style={{ marginTop: 8 }}>
+                <Button
+                  disabled={!canInvite}
+                  icon={<UserPlus size={16} />}
+                  onClick={() => setInviteModalOpen(true)}
+                  type="primary"
+                  style={{ background: '#6366f1', borderColor: '#6366f1' }}
+                >
+                  Inviter votre premier client
+                </Button>
+              </Flexbox>
+              <Flexbox gap={8} style={{ marginTop: 16, textAlign: 'left', maxWidth: 420 }}>
+                <Text strong style={{ fontSize: 12, color: '#6366f1' }}>Comment ça marche ?</Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  1. Créez un ou plusieurs agents IA dans votre espace
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  2. Invitez un client par email et assignez-lui des agents
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  3. Votre client se connecte et ne voit que les agents que vous lui avez assignés
+                </Text>
+              </Flexbox>
+            </Flexbox>
+          </Card>
         ) : (
           <Table
             columns={columns}

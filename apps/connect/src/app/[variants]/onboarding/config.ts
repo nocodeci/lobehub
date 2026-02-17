@@ -1,4 +1,5 @@
 import {
+  BotIcon,
   ChartNetworkIcon,
   CodeXmlIcon,
   GraduationCapIcon,
@@ -22,6 +23,7 @@ export const INTEREST_AREAS = [
   { icon: PercentIcon, key: 'marketing' },
   { icon: TargetIcon, key: 'product' },
   { icon: HandCoinsIcon, key: 'sales' },
+  { icon: BotIcon, key: 'agentReselling' },
 ] as const;
 
 export type InterestAreaKey = (typeof INTEREST_AREAS)[number]['key'];

@@ -234,69 +234,44 @@ export const useControls = ({
     [isLobehubSkillEnabled, allLobehubSkillServers, installedLobehubIds, recommendedLobehubIds],
   );
 
-  // WhatsApp account items — same pattern as KlavisServerItem
+  // WhatsApp account items — sub-items with indented styling
   const whatsappAccountItems = useMemo(() => {
     if (whatsappAccounts.length === 0) return [];
 
     const connectedAccounts = whatsappAccounts.filter((a) => (a as any).isConnected);
 
-    if (connectedAccounts.length === 0) {
-      return [{
-        icon: (
-          <Avatar
-            avatar="https://hub-apac-1.lobeobjects.space/assets/logos/whatsapp.svg"
-            shape={'square'}
-            size={SKILL_ICON_SIZE}
-            style={{ flex: 'none' }}
-          />
-        ),
-        key: 'whatsapp-account:scan-qr',
-        label: (
-          <Flexbox
-            align={'center'}
-            gap={24}
-            horizontal
-            justify={'space-between'}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenWhatsAppSetup?.();
-            }}
-          >
-            <Flexbox align={'center'} gap={8} horizontal>
-              Aucun compte connecté
-            </Flexbox>
-            <Flexbox
-              align="center"
-              gap={4}
-              horizontal
-              style={{ cursor: 'pointer', opacity: 0.65 }}
-            >
-              Scanner QR
-              <Icon icon={SquareArrowOutUpRight} size="small" />
-            </Flexbox>
-          </Flexbox>
-        ),
-      }];
-    }
+    // Build items: connected accounts + always show "add account" link
+    const items: any[] = [];
 
-    return connectedAccounts.map((a) => {
+    // Connected accounts
+    connectedAccounts.forEach((a) => {
       const isActive = a.id === activeWhatsAppAccountId;
       const displayName = a.name || (a as any).phone || a.id;
 
-      return {
+      items.push({
         icon: (
-          <Avatar
-            avatar="https://hub-apac-1.lobeobjects.space/assets/logos/whatsapp.svg"
-            shape={'square'}
-            size={SKILL_ICON_SIZE}
-            style={{ flex: 'none' }}
-          />
+          <div style={{
+            width: SKILL_ICON_SIZE,
+            height: SKILL_ICON_SIZE,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <div style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: isActive ? '#22c55e' : '#94a3b8',
+              boxShadow: isActive ? '0 0 6px rgba(34,197,94,0.4)' : 'none',
+              flexShrink: 0,
+            }} />
+          </div>
         ),
         key: `whatsapp-account:${a.id}`,
         label: (
           <Flexbox
             align={'center'}
-            gap={24}
+            gap={8}
             horizontal
             justify={'space-between'}
             onClick={(e) => {
@@ -313,38 +288,74 @@ export const useControls = ({
                 } as any);
               }
             }}
+            style={{ paddingLeft: 4 }}
           >
-            <Flexbox align={'center'} gap={8} horizontal>
-              {displayName}
+            <Flexbox align={'center'} gap={6} horizontal style={{ minWidth: 0 }}>
+              <span style={{ fontSize: 12, fontWeight: isActive ? 500 : 400 }}>
+                {displayName}
+              </span>
               {(a as any).phone && a.name && (
                 <span style={{ color: cssVar.colorTextQuaternary, fontSize: 11 }}>
                   {(a as any).phone}
                 </span>
               )}
             </Flexbox>
-            {isActive ? (
-              <Flexbox
-                align="center"
-                gap={4}
-                horizontal
-                style={{ color: cssVar.colorSuccess, fontSize: 12, opacity: 0.85 }}
-              >
-                Actif
-              </Flexbox>
-            ) : (
-              <Flexbox
-                align="center"
-                gap={4}
-                horizontal
-                style={{ color: cssVar.colorTextTertiary, cursor: 'pointer', fontSize: 12, opacity: 0.65 }}
-              >
-                Connecté
-              </Flexbox>
-            )}
+            <span style={{
+              fontSize: 11,
+              color: isActive ? '#22c55e' : cssVar.colorTextQuaternary,
+              fontWeight: isActive ? 500 : 400,
+              flexShrink: 0,
+            }}>
+              {isActive ? '● Actif' : 'Connecté'}
+            </span>
           </Flexbox>
         ),
-      };
+      });
     });
+
+    // Always show "Scanner QR" to add a new account
+    items.push({
+      icon: (
+        <div style={{
+          width: SKILL_ICON_SIZE,
+          height: SKILL_ICON_SIZE,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <span style={{ fontSize: 12, opacity: 0.45 }}>+</span>
+        </div>
+      ),
+      key: 'whatsapp-account:scan-qr',
+      label: (
+        <Flexbox
+          align={'center'}
+          gap={8}
+          horizontal
+          justify={'space-between'}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenWhatsAppSetup?.();
+          }}
+          style={{ paddingLeft: 4 }}
+        >
+          <span style={{ fontSize: 12, color: cssVar.colorTextTertiary }}>
+            {connectedAccounts.length === 0 ? 'Aucun compte connecté' : 'Ajouter un compte'}
+          </span>
+          <Flexbox
+            align="center"
+            gap={4}
+            horizontal
+            style={{ cursor: 'pointer', color: '#6366f1', fontSize: 11, fontWeight: 500 }}
+          >
+            Scanner QR
+            <Icon icon={SquareArrowOutUpRight} size="small" />
+          </Flexbox>
+        </Flexbox>
+      ),
+    });
+
+    return items;
   }, [activeWhatsAppAccountId, onOpenWhatsAppSetup, setSettings, userSettings.tool, whatsappAccounts, whatsappSettings]);
 
   // Builtin 工具列表项（不包含 Klavis 和 LobeHub Skill）
