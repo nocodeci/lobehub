@@ -735,7 +735,7 @@ async function getUserProductCatalog(userId: string): Promise<string | null> {
             return null;
         }
 
-        const inStockProducts = products.filter((p: any) => p.inStock !== false);
+        const inStockProducts = products.filter((p: any) => p.inStock !== false && p.category !== '__system__');
         if (inStockProducts.length === 0) return null;
 
         const catalog = inStockProducts.map((p: any) => {
@@ -745,9 +745,30 @@ async function getUserProductCatalog(userId: string): Promise<string | null> {
             return `- ${p.name}: ${price.toLocaleString('fr-FR')} ${currency}${stock}${p.description ? ` — ${p.description}` : ''}`;
         }).join('\n');
 
+        // Check for payment config from ecommerce.paymentConfig
+        const paymentCfg = general?.ecommerce?.paymentConfig;
+        let paymentInfo = '';
+        if (paymentCfg) {
+            const methods: string[] = [];
+            if (paymentCfg.waveMerchantCode) methods.push(`Wave: ${paymentCfg.waveMerchantCode}`);
+            if (paymentCfg.orangeMoneyCode) methods.push(`Orange Money: ${paymentCfg.orangeMoneyCode}`);
+            if (methods.length > 0) {
+                paymentInfo = `\n\n💳 MOYENS DE PAIEMENT DISPONIBLES:\n${methods.join('\n')}\nQuand un client veut payer, donne-lui ces informations de paiement.`;
+            }
+        }
+
+        // Check for existing orders
+        const orders = general?.ecommerce?.orders;
+        let orderInfo = '';
+        if (orders && Array.isArray(orders) && orders.length > 0) {
+            orderInfo = '\n\nGESTION COMMANDES: Tu peux prendre des commandes. Quand un client veut acheter, confirme le produit, la quantité et demande son nom. Résume la commande avec le montant total et propose le moyen de paiement.';
+        } else {
+            orderInfo = '\n\nGESTION COMMANDES: Tu peux prendre des commandes. Quand un client veut acheter, confirme le produit, la quantité et demande son nom. Résume la commande avec le montant total et propose le moyen de paiement.';
+        }
+
         console.log(`[WhatsApp Webhook] Loaded ${inStockProducts.length} products for user ${userId}`);
 
-        return `\n\n---\n📦 CATALOGUE PRODUITS DISPONIBLES:\n${catalog}\n\nINSTRUCTIONS VENTE: Quand un client demande un produit, présente-lui les produits du catalogue avec leurs prix. Sois commercial et aide-le à choisir. Si un produit n'est pas dans le catalogue, dis-le poliment. Tu peux proposer des produits similaires ou complémentaires du catalogue.`;
+        return `\n\n---\n📦 CATALOGUE PRODUITS DISPONIBLES:\n${catalog}${paymentInfo}${orderInfo}\n\nINSTRUCTIONS VENTE: Quand un client demande un produit, présente-lui les produits du catalogue avec leurs prix. Sois commercial et aide-le à choisir. Si un produit n'est pas dans le catalogue, dis-le poliment. Tu peux proposer des produits similaires ou complémentaires du catalogue.`;
     } catch (error) {
         console.error('[WhatsApp Webhook] Error fetching product catalog:', error);
         return null;

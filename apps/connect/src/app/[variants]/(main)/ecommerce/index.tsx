@@ -1,12 +1,17 @@
 'use client';
 
 import { Flexbox } from '@lobehub/ui';
-import { App, Button, Card, Empty, Input, InputNumber, Modal, Select, Space, Spin, Switch, Table, Tag, Typography, Upload } from 'antd';
+import { App, Badge, Button, Card, Empty, Input, InputNumber, Modal, Select, Space, Spin, Switch, Table, Tabs, Tag, Typography } from 'antd';
 import { createStyles } from 'antd-style';
 import {
+  BarChart3,
   Box,
+  CheckCircle,
+  ClipboardList,
+  CreditCard,
+  Download,
   Edit3,
-  ImagePlus,
+  FileSpreadsheet,
   Package,
   Plus,
   Search,
@@ -15,10 +20,12 @@ import {
   Store,
   Trash2,
   TrendingUp,
+  Upload,
+  Wallet,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 interface Product {
@@ -34,6 +41,38 @@ interface Product {
   createdAt: string;
   updatedAt: string;
 }
+
+interface OrderItem {
+  productId: string;
+  productName: string;
+  price: number;
+  quantity: number;
+  currency: string;
+}
+
+interface Order {
+  id: string;
+  customerName: string;
+  customerPhone: string;
+  items: OrderItem[];
+  totalAmount: number;
+  currency: string;
+  status: 'pending' | 'confirmed' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
+  paymentMethod?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  source: 'whatsapp' | 'manual';
+}
+
+const ORDER_STATUS_MAP: Record<string, { color: string; label: string }> = {
+  cancelled: { color: 'default', label: 'Annulée' },
+  confirmed: { color: 'blue', label: 'Confirmée' },
+  delivered: { color: 'green', label: 'Livrée' },
+  paid: { color: 'cyan', label: 'Payée' },
+  pending: { color: 'orange', label: 'En attente' },
+  shipped: { color: 'purple', label: 'Expédiée' },
+};
 
 const CURRENCIES = [
   { label: 'XOF (FCFA)', value: 'XOF' },
@@ -144,6 +183,24 @@ const EcommercePage = memo(() => {
   const [formInStock, setFormInStock] = useState(true);
   const [formStockQuantity, setFormStockQuantity] = useState<number | undefined>(undefined);
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState('products');
+
+  // Orders state
+  const [orders, setOrders] = useState<Order[]>([]);
+
+  // Import state
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importCsv, setImportCsv] = useState('');
+  const [importReplace, setImportReplace] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  // Payment config state
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [waveMerchantCode, setWaveMerchantCode] = useState('');
+  const [orangeMoneyCode, setOrangeMoneyCode] = useState('');
+  const [paymentSaving, setPaymentSaving] = useState(false);
+
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
@@ -159,9 +216,36 @@ const EcommercePage = memo(() => {
     }
   }, []);
 
+  const fetchOrders = useCallback(async () => {
+    try {
+      const res = await fetch('/api/ecommerce/orders');
+      if (res.ok) {
+        const data = await res.json();
+        setOrders(data.orders || []);
+      }
+    } catch {
+      // silently fail
+    }
+  }, []);
+
+  const fetchPaymentConfig = useCallback(async () => {
+    try {
+      const res = await fetch('/api/ecommerce/payment');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.paymentConfig) {
+          setWaveMerchantCode(data.paymentConfig.waveMerchantCode || '');
+          setOrangeMoneyCode(data.paymentConfig.orangeMoneyCode || '');
+        }
+      }
+    } catch { /* silently fail */ }
+  }, []);
+
   useEffect(() => {
     fetchProducts();
-  }, [fetchProducts]);
+    fetchOrders();
+    fetchPaymentConfig();
+  }, [fetchProducts, fetchOrders, fetchPaymentConfig]);
 
   const resetForm = () => {
     setFormName('');
@@ -277,6 +361,76 @@ const EcommercePage = memo(() => {
     }
   };
 
+  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
+    try {
+      const res = await fetch('/api/ecommerce/orders', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: orderId, status }),
+      });
+      if (res.ok) {
+        message.success('Statut mis à jour');
+        fetchOrders();
+      }
+    } catch {
+      message.error('Erreur');
+    }
+  };
+
+  const handleImportCsv = async () => {
+    if (!importCsv.trim()) {
+      message.warning('Collez vos données CSV.');
+      return;
+    }
+    setImporting(true);
+    try {
+      const res = await fetch('/api/ecommerce/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csv: importCsv, replace: importReplace }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        message.success(`${data.imported} produits importés ! (Total: ${data.total})`);
+        setImportModalOpen(false);
+        setImportCsv('');
+        fetchProducts();
+      } else {
+        message.error(data.error || 'Erreur d\'import');
+      }
+    } catch {
+      message.error('Erreur réseau');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleSavePaymentConfig = async () => {
+    setPaymentSaving(true);
+    try {
+      const res = await fetch('/api/ecommerce/payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ waveMerchantCode, orangeMoneyCode }),
+      });
+      if (res.ok) {
+        message.success('Configuration de paiement sauvegardée');
+        setPaymentModalOpen(false);
+      }
+    } catch {
+      message.error('Erreur');
+    } finally {
+      setPaymentSaving(false);
+    }
+  };
+
+  // Order stats
+  const pendingOrders = orders.filter((o) => o.status === 'pending').length;
+  const totalRevenue = orders
+    .filter((o) => ['paid', 'shipped', 'delivered'].includes(o.status))
+    .reduce((sum, o) => sum + o.totalAmount, 0);
+  const totalOrderCount = orders.length;
+
   // Filtered products
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
@@ -352,156 +506,348 @@ const EcommercePage = memo(() => {
         </Card>
       </Flexbox>
 
-      {/* Info banner */}
-      <Card
-        style={{
-          marginBottom: 24,
-          background: `linear-gradient(90deg, ${theme.colorPrimaryBg}, ${theme.colorBgContainer})`,
-          border: `1px solid ${theme.colorPrimaryBorder}`,
-        }}
-      >
-        <Flexbox gap={12} horizontal align="center">
-          <ShoppingCart size={20} color={theme.colorPrimary} />
-          <div>
-            <Text strong>Vendez automatiquement via WhatsApp</Text>
-            <br />
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Vos produits seront automatiquement intégrés dans les réponses de votre agent IA WhatsApp.
-              Quand un client demande un produit, l&apos;agent consulte votre catalogue et peut fournir prix, descriptions et disponibilités.
-            </Text>
-          </div>
-        </Flexbox>
-      </Card>
+      {/* Tabs */}
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        style={{ marginBottom: 16 }}
+        items={[
+          {
+            key: 'products',
+            label: (
+              <Flexbox align="center" gap={6} horizontal>
+                <Package size={16} /> Produits ({totalProducts})
+              </Flexbox>
+            ),
+          },
+          {
+            key: 'orders',
+            label: (
+              <Flexbox align="center" gap={6} horizontal>
+                <ClipboardList size={16} /> Commandes
+                {pendingOrders > 0 && <Badge count={pendingOrders} size="small" />}
+              </Flexbox>
+            ),
+          },
+          {
+            key: 'stats',
+            label: (
+              <Flexbox align="center" gap={6} horizontal>
+                <BarChart3 size={16} /> Statistiques
+              </Flexbox>
+            ),
+          },
+        ]}
+      />
 
-      {/* Toolbar */}
-      <Flexbox gap={12} horizontal style={{ marginBottom: 16 }} wrap="wrap" align="center">
-        <Input
-          allowClear
-          placeholder="Rechercher un produit..."
-          prefix={<Search size={16} />}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={{ flex: 1, minWidth: 200 }}
-        />
-        <Select
-          value={categoryFilter}
-          onChange={setCategoryFilter}
-          style={{ minWidth: 160 }}
-          options={[
-            { label: 'Toutes les catégories', value: 'all' },
-            ...CATEGORIES.map((c) => ({ label: c, value: c })),
-          ]}
-        />
-        <Button type="primary" icon={<Plus size={16} />} onClick={openAddModal}>
-          Ajouter un produit
-        </Button>
-      </Flexbox>
+      {/* ====== PRODUCTS TAB ====== */}
+      {activeTab === 'products' && (
+        <>
+          {/* Toolbar */}
+          <Flexbox gap={12} horizontal style={{ marginBottom: 16 }} wrap="wrap" align="center">
+            <Input
+              allowClear
+              placeholder="Rechercher un produit..."
+              prefix={<Search size={16} />}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ flex: 1, minWidth: 200 }}
+            />
+            <Select
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              style={{ minWidth: 160 }}
+              options={[
+                { label: 'Toutes les catégories', value: 'all' },
+                ...CATEGORIES.map((c) => ({ label: c, value: c })),
+              ]}
+            />
+            <Button icon={<FileSpreadsheet size={16} />} onClick={() => setImportModalOpen(true)}>
+              Importer CSV
+            </Button>
+            <Button icon={<Wallet size={16} />} onClick={() => setPaymentModalOpen(true)}>
+              Paiement
+            </Button>
+            <Button type="primary" icon={<Plus size={16} />} onClick={openAddModal}>
+              Ajouter
+            </Button>
+          </Flexbox>
 
-      {/* Product List */}
-      {filteredProducts.length === 0 ? (
-        <Card className={styles.emptyState}>
-          <Empty
-            image={<Box size={64} color={theme.colorTextQuaternary} />}
-            description={
-              totalProducts === 0
-                ? 'Aucun produit encore. Ajoutez vos premiers produits pour commencer à vendre !'
-                : 'Aucun produit ne correspond à votre recherche.'
-            }
-          >
-            {totalProducts === 0 && (
-              <Button type="primary" icon={<Plus size={16} />} onClick={openAddModal}>
-                Ajouter mon premier produit
-              </Button>
-            )}
-          </Empty>
-        </Card>
-      ) : (
-        <Card bodyStyle={{ padding: 0 }}>
-          <Table
-            dataSource={filteredProducts}
-            rowKey="id"
-            pagination={filteredProducts.length > 10 ? { pageSize: 10 } : false}
-            columns={[
-              {
-                title: 'Produit',
-                key: 'product',
-                render: (_, record: Product) => (
-                  <Flexbox gap={12} horizontal align="center">
-                    <div className={styles.productImage}>
-                      {record.imageUrl ? (
-                        <img
-                          src={record.imageUrl}
-                          alt={record.name}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }}
-                        />
-                      ) : (
-                        <Package size={24} />
-                      )}
-                    </div>
-                    <div>
-                      <Text strong>{record.name}</Text>
-                      <br />
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        {record.description ? record.description.substring(0, 60) + (record.description.length > 60 ? '...' : '') : 'Pas de description'}
-                      </Text>
-                    </div>
-                  </Flexbox>
-                ),
-              },
-              {
-                title: 'Prix',
-                key: 'price',
-                width: 150,
-                render: (_, record: Product) => (
-                  <Text strong style={{ color: theme.colorPrimary }}>
-                    {formatPrice(record.price, record.currency)}
-                  </Text>
-                ),
-                sorter: (a: Product, b: Product) => a.price - b.price,
-              },
-              {
-                title: 'Catégorie',
-                key: 'category',
-                width: 150,
-                render: (_, record: Product) => <Tag>{record.category}</Tag>,
-              },
-              {
-                title: 'Stock',
-                key: 'stock',
-                width: 100,
-                render: (_, record: Product) => (
-                  <Tag color={record.inStock ? 'green' : 'red'}>
-                    {record.inStock ? 'En stock' : 'Épuisé'}
-                  </Tag>
-                ),
-              },
-              {
-                title: 'Actions',
-                key: 'actions',
-                width: 120,
-                render: (_, record: Product) => (
+          {filteredProducts.length === 0 ? (
+            <Card className={styles.emptyState}>
+              <Empty
+                image={<Box size={64} color={theme.colorTextQuaternary} />}
+                description={
+                  totalProducts === 0
+                    ? 'Aucun produit encore. Ajoutez vos premiers produits pour commencer à vendre !'
+                    : 'Aucun produit ne correspond à votre recherche.'
+                }
+              >
+                {totalProducts === 0 && (
                   <Space>
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={<Edit3 size={14} />}
-                      onClick={() => openEditModal(record)}
-                    />
-                    <Button
-                      type="text"
-                      size="small"
-                      danger
-                      icon={<Trash2 size={14} />}
-                      onClick={() => handleDelete(record)}
-                    />
+                    <Button type="primary" icon={<Plus size={16} />} onClick={openAddModal}>
+                      Ajouter mon premier produit
+                    </Button>
+                    <Button icon={<FileSpreadsheet size={16} />} onClick={() => setImportModalOpen(true)}>
+                      Importer un CSV
+                    </Button>
                   </Space>
-                ),
-              },
-            ]}
-          />
-        </Card>
+                )}
+              </Empty>
+            </Card>
+          ) : (
+            <Card bodyStyle={{ padding: 0 }}>
+              <Table
+                dataSource={filteredProducts}
+                rowKey="id"
+                pagination={filteredProducts.length > 10 ? { pageSize: 10 } : false}
+                columns={[
+                  {
+                    title: 'Produit',
+                    key: 'product',
+                    render: (_: any, record: Product) => (
+                      <Flexbox gap={12} horizontal align="center">
+                        <div className={styles.productImage}>
+                          {record.imageUrl ? (
+                            <img
+                              src={record.imageUrl}
+                              alt={record.name}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }}
+                            />
+                          ) : (
+                            <Package size={24} />
+                          )}
+                        </div>
+                        <div>
+                          <Text strong>{record.name}</Text>
+                          <br />
+                          <Text type="secondary" style={{ fontSize: 12 }}>
+                            {record.description ? record.description.substring(0, 60) + (record.description.length > 60 ? '...' : '') : 'Pas de description'}
+                          </Text>
+                        </div>
+                      </Flexbox>
+                    ),
+                  },
+                  {
+                    title: 'Prix',
+                    key: 'price',
+                    width: 150,
+                    render: (_: any, record: Product) => (
+                      <Text strong style={{ color: theme.colorPrimary }}>
+                        {formatPrice(record.price, record.currency)}
+                      </Text>
+                    ),
+                    sorter: (a: Product, b: Product) => a.price - b.price,
+                  },
+                  {
+                    title: 'Catégorie',
+                    key: 'category',
+                    width: 150,
+                    render: (_: any, record: Product) => <Tag>{record.category}</Tag>,
+                  },
+                  {
+                    title: 'Stock',
+                    key: 'stock',
+                    width: 100,
+                    render: (_: any, record: Product) => (
+                      <Tag color={record.inStock ? 'green' : 'red'}>
+                        {record.inStock ? 'En stock' : 'Épuisé'}
+                      </Tag>
+                    ),
+                  },
+                  {
+                    title: 'Actions',
+                    key: 'actions',
+                    width: 120,
+                    render: (_: any, record: Product) => (
+                      <Space>
+                        <Button type="text" size="small" icon={<Edit3 size={14} />} onClick={() => openEditModal(record)} />
+                        <Button type="text" size="small" danger icon={<Trash2 size={14} />} onClick={() => handleDelete(record)} />
+                      </Space>
+                    ),
+                  },
+                ]}
+              />
+            </Card>
+          )}
+        </>
       )}
 
-      {/* Add/Edit Modal */}
+      {/* ====== ORDERS TAB ====== */}
+      {activeTab === 'orders' && (
+        <>
+          {orders.length === 0 ? (
+            <Card className={styles.emptyState}>
+              <Empty
+                image={<ClipboardList size={64} color={theme.colorTextQuaternary} />}
+                description="Aucune commande encore. Les commandes passées via WhatsApp apparaîtront ici."
+              />
+            </Card>
+          ) : (
+            <Card bodyStyle={{ padding: 0 }}>
+              <Table
+                dataSource={orders}
+                rowKey="id"
+                pagination={orders.length > 10 ? { pageSize: 10 } : false}
+                columns={[
+                  {
+                    title: 'Client',
+                    key: 'customer',
+                    render: (_: any, record: Order) => (
+                      <div>
+                        <Text strong>{record.customerName}</Text>
+                        <br />
+                        <Text type="secondary" style={{ fontSize: 12 }}>{record.customerPhone}</Text>
+                      </div>
+                    ),
+                  },
+                  {
+                    title: 'Articles',
+                    key: 'items',
+                    render: (_: any, record: Order) => (
+                      <div>
+                        {record.items.map((item, i) => (
+                          <div key={i}>
+                            <Text style={{ fontSize: 12 }}>{item.quantity}x {item.productName}</Text>
+                          </div>
+                        ))}
+                      </div>
+                    ),
+                  },
+                  {
+                    title: 'Total',
+                    key: 'total',
+                    width: 150,
+                    render: (_: any, record: Order) => (
+                      <Text strong style={{ color: theme.colorPrimary }}>
+                        {formatPrice(record.totalAmount, record.currency)}
+                      </Text>
+                    ),
+                    sorter: (a: Order, b: Order) => a.totalAmount - b.totalAmount,
+                  },
+                  {
+                    title: 'Source',
+                    key: 'source',
+                    width: 100,
+                    render: (_: any, record: Order) => (
+                      <Tag color={record.source === 'whatsapp' ? 'green' : 'blue'}>
+                        {record.source === 'whatsapp' ? 'WhatsApp' : 'Manuel'}
+                      </Tag>
+                    ),
+                  },
+                  {
+                    title: 'Statut',
+                    key: 'status',
+                    width: 150,
+                    render: (_: any, record: Order) => (
+                      <Select
+                        value={record.status}
+                        size="small"
+                        style={{ width: 130 }}
+                        onChange={(val) => handleUpdateOrderStatus(record.id, val)}
+                        options={Object.entries(ORDER_STATUS_MAP).map(([k, v]) => ({
+                          label: v.label,
+                          value: k,
+                        }))}
+                      />
+                    ),
+                  },
+                  {
+                    title: 'Date',
+                    key: 'date',
+                    width: 140,
+                    render: (_: any, record: Order) => (
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {new Date(record.createdAt).toLocaleDateString('fr-FR', {
+                          day: '2-digit', month: 'short', year: 'numeric',
+                          hour: '2-digit', minute: '2-digit',
+                        })}
+                      </Text>
+                    ),
+                  },
+                ]}
+              />
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* ====== STATS TAB ====== */}
+      {activeTab === 'stats' && (
+        <>
+          <Flexbox gap={16} horizontal style={{ marginBottom: 24 }} wrap="wrap">
+            <Card className={styles.statsCard} style={{ flex: 1, minWidth: 180 }}>
+              <ShoppingCart size={28} color={theme.colorPrimary} style={{ marginBottom: 8 }} />
+              <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Total commandes</Text>
+              <Title level={2} style={{ margin: 0 }}>{totalOrderCount}</Title>
+            </Card>
+            <Card className={styles.statsCard} style={{ flex: 1, minWidth: 180 }}>
+              <CheckCircle size={28} color="#52c41a" style={{ marginBottom: 8 }} />
+              <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>En attente</Text>
+              <Title level={2} style={{ margin: 0 }}>{pendingOrders}</Title>
+            </Card>
+            <Card className={styles.statsCard} style={{ flex: 1, minWidth: 180 }}>
+              <TrendingUp size={28} color="#faad14" style={{ marginBottom: 8 }} />
+              <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Chiffre d&apos;affaires</Text>
+              <Title level={3} style={{ margin: 0 }}>{formatPrice(totalRevenue, 'XOF')}</Title>
+            </Card>
+            <Card className={styles.statsCard} style={{ flex: 1, minWidth: 180 }}>
+              <Package size={28} color="#eb2f96" style={{ marginBottom: 8 }} />
+              <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Produits au catalogue</Text>
+              <Title level={2} style={{ margin: 0 }}>{totalProducts}</Title>
+            </Card>
+          </Flexbox>
+
+          <Card title="Répartition par catégorie" style={{ marginBottom: 16 }}>
+            {categories.length === 0 ? (
+              <Text type="secondary">Aucun produit dans le catalogue</Text>
+            ) : (
+              <Flexbox gap={8} wrap="wrap" horizontal>
+                {categories.map((cat) => {
+                  const count = products.filter((p) => p.category === cat).length;
+                  const catValue = products.filter((p) => p.category === cat).reduce((s, p) => s + p.price, 0);
+                  return (
+                    <Card key={cat} size="small" style={{ minWidth: 160 }}>
+                      <Text strong>{cat}</Text>
+                      <br />
+                      <Text type="secondary" style={{ fontSize: 12 }}>{count} produit(s)</Text>
+                      <br />
+                      <Text style={{ fontSize: 12, color: theme.colorPrimary }}>{formatPrice(catValue, 'XOF')}</Text>
+                    </Card>
+                  );
+                })}
+              </Flexbox>
+            )}
+          </Card>
+
+          <Card title="Commandes récentes">
+            {orders.length === 0 ? (
+              <Text type="secondary">Aucune commande pour le moment</Text>
+            ) : (
+              <Flexbox gap={8}>
+                {orders.slice(0, 5).map((order) => {
+                  const statusInfo = ORDER_STATUS_MAP[order.status] || ORDER_STATUS_MAP.pending;
+                  return (
+                    <Flexbox key={order.id} horizontal align="center" gap={12} style={{ padding: '8px 0', borderBottom: `1px solid ${theme.colorBorderSecondary}` }}>
+                      <div style={{ flex: 1 }}>
+                        <Text strong>{order.customerName}</Text>
+                        <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
+                          {order.items.map((i) => `${i.quantity}x ${i.productName}`).join(', ')}
+                        </Text>
+                      </div>
+                      <Text strong style={{ color: theme.colorPrimary }}>{formatPrice(order.totalAmount, order.currency)}</Text>
+                      <Tag color={statusInfo.color}>{statusInfo.label}</Tag>
+                    </Flexbox>
+                  );
+                })}
+              </Flexbox>
+            )}
+          </Card>
+        </>
+      )}
+
+      {/* ====== MODALS ====== */}
+
+      {/* Add/Edit Product Modal */}
       <Modal
         title={editingProduct ? 'Modifier le produit' : 'Ajouter un produit'}
         open={modalOpen}
@@ -586,6 +932,112 @@ const EcommercePage = memo(() => {
               <Switch checked={formInStock} onChange={setFormInStock} />
             </div>
           </Flexbox>
+        </Flexbox>
+      </Modal>
+
+      {/* CSV Import Modal */}
+      <Modal
+        title="Importer des produits (CSV)"
+        open={importModalOpen}
+        onCancel={() => { setImportModalOpen(false); setImportCsv(''); }}
+        onOk={handleImportCsv}
+        okText="Importer"
+        cancelText="Annuler"
+        confirmLoading={importing}
+        width={620}
+      >
+        <Flexbox gap={16} style={{ marginTop: 16 }}>
+          <Card size="small" style={{ background: theme.colorPrimaryBg }}>
+            <Text strong>Format CSV attendu :</Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Colonnes: <b>Nom, Description, Prix, Devise, Catégorie, Image, Stock</b>
+              <br />
+              Séparateur: virgule, point-virgule ou tabulation.
+              La première ligne doit contenir les en-têtes.
+            </Text>
+          </Card>
+          <Card size="small">
+            <Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace' }}>
+              Nom;Description;Prix;Devise;Catégorie;Stock{'\n'}
+              T-shirt Noir;T-shirt coton premium;5000;XOF;Mode & Vêtements;50{'\n'}
+              Casque Bluetooth;Son HD sans fil;15000;XOF;Électronique;20
+            </Text>
+          </Card>
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>Collez vos données CSV ici :</Text>
+            <TextArea
+              rows={8}
+              placeholder="Nom;Description;Prix;Devise;Catégorie;Stock&#10;Mon Produit;Description...;5000;XOF;Général;100"
+              value={importCsv}
+              onChange={(e) => setImportCsv(e.target.value)}
+            />
+          </div>
+          <Flexbox horizontal align="center" gap={8}>
+            <Switch checked={importReplace} onChange={setImportReplace} />
+            <Text type={importReplace ? 'danger' : 'secondary'} style={{ fontSize: 12 }}>
+              {importReplace ? 'Remplacer tous les produits existants' : 'Ajouter aux produits existants'}
+            </Text>
+          </Flexbox>
+        </Flexbox>
+      </Modal>
+
+      {/* Payment Config Modal */}
+      <Modal
+        title="Configuration des paiements mobiles"
+        open={paymentModalOpen}
+        onCancel={() => setPaymentModalOpen(false)}
+        footer={null}
+        width={520}
+      >
+        <Flexbox gap={16} style={{ marginTop: 16 }}>
+          <Card size="small" style={{ background: theme.colorPrimaryBg }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Configurez vos informations de paiement mobile. Quand un client passe commande via WhatsApp,
+              l&apos;agent IA lui fournira automatiquement vos coordonnées de paiement.
+            </Text>
+          </Card>
+          <div>
+            <Flexbox horizontal align="center" gap={8} style={{ marginBottom: 8 }}>
+              <div style={{ width: 24, height: 24, borderRadius: 12, background: '#1DC3F3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: 'white', fontSize: 10, fontWeight: 700 }}>W</Text>
+              </div>
+              <Text strong>Wave</Text>
+            </Flexbox>
+            <Input
+              placeholder="Numéro Wave (ex: +225 07 00 00 00 00)"
+              value={waveMerchantCode}
+              onChange={(e) => setWaveMerchantCode(e.target.value)}
+            />
+          </div>
+          <div>
+            <Flexbox horizontal align="center" gap={8} style={{ marginBottom: 8 }}>
+              <div style={{ width: 24, height: 24, borderRadius: 12, background: '#FF6600', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: 'white', fontSize: 10, fontWeight: 700 }}>OM</Text>
+              </div>
+              <Text strong>Orange Money</Text>
+            </Flexbox>
+            <Input
+              placeholder="Numéro Orange Money (ex: +225 07 00 00 00 00)"
+              value={orangeMoneyCode}
+              onChange={(e) => setOrangeMoneyCode(e.target.value)}
+            />
+          </div>
+          <Card size="small">
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              L&apos;agent WhatsApp enverra ces informations au client après une commande :
+            </Text>
+            <br />
+            <Text style={{ fontSize: 12 }}>
+              {waveMerchantCode && `Wave: ${waveMerchantCode}`}
+              {waveMerchantCode && orangeMoneyCode && ' | '}
+              {orangeMoneyCode && `Orange Money: ${orangeMoneyCode}`}
+              {!waveMerchantCode && !orangeMoneyCode && <Text type="secondary">Aucun moyen de paiement configuré</Text>}
+            </Text>
+          </Card>
+          <Button type="primary" block onClick={handleSavePaymentConfig} loading={paymentSaving}>
+            Sauvegarder la configuration
+          </Button>
         </Flexbox>
       </Modal>
     </div>
