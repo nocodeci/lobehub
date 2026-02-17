@@ -13,6 +13,7 @@ import { isDesktop } from '@lobechat/const';
 import { type LobeBuiltinTool } from '@lobechat/types';
 
 import { ArtifactsManifest } from './artifacts';
+import { EcommerceManifest } from './ecommerce';
 import { WhatsAppManifest } from './whatsapp';
 
 
@@ -20,6 +21,11 @@ export const builtinTools: LobeBuiltinTool[] = [
   {
     identifier: WhatsAppManifest.identifier,
     manifest: WhatsAppManifest,
+    type: 'builtin',
+  },
+  {
+    identifier: EcommerceManifest.identifier,
+    manifest: EcommerceManifest,
     type: 'builtin',
   },
   {

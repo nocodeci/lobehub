@@ -452,6 +452,25 @@ export const desktopRoutes: RouteConfig[] = [
         path: 'ecommerce',
       },
 
+      // Team routes
+      {
+        children: [
+          {
+            element: dynamicElement(
+              () => import('../(main)/team'),
+              'Desktop > Team',
+            ),
+            index: true,
+          },
+        ],
+        element: dynamicElement(
+          () => import('../(main)/team/_layout'),
+          'Desktop > Team > Layout',
+        ),
+        errorElement: <ErrorBoundary resetPath="/team" />,
+        path: 'team',
+      },
+
       ...BusinessDesktopRoutesWithMainLayout,
 
       // Pages routes

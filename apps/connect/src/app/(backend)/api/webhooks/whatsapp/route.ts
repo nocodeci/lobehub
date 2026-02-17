@@ -548,6 +548,7 @@ interface WhatsAppAutomationConfig {
  * Get the active agent with WhatsApp capability
  */
 async function getActiveWhatsAppAgent(): Promise<{
+    ecommerceConfig: { autoSellMode?: boolean; customSalesInstructions?: string; selectedProductIds?: string[] };
     id: string;
     model: string;
     provider: string;
@@ -594,9 +595,11 @@ async function getActiveWhatsAppAgent(): Promise<{
         const agent = activeAgents[0];
         const params = (agent.params || {}) as Record<string, any>;
         const whatsappConfig: WhatsAppAutomationConfig = params.whatsappConfig || {};
+        const ecommerceConfig = params.ecommerceConfig || {};
 
         console.log(`[WhatsApp Webhook] Found active agent: ${agent.title} (${agent.id}), marketId: ${agent.marketIdentifier}, whatsappConfig:`, JSON.stringify(whatsappConfig));
         return {
+            ecommerceConfig,
             id: agent.id,
             model: agent.model || 'gpt-4o-mini',
             provider: agent.provider || 'openai',
@@ -719,7 +722,7 @@ async function isHumanTakeover(
 /**
  * Fetch the user's product catalog from userSettings
  */
-async function getUserProductCatalog(userId: string): Promise<string | null> {
+async function getUserProductCatalog(userId: string, ecommerceConfig?: { autoSellMode?: boolean; customSalesInstructions?: string; selectedProductIds?: string[] }): Promise<string | null> {
     try {
         const db = await getServerDB();
         const result = await db
@@ -735,14 +738,22 @@ async function getUserProductCatalog(userId: string): Promise<string | null> {
             return null;
         }
 
-        const inStockProducts = products.filter((p: any) => p.inStock !== false && p.category !== '__system__');
+        let inStockProducts = products.filter((p: any) => p.inStock !== false && p.category !== '__system__');
+
+        // Filter by selected product IDs if configured on the agent
+        const selectedIds = ecommerceConfig?.selectedProductIds;
+        if (selectedIds && Array.isArray(selectedIds) && selectedIds.length > 0) {
+            inStockProducts = inStockProducts.filter((p: any) => selectedIds.includes(p.id));
+        }
         if (inStockProducts.length === 0) return null;
 
         const catalog = inStockProducts.map((p: any) => {
             const price = typeof p.price === 'number' ? p.price : 0;
             const currency = p.currency || 'XOF';
             const stock = p.stockQuantity != null ? ` (${p.stockQuantity} en stock)` : '';
-            return `- ${p.name}: ${price.toLocaleString('fr-FR')} ${currency}${stock}${p.description ? ` — ${p.description}` : ''}`;
+            const productLink = p.productUrl ? ` | Lien produit: ${p.productUrl}` : '';
+            const paymentLink = p.paymentUrl ? ` | Paiement direct: ${p.paymentUrl}` : '';
+            return `- ${p.name}: ${price.toLocaleString('fr-FR')} ${currency}${stock}${p.description ? ` — ${p.description}` : ''}${productLink}${paymentLink}`;
         }).join('\n');
 
         // Check for payment config from ecommerce.paymentConfig
@@ -768,7 +779,16 @@ async function getUserProductCatalog(userId: string): Promise<string | null> {
 
         console.log(`[WhatsApp Webhook] Loaded ${inStockProducts.length} products for user ${userId}`);
 
-        return `\n\n---\n📦 CATALOGUE PRODUITS DISPONIBLES:\n${catalog}${paymentInfo}${orderInfo}\n\nINSTRUCTIONS VENTE: Quand un client demande un produit, présente-lui les produits du catalogue avec leurs prix. Sois commercial et aide-le à choisir. Si un produit n'est pas dans le catalogue, dis-le poliment. Tu peux proposer des produits similaires ou complémentaires du catalogue.`;
+        // Add custom sales instructions if configured
+        const customInstructions = ecommerceConfig?.customSalesInstructions
+            ? `\n\nINSTRUCTIONS PERSONNALISÉES DU VENDEUR:\n${ecommerceConfig.customSalesInstructions}`
+            : '';
+
+        const autoSellNote = ecommerceConfig?.autoSellMode
+            ? '\n\nMODE VENDEUR AUTOMATIQUE ACTIVÉ: Propose proactivement les produits du catalogue aux clients. Présente les produits dès le début de la conversation.'
+            : '';
+
+        return `\n\n---\n📦 CATALOGUE PRODUITS DISPONIBLES:\n${catalog}${paymentInfo}${orderInfo}\n\nINSTRUCTIONS VENTE: Quand un client demande un produit, présente-lui les produits du catalogue avec leurs prix. Sois commercial et aide-le à choisir. Si un produit n'est pas dans le catalogue, dis-le poliment. Tu peux proposer des produits similaires ou complémentaires du catalogue.${autoSellNote}${customInstructions}`;
     } catch (error) {
         console.error('[WhatsApp Webhook] Error fetching product catalog:', error);
         return null;
@@ -885,7 +905,7 @@ async function generateAgentResponse(
         }
 
         // Fetch user's product catalog for e-commerce integration
-        const productCatalog = await getUserProductCatalog(agent.userId);
+        const productCatalog = await getUserProductCatalog(agent.userId, (agent as any).ecommerceConfig);
 
         // Build messages with context
         const messages = buildMessagesWithHistory(agent.systemRole, history, currentMessage, webContext, productCatalog);

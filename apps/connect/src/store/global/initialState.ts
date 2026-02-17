@@ -19,6 +19,7 @@ export enum SidebarTabKey {
   Resource = 'resource',
   Setting = 'settings',
   Subscription = 'subscription',
+  Team = 'team',
   Usage = 'usage',
 }
 

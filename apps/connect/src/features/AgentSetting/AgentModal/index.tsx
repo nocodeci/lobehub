@@ -9,17 +9,18 @@ import {
   SliderWithInput,
 } from '@lobehub/ui';
 import { Flexbox } from '@lobehub/ui';
-import { Form as AntdForm, Input, InputNumber, Switch } from 'antd';
-import { MessageSquareOff, Phone, Shield, Users } from 'lucide-react';
+import { Form as AntdForm, Checkbox, Input, InputNumber, Switch, Tag, Typography } from 'antd';
+import { MessageSquareOff, Phone, Shield, ShoppingCart, Store, Users } from 'lucide-react';
 import { createStaticStyles } from 'antd-style';
 import isEqual from 'fast-deep-equal';
-import { memo, useCallback, useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import InfoTooltip from '@/components/InfoTooltip';
 import { FORM_STYLE } from '@/const/layoutTokens';
 
 import { selectors, useStore } from '../store';
+import EcommerceProductSelector from './EcommerceProductSelector';
 
 type ParamKey = 'temperature' | 'top_p' | 'presence_penalty' | 'frequency_penalty';
 
@@ -418,7 +419,54 @@ const AgentModal = memo(() => {
     title: '⚙️ Automatisation WhatsApp',
   };
 
-  const formItems = hasWhatsApp ? [model, whatsappAutomation] : [model];
+  // --- E-Commerce Config ---
+  const hasEcommerce = config.plugins?.includes('lobe-ecommerce');
+
+  const ecommerceConfig: FormGroupItemType = {
+    children: [
+      {
+        children: <EcommerceProductSelector />,
+        desc: 'Sélectionnez les produits de votre catalogue que cet agent pourra vendre. Si aucun produit n\'est sélectionné, l\'agent aura accès à tous les produits.',
+        label: (
+          <Flexbox align={'center'} className={styles.label} gap={8} horizontal>
+            <Icon icon={ShoppingCart} size={16} />
+            Produits assignés
+          </Flexbox>
+        ),
+        minWidth: undefined,
+        name: ['params', 'ecommerceConfig', 'selectedProductIds'],
+      },
+      {
+        children: <Switch />,
+        desc: 'L\'agent présentera automatiquement les produits sélectionnés aux clients et pourra prendre des commandes.',
+        label: (
+          <Flexbox align={'center'} className={styles.label} gap={8} horizontal>
+            <Icon icon={Store} size={16} />
+            Mode vendeur automatique
+          </Flexbox>
+        ),
+        layout: 'horizontal',
+        minWidth: undefined,
+        name: ['params', 'ecommerceConfig', 'autoSellMode'],
+        valuePropName: 'checked',
+      },
+      {
+        children: <Input.TextArea placeholder="Instructions personnalisées pour la vente..." rows={3} />,
+        desc: 'Instructions supplémentaires pour l\'agent lors de la vente (ton, style, promotions, etc.).',
+        label: 'Instructions de vente personnalisées',
+        minWidth: undefined,
+        name: ['params', 'ecommerceConfig', 'customSalesInstructions'],
+      },
+    ],
+    icon: ShoppingCart,
+    title: '🛒 E-Commerce',
+  };
+
+  const formItems = [
+    model,
+    ...(hasWhatsApp ? [whatsappAutomation] : []),
+    ...(hasEcommerce ? [ecommerceConfig] : []),
+  ];
 
   return (
     <Form

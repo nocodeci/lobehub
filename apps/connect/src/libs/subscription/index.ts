@@ -11,6 +11,7 @@ export interface PlanLimits {
   credits: number; // -1 = unlimited
   name: string;
   storage: number; // in MB, -1 = unlimited
+  teamMembers: number; // -1 = unlimited
   whatsappAccounts: number; // -1 = unlimited
 }
 
@@ -24,6 +25,7 @@ export const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
     credits: 100,       // $1.00 (coûte ~$0.50 réel)
     name: 'Gratuit',
     storage: 500,
+    teamMembers: 0,
     whatsappAccounts: 1,
   },
   starter: {
@@ -32,6 +34,7 @@ export const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
     credits: 1_500,     // $15.00
     name: 'Starter',
     storage: 5_000,
+    teamMembers: 2,
     whatsappAccounts: 2,
   },
   pro: {
@@ -40,6 +43,7 @@ export const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
     credits: 5_000,     // $50.00 — Claude débloqué
     name: 'Pro',
     storage: 20_000,
+    teamMembers: 5,
     whatsappAccounts: 5,
   },
   business: {
@@ -48,6 +52,7 @@ export const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
     credits: 20_000,    // $200.00
     name: 'Business',
     storage: 100_000,
+    teamMembers: 20,
     whatsappAccounts: 20,
   },
   enterprise: {
@@ -56,6 +61,7 @@ export const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
     credits: -1,        // Illimité
     name: 'Enterprise',
     storage: -1,
+    teamMembers: -1,
     whatsappAccounts: -1,
   },
 };
@@ -170,6 +176,7 @@ export function getPlanSummary(plan: string | null | undefined) {
     credits: limits.credits === -1 ? 'Illimités' : limits.credits.toLocaleString('fr-FR'),
     name: limits.name,
     storage: limits.storage === -1 ? 'Illimité' : `${limits.storage >= 1000 ? `${limits.storage / 1000} GB` : `${limits.storage} MB`}`,
+    team: limits.teamMembers === -1 ? 'Illimités' : `${limits.teamMembers}`,
     whatsapp: limits.whatsappAccounts === -1 ? 'Illimités' : `${limits.whatsappAccounts}`,
   };
 }

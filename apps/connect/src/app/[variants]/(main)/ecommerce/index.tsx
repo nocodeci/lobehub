@@ -1114,9 +1114,7 @@ const EcommercePage = memo(() => {
           </Card>
           <div>
             <Flexbox horizontal align="center" gap={8} style={{ marginBottom: 8 }}>
-              <div style={{ width: 24, height: 24, borderRadius: 12, background: '#1DC3F3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: 'white', fontSize: 10, fontWeight: 700 }}>W</Text>
-              </div>
+              <img src="/wave.jpg" alt="Wave" style={{ width: 24, height: 24, borderRadius: 12, objectFit: 'cover' }} />
               <Text strong>Wave</Text>
             </Flexbox>
             <Input
@@ -1127,9 +1125,7 @@ const EcommercePage = memo(() => {
           </div>
           <div>
             <Flexbox horizontal align="center" gap={8} style={{ marginBottom: 8 }}>
-              <div style={{ width: 24, height: 24, borderRadius: 12, background: '#FF6600', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: 'white', fontSize: 10, fontWeight: 700 }}>OM</Text>
-              </div>
+              <img src="/orange.png" alt="Orange Money" style={{ width: 24, height: 24, borderRadius: 12, objectFit: 'cover' }} />
               <Text strong>Orange Money</Text>
             </Flexbox>
             <Input

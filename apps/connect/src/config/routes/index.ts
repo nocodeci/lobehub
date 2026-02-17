@@ -10,6 +10,7 @@ import {
   Settings,
   ShapesIcon,
   Store,
+  UsersRound,
 } from 'lucide-react';
 
 export interface NavigationRoute {
@@ -134,6 +135,15 @@ export const NAVIGATION_ROUTES: NavigationRoute[] = [
     keywords: ['ecommerce', 'shop', 'store', 'products', 'vente', 'produits', 'boutique'],
     path: '/ecommerce',
     pathPrefix: '/ecommerce',
+  },
+  {
+    cmdkKey: 'cmdk.team',
+    electronKey: 'navigation.team',
+    icon: UsersRound,
+    id: 'team',
+    keywords: ['team', 'members', 'invite', 'roles', 'équipe', 'membres', 'inviter'],
+    path: '/team',
+    pathPrefix: '/team',
   },
 ];
 

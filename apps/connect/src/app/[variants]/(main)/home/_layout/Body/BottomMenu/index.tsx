@@ -49,6 +49,12 @@ const BottomMenu = memo(() => {
           url: '/ecommerce',
         },
         {
+          icon: getRouteById('team')!.icon,
+          key: SidebarTabKey.Team,
+          title: 'Équipe',
+          url: '/team',
+        },
+        {
           icon: getRouteById('settings')!.icon,
           key: SidebarTabKey.Setting,
           title: t('tab.setting'),
