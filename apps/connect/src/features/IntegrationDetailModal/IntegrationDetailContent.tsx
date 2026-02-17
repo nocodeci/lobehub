@@ -6,11 +6,11 @@ import {
   getKlavisServerByServerIdentifier,
   getLobehubSkillProviderById,
 } from '@lobechat/const';
-import { Flexbox, Icon, Tag, Text, Typography, useModalContext } from '@lobehub/ui';
-import { Button, Divider } from 'antd';
+import { Flexbox, Icon, Markdown, Tag, Text, useModalContext } from '@lobehub/ui';
+import { Avatar, Button, Tabs } from 'antd';
 import { createStaticStyles, cssVar } from 'antd-style';
 import type { Klavis } from 'klavis';
-import { ExternalLink, Loader2, SquareArrowOutUpRight } from 'lucide-react';
+import { BookOpen, Bot, Code, ExternalLink, Loader2, SquareArrowOutUpRight } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -83,6 +83,11 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
   toolTag: css`
     font-family: ${cssVar.fontFamilyCode};
     font-size: 12px;
+  `,
+  tabsWrapper: css`
+    .ant-tabs-nav {
+      margin-bottom: 16px;
+    }
   `,
   toolsContainer: css`
     display: flex;
@@ -219,7 +224,7 @@ export const IntegrationDetailContent = ({
   };
 
   return (
-    <Flexbox gap={20}>
+    <Flexbox gap={16}>
       {/* Header */}
       <Flexbox
         align="center"
@@ -232,7 +237,7 @@ export const IntegrationDetailContent = ({
           <div className={styles.icon}>{renderIcon()}</div>
           <Flexbox gap={4}>
             <span className={styles.title}>{label}</span>
-            <Text style={{ fontSize: 14 }} type="secondary">
+            <Text className={styles.introduction} style={{ fontSize: 14 }}>
               {localizedDescription}
             </Text>
           </Flexbox>
@@ -240,64 +245,120 @@ export const IntegrationDetailContent = ({
         {renderConnectButton()}
       </Flexbox>
 
-      {/* Introduction */}
-      <Typography className={styles.introduction}>{localizedIntroduction}</Typography>
+      {/* Tabs */}
+      <Flexbox className={styles.tabsWrapper}>
+        <Tabs
+          defaultActiveKey="overview"
+          items={[
+            {
+              children: (
+                <Flexbox gap={20}>
+                  <Markdown>{localizedIntroduction}</Markdown>
 
-      {/* Developed by */}
-      <Flexbox gap={8}>
-        <Flexbox align="center" gap={4} horizontal>
-          <span className={styles.sectionTitle}>{t('integrationDetail.developedBy')}</span>
-          <span
-            className={styles.authorLink}
-            onClick={handleAuthorClick}
-            style={{ cursor: authorUrl ? 'pointer' : 'default' }}
-          >
-            {author}
-            {authorUrl && <Icon icon={ExternalLink} size={12} />}
-          </span>
-        </Flexbox>
-        <Text className={styles.trustWarning} type="secondary">
-          {t('integrationDetail.trustWarning')}
-        </Text>
-      </Flexbox>
+                  {/* Developed by */}
+                  <Flexbox gap={8}>
+                    <Flexbox align="center" gap={4} horizontal>
+                      <Text className={styles.detailLabel}>
+                        {t('integrationDetail.developedBy')}
+                      </Text>
+                      <span
+                        className={styles.authorLink}
+                        onClick={handleAuthorClick}
+                        style={{ cursor: authorUrl ? 'pointer' : 'default' }}
+                      >
+                        {author}
+                        {authorUrl && <Icon icon={ExternalLink} size={12} />}
+                      </span>
+                    </Flexbox>
+                    <Text className={styles.trustWarning} type="secondary">
+                      {t('integrationDetail.trustWarning')}
+                    </Text>
+                  </Flexbox>
 
-      {/* Tools */}
-      {tools.length > 0 && (
-        <>
-          <Divider style={{ margin: 0 }} />
-          <Flexbox gap={12}>
-            <Flexbox align="center" gap={8} horizontal>
-              <span className={styles.sectionTitle}>{t('integrationDetail.tools')}</span>
-              <Tag>{tools.length}</Tag>
-            </Flexbox>
-            <div className={styles.toolsContainer}>
-              {tools.map((tool) => (
-                <Tag className={styles.toolTag} key={tool}>
-                  {tool}
-                </Tag>
-              ))}
-            </div>
-          </Flexbox>
-        </>
-      )}
-
-      {/* Details */}
-      <Divider style={{ margin: 0 }} />
-      <Flexbox gap={12}>
-        <span className={styles.sectionTitle}>{t('integrationDetail.details')}</span>
-        <Flexbox gap={16} horizontal>
-          <div className={styles.detailItem}>
-            <span className={styles.detailLabel}>{t('integrationDetail.author')}</span>
-            <span
-              className={styles.authorLink}
-              onClick={handleAuthorClick}
-              style={{ cursor: authorUrl ? 'pointer' : 'default' }}
-            >
-              {author}
-              {authorUrl && <Icon icon={ExternalLink} size={12} />}
-            </span>
-          </div>
-        </Flexbox>
+                  {/* Details */}
+                  <Flexbox gap={12}>
+                    <Text className={styles.detailLabel}>
+                      {t('integrationDetail.details')}
+                    </Text>
+                    <Flexbox gap={16} horizontal>
+                      <div className={styles.detailItem}>
+                        <span className={styles.detailLabel}>
+                          {t('integrationDetail.author')}
+                        </span>
+                        <span
+                          className={styles.authorLink}
+                          onClick={handleAuthorClick}
+                          style={{ cursor: authorUrl ? 'pointer' : 'default' }}
+                        >
+                          {author}
+                          {authorUrl && <Icon icon={ExternalLink} size={12} />}
+                        </span>
+                      </div>
+                    </Flexbox>
+                  </Flexbox>
+                </Flexbox>
+              ),
+              icon: <Icon icon={BookOpen} size={16} />,
+              key: 'overview',
+              label: t('integrationDetail.tabs.overview', { defaultValue: 'Aperçu' }),
+            },
+            {
+              children: (
+                <Flexbox gap={12}>
+                  {tools.length > 0 ? (
+                    <>
+                      <Flexbox align="center" gap={8} horizontal>
+                        <span className={styles.sectionTitle}>
+                          {t('integrationDetail.tools')}
+                        </span>
+                        <Tag>{tools.length}</Tag>
+                      </Flexbox>
+                      <div className={styles.toolsContainer}>
+                        {tools.map((tool) => (
+                          <Tag className={styles.toolTag} key={tool}>
+                            {tool}
+                          </Tag>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <Text type="secondary">
+                      {isConnected
+                        ? t('integrationDetail.noTools', {
+                            defaultValue: 'No tools available for this skill.',
+                          })
+                        : t('integrationDetail.connectFirst', {
+                            defaultValue: 'Connect this skill to see available tools.',
+                          })}
+                    </Text>
+                  )}
+                </Flexbox>
+              ),
+              icon: <Icon icon={Code} size={16} />,
+              key: 'schema',
+              label: t('integrationDetail.tabs.schema', {
+                defaultValue: 'Fonctionnalités',
+              }),
+            },
+            {
+              children: (
+                <Flexbox gap={12}>
+                  <Text type="secondary">
+                    {t('integrationDetail.agentsUsingSkill', {
+                      defaultValue:
+                        'Agents using this skill will appear here once the skill is connected and assigned.',
+                    })}
+                  </Text>
+                </Flexbox>
+              ),
+              icon: <Icon icon={Bot} size={16} />,
+              key: 'agents',
+              label: t('integrationDetail.tabs.agents', {
+                defaultValue: 'Agents utilisant cette compétence',
+              }),
+            },
+          ]}
+        />
       </Flexbox>
     </Flexbox>
   );

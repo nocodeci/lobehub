@@ -352,9 +352,16 @@ export default {
   'inspector.orphanedToolCall':
     'Orphaned Skill call detected, may affect Agent execution. Remove it.',
   'inspector.pluginRender': 'View Skill UI',
+  'integrationDetail.agentsUsingSkill':
+    'Agents using this skill will appear here once the skill is connected and assigned.',
   'integrationDetail.author': 'Author',
+  'integrationDetail.connectFirst': 'Connect this skill to see available tools.',
   'integrationDetail.details': 'Details',
   'integrationDetail.developedBy': 'Developed by',
+  'integrationDetail.noTools': 'No tools available for this skill.',
+  'integrationDetail.tabs.agents': 'Agents using this skill',
+  'integrationDetail.tabs.overview': 'Overview',
+  'integrationDetail.tabs.schema': 'Features',
   'integrationDetail.tools': 'Tools',
   'integrationDetail.trustWarning':
     "Only use connectors from developers you trust. Connect does not control which tools developers make available and cannot verify that they will work as intended or that they won't change.",
