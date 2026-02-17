@@ -1,5 +1,5 @@
 import { type ChatModelCard } from '@lobechat/types';
-import { type IconAvatarProps, LobeHub, ModelIcon, ProviderIcon } from '@lobehub/icons';
+import { type IconAvatarProps, ModelIcon, ProviderIcon } from '@lobehub/icons';
 import { Avatar, Flexbox, FlexboxProps, Icon, Tag, Text, Tooltip } from '@lobehub/ui';
 import { createStaticStyles, useResponsive } from 'antd-style';
 import {
@@ -351,7 +351,7 @@ export const ProviderItemRender = memo<ProviderItemRenderProps>(
             title={name}
           />
         ) : provider === 'lobehub' ? (
-          <LobeHub.Morden size={size} />
+          <img alt="Connect" height={size} src="/branding/wozif-elephant.png" style={{ borderRadius: '50%', flexShrink: 0 }} width={size} />
         ) : (
           <ProviderIcon provider={provider} size={size} type={type} />
         )}
