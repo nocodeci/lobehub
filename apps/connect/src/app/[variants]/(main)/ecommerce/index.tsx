@@ -38,6 +38,8 @@ interface Product {
   currency: string;
   category: string;
   imageUrl?: string;
+  productUrl?: string;
+  paymentUrl?: string;
   inStock: boolean;
   stockQuantity?: number;
   createdAt: string;
@@ -185,6 +187,8 @@ const EcommercePage = memo(() => {
   const [formImageFile, setFormImageFile] = useState<File | null>(null);
   const [formImagePreview, setFormImagePreview] = useState<string>('');
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const [formProductUrl, setFormProductUrl] = useState('');
+  const [formPaymentUrl, setFormPaymentUrl] = useState('');
   const [formInStock, setFormInStock] = useState(true);
   const [formStockQuantity, setFormStockQuantity] = useState<number | undefined>(undefined);
 
@@ -261,6 +265,8 @@ const EcommercePage = memo(() => {
     setFormImageUrl('');
     setFormImageFile(null);
     setFormImagePreview('');
+    setFormProductUrl('');
+    setFormPaymentUrl('');
     setFormInStock(true);
     setFormStockQuantity(undefined);
     setEditingProduct(null);
@@ -282,6 +288,8 @@ const EcommercePage = memo(() => {
     setFormImageUrl(product.imageUrl || '');
     setFormImagePreview(product.imageUrl || '');
     setFormImageFile(null);
+    setFormProductUrl(product.productUrl || '');
+    setFormPaymentUrl(product.paymentUrl || '');
     setFormInStock(product.inStock);
     setFormStockQuantity(product.stockQuantity);
     setModalOpen(true);
@@ -318,6 +326,8 @@ const EcommercePage = memo(() => {
         currency: formCurrency,
         category: formCategory,
         imageUrl: finalImageUrl,
+        productUrl: formProductUrl.trim(),
+        paymentUrl: formPaymentUrl.trim(),
         inStock: formInStock,
         stockQuantity: formStockQuantity,
       };
@@ -996,6 +1006,30 @@ const EcommercePage = memo(() => {
                 style={{ marginTop: 4 }}
               />
             </div>
+          </div>
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>Lien du produit (optionnel)</Text>
+            <Input
+              placeholder="https://example.com/mon-produit"
+              value={formProductUrl}
+              onChange={(e) => setFormProductUrl(e.target.value)}
+              prefix={<Text type="secondary" style={{ fontSize: 11 }}>🔗</Text>}
+            />
+            <Text type="secondary" style={{ fontSize: 11, marginTop: 4, display: 'block' }}>
+              Lien vers le produit sur une autre plateforme (Shopify, WooCommerce, etc.)
+            </Text>
+          </div>
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>Lien de paiement (optionnel)</Text>
+            <Input
+              placeholder="https://pay.example.com/checkout"
+              value={formPaymentUrl}
+              onChange={(e) => setFormPaymentUrl(e.target.value)}
+              prefix={<Text type="secondary" style={{ fontSize: 11 }}>💳</Text>}
+            />
+            <Text type="secondary" style={{ fontSize: 11, marginTop: 4, display: 'block' }}>
+              Lien de paiement direct (Stripe, PayPal, Wave, etc.)
+            </Text>
           </div>
           <Flexbox gap={12} horizontal align="center">
             <div style={{ flex: 1 }}>
