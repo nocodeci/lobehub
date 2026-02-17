@@ -6,6 +6,7 @@ import { MoreVerticalIcon, ToggleLeft, ToggleRight } from 'lucide-react';
 import React, { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { createIntegrationDetailModal } from '@/features/IntegrationDetailModal';
 import { useAgentStore } from '@/store/agent';
 
 import { itemStyles } from '../style';
@@ -35,6 +36,14 @@ const BuiltinSkillItem = memo<BuiltinSkillItemProps>(
       setEnabled((prev) => !prev);
       togglePlugin(identifier);
     }, [identifier, togglePlugin]);
+
+    const handleOpenDetail = useCallback(() => {
+      createIntegrationDetailModal({
+        builtinMeta: { avatar, description, identifier, label },
+        identifier,
+        type: 'builtin',
+      });
+    }, [avatar, description, identifier, label]);
 
     const renderAvatar = () => {
       if (avatar.startsWith('data:')) {
@@ -89,6 +98,7 @@ const BuiltinSkillItem = memo<BuiltinSkillItemProps>(
         className={styles.container}
         gap={12}
         horizontal
+        onClick={handleOpenDetail}
         paddingBlock={12}
         paddingInline={12}
         style={{ cursor: 'pointer' }}

@@ -101,18 +101,34 @@ const styles = createStaticStyles(({ css, cssVar }) => ({
   `,
 }));
 
-export type IntegrationType = 'klavis' | 'lobehub';
+export type IntegrationType = 'builtin' | 'klavis' | 'lobehub';
+
+export interface BuiltinSkillMeta {
+  avatar: string;
+  description: string;
+  identifier: string;
+  label: string;
+}
 
 export interface IntegrationDetailContentProps {
+  builtinMeta?: BuiltinSkillMeta;
   identifier: string;
   serverName?: Klavis.McpServerName;
   type: IntegrationType;
 }
 
+const BUILTIN_EMOJI_MAP: Record<string, string> = {
+  '💻': '1f4bb',
+  '📓': '1f4d3',
+  '✅': '2705',
+  '🧠': '1f9e0',
+};
+
 export const IntegrationDetailContent = ({
   type,
   identifier,
   serverName,
+  builtinMeta,
 }: IntegrationDetailContentProps) => {
   const { t } = useTranslation(['plugin', 'setting']);
   const { close } = useModalContext();
@@ -124,7 +140,7 @@ export const IntegrationDetailContent = ({
   } = useSkillConnect({
     identifier,
     serverName,
-    type,
+    type: type === 'builtin' ? 'lobehub' : type,
   });
 
   const hasTriggeredConnectRef = useRef(false);
@@ -141,6 +157,7 @@ export const IntegrationDetailContent = ({
   };
 
   const config = useMemo((): KlavisServerType | LobehubSkillProviderType | undefined => {
+    if (type === 'builtin') return undefined;
     if (type === 'klavis') {
       return getKlavisServerByServerIdentifier(identifier);
     }
@@ -169,26 +186,82 @@ export const IntegrationDetailContent = ({
     return serverState?.tools?.map((tool) => tool.name) || [];
   }, [serverState]);
 
-  if (!config) return null;
+  if (!config && type !== 'builtin') return null;
 
-  const { author, authorUrl, description, icon, introduction, label } = config;
+  // For builtin skills, use builtinMeta; for others, use config
+  const isBuiltin = type === 'builtin' && builtinMeta;
+  const label = isBuiltin ? builtinMeta.label : config!.label;
+  const description = isBuiltin ? builtinMeta.description : config!.description;
+  const introduction = isBuiltin ? builtinMeta.description : config!.introduction;
+  const author = isBuiltin ? 'Connect' : config!.author;
+  const authorUrl = isBuiltin ? undefined : config!.authorUrl;
+  const icon = isBuiltin ? builtinMeta.avatar : config!.icon;
 
-  const i18nIdentifier =
-    type === 'klavis'
-      ? (config as KlavisServerType).identifier
-      : (config as LobehubSkillProviderType).id;
-  const i18nPrefix = type === 'klavis' ? 'tools.klavis.servers' : 'tools.lobehubSkill.providers';
-
-  const localizedDescription = t(`${i18nPrefix}.${i18nIdentifier}.description`, {
-    defaultValue: description,
-    ns: 'setting',
-  });
-  const localizedIntroduction = t(`${i18nPrefix}.${i18nIdentifier}.introduction`, {
-    defaultValue: introduction,
-    ns: 'setting',
-  });
+  // For builtin skills, skip i18n lookup and use metadata directly
+  const localizedDescription = isBuiltin
+    ? description
+    : (() => {
+        const i18nIdentifier =
+          type === 'klavis'
+            ? (config as KlavisServerType).identifier
+            : (config as LobehubSkillProviderType).id;
+        const i18nPrefix =
+          type === 'klavis' ? 'tools.klavis.servers' : 'tools.lobehubSkill.providers';
+        return t(`${i18nPrefix}.${i18nIdentifier}.description`, {
+          defaultValue: description,
+          ns: 'setting',
+        });
+      })();
+  const localizedIntroduction = isBuiltin
+    ? introduction
+    : (() => {
+        const i18nIdentifier =
+          type === 'klavis'
+            ? (config as KlavisServerType).identifier
+            : (config as LobehubSkillProviderType).id;
+        const i18nPrefix =
+          type === 'klavis' ? 'tools.klavis.servers' : 'tools.lobehubSkill.providers';
+        return t(`${i18nPrefix}.${i18nIdentifier}.introduction`, {
+          defaultValue: introduction,
+          ns: 'setting',
+        });
+      })();
 
   const renderIcon = () => {
+    if (isBuiltin) {
+      const avatar = builtinMeta.avatar;
+      if (avatar.startsWith('data:')) {
+        return <img alt={label} height={36} src={avatar} style={{ borderRadius: 8 }} width={36} />;
+      }
+      const emojiCode = BUILTIN_EMOJI_MAP[avatar];
+      if (emojiCode) {
+        return (
+          <Avatar
+            shape="square"
+            size={36}
+            style={{ color: 'var(--ant-color-text)', fontSize: 24, marginInlineEnd: 0 }}
+          >
+            <img
+              alt={avatar}
+              height={36}
+              loading="lazy"
+              src={`https://registry.npmmirror.com/@lobehub/fluent-emoji-3d/latest/files/assets/${emojiCode}.webp`}
+              style={{ color: 'transparent', flex: '0 0 auto' }}
+              width={36}
+            />
+          </Avatar>
+        );
+      }
+      return (
+        <Avatar
+          shape="square"
+          size={36}
+          style={{ color: 'var(--ant-color-text)', fontSize: 24, marginInlineEnd: 0 }}
+        >
+          {avatar}
+        </Avatar>
+      );
+    }
     if (typeof icon === 'string') {
       return <img alt={label} height={36} src={icon} style={{ borderRadius: 8 }} width={36} />;
     }
@@ -202,7 +275,7 @@ export const IntegrationDetailContent = ({
   };
 
   const renderConnectButton = () => {
-    if (isConnected) return null;
+    if (isBuiltin || isConnected) return null;
 
     if (isConnecting) {
       return (

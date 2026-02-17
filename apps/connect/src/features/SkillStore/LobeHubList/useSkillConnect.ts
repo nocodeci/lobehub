@@ -218,8 +218,14 @@ export const useSkillConnect = ({ identifier, serverName, type }: UseSkillConnec
           openOAuthWindow(newServer.oauthUrl, newServer.identifier);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[SkillStore] Failed to connect server:', error);
+      const errorMsg = error?.message || error?.cause?.message || '';
+      if (errorMsg.includes('limit reached') || errorMsg.includes('Limit:')) {
+        alert('Limite de connexions atteinte. Veuillez déconnecter une compétence existante avant d\'en connecter une nouvelle.');
+      } else {
+        alert('Impossible de connecter cette compétence. Veuillez réessayer plus tard.');
+      }
     } finally {
       setIsConnecting(false);
     }
