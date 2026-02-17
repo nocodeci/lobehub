@@ -527,6 +527,24 @@ async function searchWithSearXNG(query: string): Promise<string | null> {
 }
 
 /**
+ * WhatsApp automation config stored in agent params.whatsappConfig
+ */
+interface WhatsAppAutomationConfig {
+    /** If true, AI pauses when a human operator sends a message in the chat */
+    humanTakeoverEnabled?: boolean;
+    /** How many minutes to pause after human takeover (default: 30) */
+    humanTakeoverMinutes?: number;
+    /** Numbers the bot should NEVER respond to (string newline-separated or array) */
+    blockedNumbers?: string | string[];
+    /** If true, only respond to numbers in allowedNumbers list */
+    allowedNumbersOnly?: boolean;
+    /** Only respond to these numbers (string newline-separated or array) */
+    allowedNumbers?: string | string[];
+    /** Whether to respond in group chats (default: false) */
+    respondToGroups?: boolean;
+}
+
+/**
  * Get the active agent with WhatsApp capability
  */
 async function getActiveWhatsAppAgent(): Promise<{
@@ -536,6 +554,7 @@ async function getActiveWhatsAppAgent(): Promise<{
     systemRole: string;
     title: string;
     userId: string;
+    whatsappConfig: WhatsAppAutomationConfig;
 } | null> {
     try {
         const db = await getServerDB();
@@ -545,6 +564,7 @@ async function getActiveWhatsAppAgent(): Promise<{
                 id: agents.id,
                 marketIdentifier: agents.marketIdentifier,
                 model: agents.model,
+                params: agents.params,
                 plugins: agents.plugins,
                 provider: agents.provider,
                 systemRole: agents.systemRole,
@@ -572,7 +592,10 @@ async function getActiveWhatsAppAgent(): Promise<{
         }
 
         const agent = activeAgents[0];
-        console.log(`[WhatsApp Webhook] Found active agent: ${agent.title} (${agent.id}), marketId: ${agent.marketIdentifier}`);
+        const params = (agent.params || {}) as Record<string, any>;
+        const whatsappConfig: WhatsAppAutomationConfig = params.whatsappConfig || {};
+
+        console.log(`[WhatsApp Webhook] Found active agent: ${agent.title} (${agent.id}), marketId: ${agent.marketIdentifier}, whatsappConfig:`, JSON.stringify(whatsappConfig));
         return {
             id: agent.id,
             model: agent.model || 'gpt-4o-mini',
@@ -580,10 +603,116 @@ async function getActiveWhatsAppAgent(): Promise<{
             systemRole: agent.systemRole || 'Tu es un assistant utile.',
             title: agent.title || 'Agent WhatsApp',
             userId: agent.userId,
+            whatsappConfig,
         };
     } catch (error) {
         console.error('[WhatsApp Webhook] Error getting active agent:', error);
         return null;
+    }
+}
+
+/**
+ * Normalize a phone number for comparison (strip +, spaces, dashes)
+ */
+function normalizePhone(phone: string): string {
+    return phone.replace(/[\s\-\+\(\)]/g, '').replace(/@.*$/, '');
+}
+
+/**
+ * Parse a number list that can be either a string (newline/comma separated) or an array
+ */
+function parseNumberList(input: string | string[] | undefined): string[] {
+    if (!input) return [];
+    if (Array.isArray(input)) return input.filter(Boolean);
+    // Split by newline, comma, semicolon, or space
+    return input.split(/[\n,;\s]+/).map(s => s.trim()).filter(Boolean);
+}
+
+/**
+ * Check if a sender/chat should be filtered out based on WhatsApp config
+ */
+function shouldSkipChat(
+    chatJid: string,
+    sender: string,
+    config: WhatsAppAutomationConfig
+): { reason: string; skip: boolean } {
+    const isGroup = chatJid.endsWith('@g.us');
+
+    // Group chat filtering
+    if (isGroup && !config.respondToGroups) {
+        return { reason: 'Group chats disabled', skip: true };
+    }
+
+    // Extract phone number from sender/chatJid
+    const senderPhone = normalizePhone(sender || chatJid);
+
+    // Blocked numbers check
+    const blockedNumbers = parseNumberList(config.blockedNumbers);
+    if (blockedNumbers.length > 0) {
+        const isBlocked = blockedNumbers.some(num => {
+            const normalized = normalizePhone(num);
+            return normalized && senderPhone.includes(normalized);
+        });
+        if (isBlocked) {
+            return { reason: `Number ${senderPhone} is blocked`, skip: true };
+        }
+    }
+
+    // Allowed numbers only mode
+    const allowedNumbers = parseNumberList(config.allowedNumbers);
+    if (config.allowedNumbersOnly && allowedNumbers.length > 0) {
+        const isAllowed = allowedNumbers.some(num => {
+            const normalized = normalizePhone(num);
+            return normalized && senderPhone.includes(normalized);
+        });
+        if (!isAllowed) {
+            return { reason: `Number ${senderPhone} not in allowed list`, skip: true };
+        }
+    }
+
+    return { reason: '', skip: false };
+}
+
+/**
+ * Check if a human operator has recently taken over the conversation.
+ * Looks at recent messages for any is_from_me=true messages within the takeover window.
+ */
+async function isHumanTakeover(
+    bridgeUrl: string,
+    chatJid: string,
+    config: WhatsAppAutomationConfig,
+    sessionId?: string
+): Promise<boolean> {
+    if (!config.humanTakeoverEnabled) return false;
+
+    const takeoverMinutes = config.humanTakeoverMinutes || 30;
+
+    try {
+        const history = await getConversationHistory(bridgeUrl, chatJid, 20, sessionId);
+        if (!history || history.length === 0) return false;
+
+        const now = Date.now();
+        const takeoverWindowMs = takeoverMinutes * 60 * 1000;
+
+        // Check if any message from "me" (human operator) was sent within the window
+        for (const msg of history) {
+            if (!msg.IsFromMe) continue;
+
+            // Parse the message time
+            const msgTime = new Date(msg.Time).getTime();
+            if (isNaN(msgTime)) continue;
+
+            const timeSince = now - msgTime;
+            if (timeSince <= takeoverWindowMs) {
+                console.log(`[WhatsApp Webhook] Human takeover detected: message from operator ${Math.round(timeSince / 60000)}min ago (window: ${takeoverMinutes}min)`);
+                return true;
+            }
+        }
+
+        return false;
+    } catch (error) {
+        console.error('[WhatsApp Webhook] Error checking human takeover:', error);
+        return false;
     }
 }
 
@@ -810,6 +939,23 @@ export async function POST(req: NextRequest) {
         }
 
         console.log(`[WhatsApp Webhook] Using agent: ${agent.title} (${agent.id})`);
+
+        // --- WhatsApp Automation Filters ---
+        const waConfig = agent.whatsappConfig;
+
+        // 1. Number filtering (blocked numbers, allowed-only mode, group chats)
+        const filterResult = shouldSkipChat(chat_jid, sender, waConfig);
+        if (filterResult.skip) {
+            console.log(`[WhatsApp Webhook] Skipping message: ${filterResult.reason}`);
+            return NextResponse.json({ reason: filterResult.reason, status: 'filtered' });
+        }
+
+        // 2. Human takeover detection
+        const humanTookOver = await isHumanTakeover(bridgeUrl, chat_jid, waConfig, sessionId);
+        if (humanTookOver) {
+            console.log(`[WhatsApp Webhook] Human takeover active for chat ${chat_jid}, AI paused for ${waConfig.humanTakeoverMinutes || 30}min`);
+            return NextResponse.json({ status: 'human_takeover' });
+        }
 
         // Check credit limits before making AI call
         const db = await getServerDB();

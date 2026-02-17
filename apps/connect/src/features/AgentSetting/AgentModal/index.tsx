@@ -4,11 +4,13 @@ import {
   Form,
   type FormGroupItemType,
   type FormItemProps,
+  Icon,
   Select,
   SliderWithInput,
 } from '@lobehub/ui';
 import { Flexbox } from '@lobehub/ui';
-import { Form as AntdForm, Switch } from 'antd';
+import { Form as AntdForm, Input, InputNumber, Switch } from 'antd';
+import { MessageSquareOff, Phone, Shield, Users } from 'lucide-react';
 import { createStaticStyles } from 'antd-style';
 import isEqual from 'fast-deep-equal';
 import { memo, useCallback, useEffect, useRef } from 'react';
@@ -338,12 +340,92 @@ const AgentModal = memo(() => {
     title: t('settingModel.title'),
   };
 
+  // --- WhatsApp Automation Config ---
+  const hasWhatsApp = config.plugins?.includes('lobe-whatsapp-local');
+
+  const whatsappAutomation: FormGroupItemType = {
+    children: [
+      {
+        children: <Switch />,
+        desc: 'Quand vous répondez manuellement à une conversation, l\'IA se met en pause automatiquement pendant la durée configurée.',
+        label: (
+          <Flexbox align={'center'} className={styles.label} gap={8} horizontal>
+            <Icon icon={MessageSquareOff} size={16} />
+            Prise humaine (Human Takeover)
+          </Flexbox>
+        ),
+        layout: 'horizontal',
+        minWidth: undefined,
+        name: ['params', 'whatsappConfig', 'humanTakeoverEnabled'],
+        valuePropName: 'checked',
+      },
+      {
+        children: <InputNumber min={5} max={1440} addonAfter="min" style={{ width: 160 }} />,
+        desc: 'Durée de pause de l\'IA après qu\'un humain a répondu (5 à 1440 minutes).',
+        label: 'Durée de pause',
+        minWidth: undefined,
+        name: ['params', 'whatsappConfig', 'humanTakeoverMinutes'],
+      },
+      {
+        children: <Switch />,
+        desc: 'Si activé, l\'agent IA répondra aussi dans les conversations de groupe WhatsApp.',
+        label: (
+          <Flexbox align={'center'} className={styles.label} gap={8} horizontal>
+            <Icon icon={Users} size={16} />
+            Répondre dans les groupes
+          </Flexbox>
+        ),
+        layout: 'horizontal',
+        minWidth: undefined,
+        name: ['params', 'whatsappConfig', 'respondToGroups'],
+        valuePropName: 'checked',
+      },
+      {
+        children: <Input.TextArea placeholder="Un numéro par ligne (ex: 33612345678)" rows={3} />,
+        desc: 'L\'agent IA ne répondra JAMAIS à ces numéros. Format international sans le +.',
+        label: (
+          <Flexbox align={'center'} className={styles.label} gap={8} horizontal>
+            <Icon icon={Shield} size={16} />
+            Numéros bloqués
+          </Flexbox>
+        ),
+        minWidth: undefined,
+        name: ['params', 'whatsappConfig', 'blockedNumbers'],
+      },
+      {
+        children: <Switch />,
+        desc: 'Si activé, l\'agent ne répondra QU\'aux numéros de la liste autorisée ci-dessous.',
+        label: (
+          <Flexbox align={'center'} className={styles.label} gap={8} horizontal>
+            <Icon icon={Phone} size={16} />
+            Mode liste blanche uniquement
+          </Flexbox>
+        ),
+        layout: 'horizontal',
+        minWidth: undefined,
+        name: ['params', 'whatsappConfig', 'allowedNumbersOnly'],
+        valuePropName: 'checked',
+      },
+      {
+        children: <Input.TextArea placeholder="Un numéro par ligne (ex: 33612345678)" rows={3} />,
+        desc: 'L\'agent IA ne répondra QU\'à ces numéros (mode liste blanche).',
+        label: 'Numéros autorisés',
+        minWidth: undefined,
+        name: ['params', 'whatsappConfig', 'allowedNumbers'],
+      },
+    ],
+    icon: Phone,
+    title: '⚙️ Automatisation WhatsApp',
+  };
+
+  const formItems = hasWhatsApp ? [model, whatsappAutomation] : [model];
+
   return (
     <Form
       footer={<Form.SubmitFooter />}
       form={form}
       initialValues={config}
-      items={[model]}
+      items={formItems}
       itemsType={'group'}
       onFinish={(values) => {
         // 清理 params 中的 undefined 和 null 值，确保禁用的参数被正确移除
