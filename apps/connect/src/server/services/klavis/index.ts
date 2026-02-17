@@ -3,14 +3,14 @@ import type { LobeChatDatabase } from '@lobechat/database';
 import debug from 'debug';
 
 import { PluginModel } from '@/database/models/plugin';
-import { getKlavisClient, isKlavisClientAvailable } from '@/libs/klavis';
+import { getSmitheryClient, isSmitheryClientAvailable } from '@/libs/smithery';
 import { type ToolExecutionResult } from '@/server/services/toolExecution/types';
 
 const log = debug('lobe-server:klavis-service');
 
 export interface KlavisToolExecuteParams {
   args: Record<string, any>;
-  /** Tool identifier (same as Klavis server identifier, e.g., 'google-calendar') */
+  /** Tool identifier (same as server identifier, e.g., 'google-calendar') */
   identifier: string;
   toolName: string;
 }
@@ -21,20 +21,10 @@ export interface KlavisServiceOptions {
 }
 
 /**
- * Klavis Service
+ * Klavis Service (now backed by Smithery)
  *
- * Provides a unified interface to Klavis Client with business logic encapsulation.
- * This service wraps Klavis Client methods to execute tools and fetch manifests.
- *
- * Usage:
- * ```typescript
- * // With database and userId (for manifest fetching)
- * const service = new KlavisService({ db, userId });
- * await service.executeKlavisTool({ identifier, toolName, args });
- *
- * // Without database (for tool execution only if you have serverUrl)
- * const service = new KlavisService();
- * ```
+ * Provides a unified interface for MCP tool execution via Smithery Connect.
+ * Kept as "KlavisService" for backward compatibility with existing code.
  */
 export class KlavisService {
   private db?: LobeChatDatabase;
@@ -55,12 +45,12 @@ export class KlavisService {
       'KlavisService initialized: hasDB=%s, hasUserId=%s, isClientAvailable=%s',
       !!db,
       !!userId,
-      isKlavisClientAvailable(),
+      isSmitheryClientAvailable(),
     );
   }
 
   /**
-   * Execute a Klavis tool
+   * Execute a tool via Smithery MCP connection
    * @param params - Tool execution parameters
    * @returns Tool execution result
    */
@@ -69,76 +59,58 @@ export class KlavisService {
 
     log('executeKlavisTool: %s/%s with args: %O', identifier, toolName, args);
 
-    // Check if Klavis client is available
-    if (!isKlavisClientAvailable()) {
+    if (!isSmitheryClientAvailable()) {
       return {
-        content: 'Klavis service is not configured on server',
-        error: { code: 'KLAVIS_NOT_CONFIGURED', message: 'Klavis API key not found' },
+        content: 'Smithery service is not configured on server',
+        error: { code: 'SMITHERY_NOT_CONFIGURED', message: 'Smithery API key not found' },
         success: false,
       };
     }
 
-    // Get serverUrl from plugin database
     if (!this.pluginModel) {
       return {
-        content: 'Klavis service is not properly initialized',
+        content: 'Service is not properly initialized',
         error: {
-          code: 'KLAVIS_NOT_INITIALIZED',
-          message: 'Database and userId are required for Klavis tool execution',
+          code: 'SERVICE_NOT_INITIALIZED',
+          message: 'Database and userId are required for tool execution',
         },
         success: false,
       };
     }
 
     try {
-      // Get plugin from database to retrieve serverUrl
       const plugin = await this.pluginModel.findById(identifier);
       if (!plugin) {
         return {
-          content: `Klavis server "${identifier}" not found in database`,
-          error: { code: 'KLAVIS_SERVER_NOT_FOUND', message: `Server ${identifier} not found` },
+          content: `Server "${identifier}" not found in database`,
+          error: { code: 'SERVER_NOT_FOUND', message: `Server ${identifier} not found` },
           success: false,
         };
       }
 
       const klavisParams = plugin.customParams?.klavis;
-      if (!klavisParams || !klavisParams.serverUrl) {
+      if (!klavisParams || !klavisParams.instanceId) {
         return {
-          content: `Klavis configuration not found for server "${identifier}"`,
+          content: `Configuration not found for server "${identifier}"`,
           error: {
-            code: 'KLAVIS_CONFIG_NOT_FOUND',
-            message: `Klavis configuration missing for ${identifier}`,
+            code: 'CONFIG_NOT_FOUND',
+            message: `Configuration missing for ${identifier}`,
           },
           success: false,
         };
       }
 
-      const { serverUrl } = klavisParams;
+      const { instanceId } = klavisParams;
 
-      log('executeKlavisTool: calling Klavis API with serverUrl=%s', serverUrl);
+      log('executeKlavisTool: calling Smithery MCP with connectionId=%s', instanceId);
 
-      // Call Klavis client
-      const klavisClient = getKlavisClient();
-      const response = await klavisClient.mcpServer.callTools({
-        serverUrl,
-        toolArgs: args,
-        toolName,
-      });
+      const smitheryClient = getSmitheryClient();
+      const result = await smitheryClient.callTool(instanceId, toolName, args);
 
-      log('executeKlavisTool: response: %O', response);
+      log('executeKlavisTool: result: %O', result);
 
-      // Handle error case
-      if (!response.success || !response.result) {
-        return {
-          content: response.error || 'Unknown error',
-          error: { code: 'KLAVIS_EXECUTION_ERROR', message: response.error || 'Unknown error' },
-          success: false,
-        };
-      }
-
-      // Process the response
-      const content = response.result.content || [];
-      const isError = response.result.isError || false;
+      const content = result.content || [];
+      const isError = result.isError || false;
 
       // Convert content array to string
       let resultContent = '';
@@ -166,17 +138,15 @@ export class KlavisService {
 
       return {
         content: err.message,
-        error: { code: 'KLAVIS_ERROR', message: err.message },
+        error: { code: 'SMITHERY_ERROR', message: err.message },
         success: false,
       };
     }
   }
 
   /**
-   * Fetch Klavis tool manifests from database
-   * Gets user's connected Klavis servers and builds tool manifests for agent execution
-   *
-   * @returns Array of tool manifests for connected Klavis servers
+   * Fetch tool manifests from database
+   * Gets user's connected servers and builds tool manifests for agent execution
    */
   async getKlavisManifests(): Promise<LobeToolManifest[]> {
     if (!this.pluginModel) {
@@ -185,30 +155,27 @@ export class KlavisService {
     }
 
     try {
-      // Get all plugins from database
       const allPlugins = await this.pluginModel.query();
 
-      // Filter plugins that have klavis customParams and are authenticated
       const klavisPlugins = allPlugins.filter(
         (plugin) => plugin.customParams?.klavis?.isAuthenticated === true,
       );
 
-      log('getKlavisManifests: found %d authenticated Klavis plugins', klavisPlugins.length);
+      log('getKlavisManifests: found %d authenticated plugins', klavisPlugins.length);
 
-      // Convert to LobeToolManifest format
       const manifests: LobeToolManifest[] = klavisPlugins
         .map((plugin) => {
           if (!plugin.manifest) return null;
 
           return {
             api: plugin.manifest.api || [],
-            author: 'Klavis',
-            homepage: 'https://klavis.ai',
+            author: 'Smithery',
+            homepage: 'https://smithery.ai',
             identifier: plugin.identifier,
             meta: plugin.manifest.meta || {
               avatar: '☁️',
-              description: `Klavis MCP Server: ${plugin.customParams?.klavis?.serverName}`,
-              tags: ['klavis', 'mcp'],
+              description: `Smithery MCP Server: ${plugin.customParams?.klavis?.serverName}`,
+              tags: ['smithery', 'mcp'],
               title: plugin.customParams?.klavis?.serverName || plugin.identifier,
             },
             type: 'builtin',

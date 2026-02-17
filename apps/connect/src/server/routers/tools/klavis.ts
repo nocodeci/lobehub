@@ -1,77 +1,81 @@
 import { z } from 'zod';
 
-import { getKlavisClient } from '@/libs/klavis';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
+import { getSmitheryClient, makeConnectionId } from '@/libs/smithery';
 import { MCPService } from '@/server/services/mcp';
 
 /**
- * Klavis procedure with client initialized in context
+ * Klavis/Smithery procedure with client initialized in context
  */
 const klavisProcedure = authedProcedure.use(async (opts) => {
-  const klavisClient = getKlavisClient();
+  const smitheryClient = getSmitheryClient();
 
   return opts.next({
-    ctx: { ...opts.ctx, klavisClient },
+    ctx: { ...opts.ctx, smitheryClient },
   });
 });
 
 /**
- * Klavis router for tools
- * Contains callTool and listTools which call external Klavis API
+ * Klavis router for tools (now backed by Smithery)
+ * Contains callTool and listTools which call Smithery MCP API
  */
 export const klavisRouter = router({
   /**
-   * Call a tool on a Klavis Strata server
+   * Call a tool via Smithery MCP connection
    */
   callTool: klavisProcedure
     .input(
       z.object({
+        connectionId: z.string().optional(),
         serverUrl: z.string(),
         toolArgs: z.record(z.unknown()).optional(),
         toolName: z.string(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const response = await ctx.klavisClient.mcpServer.callTools({
-        serverUrl: input.serverUrl,
-        toolArgs: input.toolArgs,
-        toolName: input.toolName,
-      });
+      try {
+        // Use connectionId if provided, otherwise derive from serverUrl
+        const connId = input.connectionId || input.serverUrl;
 
-      // Handle error case
-      if (!response.success || !response.result) {
+        const result = await ctx.smitheryClient.callTool(
+          connId,
+          input.toolName,
+          input.toolArgs as Record<string, unknown> | undefined,
+        );
+
+        // Process the response using the common MCP tool call result processor
+        const processedResult = await MCPService.processToolCallResult({
+          content: (result.content || []) as any[],
+          isError: result.isError,
+        });
+
+        return processedResult;
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
         return {
-          content: response.error || 'Unknown error',
+          content: errorMsg,
           state: {
-            content: [{ text: response.error || 'Unknown error', type: 'text' }],
+            content: [{ text: errorMsg, type: 'text' }],
             isError: true,
           },
           success: false,
         };
       }
-
-      // Process the response using the common MCP tool call result processor
-      const processedResult = await MCPService.processToolCallResult({
-        content: (response.result.content || []) as any[],
-        isError: response.result.isError,
-      });
-
-      return processedResult;
     }),
 
   /**
-   * List tools available on a Klavis Strata server
+   * List tools available on a Smithery MCP connection
    */
   listTools: klavisProcedure
     .input(
       z.object({
+        connectionId: z.string().optional(),
         serverUrl: z.string(),
       }),
     )
     .query(async ({ ctx, input }) => {
-      const response = await ctx.klavisClient.mcpServer.listTools({
-        serverUrl: input.serverUrl,
-      });
+      const connId = input.connectionId || input.serverUrl;
+      const response = await ctx.smitheryClient.listTools(connId);
 
       return {
         tools: response.tools,

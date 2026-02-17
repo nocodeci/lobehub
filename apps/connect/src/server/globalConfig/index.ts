@@ -1,6 +1,6 @@
 import { ENABLE_BUSINESS_FEATURES } from '@lobechat/business-const';
 
-import { klavisEnv } from '@/config/klavis';
+import { smitheryEnv } from '@/config/smithery';
 import { isDesktop } from '@/const/version';
 import { appEnv, getAppConfig } from '@/envs/app';
 import { authEnv } from '@/envs/auth';
@@ -76,7 +76,7 @@ export const getServerGlobalConfig = async () => {
     },
     enableBusinessFeatures: ENABLE_BUSINESS_FEATURES,
     enableEmailVerification: authEnv.AUTH_EMAIL_VERIFICATION,
-    enableKlavis: !!klavisEnv.KLAVIS_API_KEY,
+    enableKlavis: !!smitheryEnv.SMITHERY_API_KEY,
     enableLobehubSkill: !!(appEnv.MARKET_TRUSTED_CLIENT_SECRET && appEnv.MARKET_TRUSTED_CLIENT_ID),
     enableMagicLink: authEnv.AUTH_ENABLE_MAGIC_LINK,
     enableMarketTrustedClient: !!(

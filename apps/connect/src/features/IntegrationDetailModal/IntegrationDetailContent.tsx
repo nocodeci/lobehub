@@ -9,7 +9,7 @@ import {
 import { Flexbox, Icon, Markdown, Tag, Text, useModalContext } from '@lobehub/ui';
 import { Avatar, Button, Tabs } from 'antd';
 import { createStaticStyles, cssVar } from 'antd-style';
-import type { Klavis } from 'klavis';
+
 import { BookOpen, Bot, Code, ExternalLink, Loader2, SquareArrowOutUpRight } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -113,7 +113,7 @@ export interface BuiltinSkillMeta {
 export interface IntegrationDetailContentProps {
   builtinMeta?: BuiltinSkillMeta;
   identifier: string;
-  serverName?: Klavis.McpServerName;
+  serverName?: string;
   type: IntegrationType;
 }
 

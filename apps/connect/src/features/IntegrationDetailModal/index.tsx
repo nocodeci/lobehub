@@ -2,7 +2,7 @@
 
 import { createModal } from '@lobehub/ui';
 import { t } from 'i18next';
-import type { Klavis } from 'klavis';
+
 
 import {
   type BuiltinSkillMeta,
@@ -15,7 +15,7 @@ export type { BuiltinSkillMeta, IntegrationType } from './IntegrationDetailConte
 export interface CreateIntegrationDetailModalOptions {
   builtinMeta?: BuiltinSkillMeta;
   identifier: string;
-  serverName?: Klavis.McpServerName;
+  serverName?: string;
   type: IntegrationType;
 }
 

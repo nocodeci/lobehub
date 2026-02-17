@@ -2,25 +2,26 @@ import type { LobeChatPluginManifest } from '@lobehub/chat-plugin-sdk';
 import { z } from 'zod';
 
 import { PluginModel } from '@/database/models/plugin';
-import { getKlavisClient } from '@/libs/klavis';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
+import { getSmitheryClient, makeConnectionId } from '@/libs/smithery';
 
 /**
- * Klavis procedure with API key validation and database access
+ * Klavis procedure with Smithery client and database access
+ * (kept as "klavis" name for backward compatibility with frontend store)
  */
 const klavisProcedure = authedProcedure.use(serverDatabase).use(async (opts) => {
-  const client = getKlavisClient();
+  const smitheryClient = getSmitheryClient();
   const pluginModel = new PluginModel(opts.ctx.serverDB, opts.ctx.userId);
 
   return opts.next({
-    ctx: { ...opts.ctx, klavisClient: client, pluginModel },
+    ctx: { ...opts.ctx, pluginModel, smitheryClient },
   });
 });
 
 export const klavisRouter = router({
   /**
-   * Create a single MCP server instance and save to database
+   * Create a Smithery MCP connection and save to database
    * Returns: { serverUrl, instanceId, oauthUrl?, identifier, serverName }
    */
   createServerInstance: klavisProcedure
@@ -28,27 +29,47 @@ export const klavisRouter = router({
       z.object({
         /** Identifier for storage (e.g., 'google-calendar') */
         identifier: z.string(),
-        /** Server name for Klavis API (e.g., 'Google Calendar') */
+        /** Smithery MCP URL for this server */
+        mcpUrl: z.string().optional(),
+        /** Server name for display (e.g., 'Google Calendar') */
         serverName: z.string(),
         userId: z.string(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      const { serverName, userId, identifier } = input;
+      const { serverName, userId, identifier, mcpUrl } = input;
 
-      // Create a single server instance
-      const response = await ctx.klavisClient.mcpServer.createServerInstance({
-        serverName: serverName as any,
-        userId,
+      // Generate a connection ID for this user+server
+      const connectionId = makeConnectionId(userId, identifier);
+
+      // Determine the MCP URL - use provided or fallback to Smithery pattern
+      const resolvedMcpUrl = mcpUrl || `https://server.smithery.ai/${identifier}`;
+
+      // Create connection via Smithery Connect API
+      const response = await ctx.smitheryClient.createConnection({
+        connectionId,
+        mcpUrl: resolvedMcpUrl,
+        metadata: { userId },
+        name: serverName,
       });
 
-      const { serverUrl, instanceId, oauthUrl } = response;
+      const isAuthenticated = response.status?.state === 'connected';
+      const oauthUrl = response.status?.state === 'auth_required'
+        ? response.status.authorizationUrl
+        : undefined;
 
-      // Get the tool list for this server
-      const toolsResponse = await ctx.klavisClient.mcpServer.getTools(serverName as any);
-      const tools = toolsResponse.tools || [];
+      // Try to get tools if connected
+      let tools: any[] = [];
+      if (isAuthenticated) {
+        try {
+          const toolsResponse = await ctx.smitheryClient.listTools(connectionId);
+          tools = toolsResponse.tools || [];
+        } catch {
+          // Tools may not be available yet
+        }
+      }
 
-      // Save to database using the provided identifier (format: lowercase, spaces replaced with hyphens)
+      // Save to database
       const manifest: LobeChatPluginManifest = {
         api: tools.map((tool: any) => ({
           description: tool.description || '',
@@ -58,22 +79,20 @@ export const klavisRouter = router({
         identifier,
         meta: {
           avatar: '🔌',
-          description: `LobeHub Mcp Server: ${serverName}`,
+          description: `Smithery MCP Server: ${serverName}`,
           title: serverName,
         },
         type: 'default',
       };
 
-      // Save to database with oauthUrl and isAuthenticated status
-      const isAuthenticated = !oauthUrl; // If there's no oauthUrl, authentication is not required or already authenticated
       await ctx.pluginModel.create({
         customParams: {
           klavis: {
-            instanceId,
+            instanceId: connectionId,
             isAuthenticated,
             oauthUrl,
             serverName,
-            serverUrl,
+            serverUrl: resolvedMcpUrl,
           },
         },
         identifier,
@@ -84,16 +103,16 @@ export const klavisRouter = router({
 
       return {
         identifier,
-        instanceId,
+        instanceId: connectionId,
         isAuthenticated,
         oauthUrl,
         serverName,
-        serverUrl,
+        serverUrl: resolvedMcpUrl,
       };
     }),
 
   /**
-   * Delete a server instance
+   * Delete a server connection
    */
   deleteServerInstance: klavisProcedure
     .input(
@@ -104,8 +123,13 @@ export const klavisRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      // Call Klavis API to delete server instance
-      await ctx.klavisClient.mcpServer.deleteServerInstance(input.instanceId);
+      // Delete Smithery connection
+      try {
+        await ctx.smitheryClient.deleteConnection(input.instanceId);
+      } catch (error) {
+        // Connection may already be deleted on Smithery side
+        console.warn('[Smithery] Failed to delete connection:', error);
+      }
 
       // Delete from database (using identifier)
       await ctx.pluginModel.delete(input.identifier);
@@ -114,17 +138,15 @@ export const klavisRouter = router({
     }),
 
   /**
-   * Get Klavis plugins from database
+   * Get Klavis/Smithery plugins from database
    */
   getKlavisPlugins: klavisProcedure.query(async ({ ctx }) => {
     const allPlugins = await ctx.pluginModel.query();
-    // Filter plugins that have klavis customParams
     return allPlugins.filter((plugin) => plugin.customParams?.klavis);
   }),
 
   /**
-   * Get server instance status from Klavis API
-   * Returns error object instead of throwing on auth errors (useful for polling)
+   * Get server instance status from Smithery API
    */
   getServerInstance: klavisProcedure
     .input(
@@ -134,26 +156,27 @@ export const klavisRouter = router({
     )
     .query(async ({ input, ctx }) => {
       try {
-        const response = await ctx.klavisClient.mcpServer.getServerInstance(input.instanceId);
+        const response = await ctx.smitheryClient.getConnection(input.instanceId);
+        const isAuthenticated = response.status?.state === 'connected';
+        const authNeeded = response.status?.state === 'auth_required';
+
         return {
-          authNeeded: response.authNeeded,
+          authNeeded,
           error: undefined,
-          externalUserId: response.externalUserId,
-          instanceId: response.instanceId,
-          isAuthenticated: response.isAuthenticated,
-          oauthUrl: response.oauthUrl,
-          platform: response.platform,
-          serverName: response.serverName,
+          externalUserId: undefined,
+          instanceId: response.connectionId,
+          isAuthenticated,
+          oauthUrl: response.status?.authorizationUrl,
+          platform: undefined,
+          serverName: response.name,
         };
       } catch (error) {
-        // Check if this is an authentication error
         const errorMessage = error instanceof Error ? error.message : String(error);
         const isAuthError =
-          errorMessage.includes('Invalid API key or instance ID') ||
-          errorMessage.includes('Status code: 401');
+          errorMessage.includes('401') ||
+          errorMessage.includes('403') ||
+          errorMessage.includes('not found');
 
-        // For auth errors, return error object instead of throwing
-        // This prevents 500 errors in logs during polling
         if (isAuthError) {
           return {
             authNeeded: true,
@@ -167,7 +190,6 @@ export const klavisRouter = router({
           };
         }
 
-        // For other errors, still throw
         throw error;
       }
     }),
@@ -179,15 +201,21 @@ export const klavisRouter = router({
       }),
     )
     .query(async ({ input, ctx }) => {
-      const response = await ctx.klavisClient.user.getUserIntegrations(input.userId);
+      const response = await ctx.smitheryClient.listConnections({
+        metadata: { userId: input.userId },
+      });
 
       return {
-        integrations: response.integrations,
+        integrations: (response.data || []).map((conn) => ({
+          connectionId: conn.connectionId,
+          name: conn.name,
+          status: conn.status?.state,
+        })),
       };
     }),
 
   /**
-   * Remove Klavis plugin from database by identifier
+   * Remove plugin from database by identifier
    */
   removeKlavisPlugin: klavisProcedure
     .input(
@@ -202,7 +230,7 @@ export const klavisRouter = router({
     }),
 
   /**
-   * Update Klavis plugin with tools and auth status in database
+   * Update plugin with tools and auth status in database
    */
   updateKlavisPlugin: klavisProcedure
     .input(
@@ -212,7 +240,7 @@ export const klavisRouter = router({
         instanceId: z.string(),
         isAuthenticated: z.boolean(),
         oauthUrl: z.string().optional(),
-        /** Server name for Klavis API (e.g., 'Google Calendar') */
+        /** Server name for display (e.g., 'Google Calendar') */
         serverName: z.string(),
         serverUrl: z.string(),
         tools: z.array(
@@ -228,10 +256,8 @@ export const klavisRouter = router({
       const { identifier, serverName, serverUrl, instanceId, tools, isAuthenticated, oauthUrl } =
         input;
 
-      // Get existing plugin (using identifier)
       const existingPlugin = await ctx.pluginModel.findById(identifier);
 
-      // Build manifest containing all tools
       const manifest: LobeChatPluginManifest = {
         api: tools.map((tool) => ({
           description: tool.description || '',
@@ -241,7 +267,7 @@ export const klavisRouter = router({
         identifier,
         meta: existingPlugin?.manifest?.meta || {
           avatar: '🔌',
-          description: `LobeHub Mcp Server: ${serverName}`,
+          description: `Smithery MCP Server: ${serverName}`,
           title: serverName,
         },
         type: 'default',
@@ -257,7 +283,6 @@ export const klavisRouter = router({
         },
       };
 
-      // Update or create plugin
       if (existingPlugin) {
         await ctx.pluginModel.update(identifier, { customParams, manifest });
       } else {
