@@ -1,7 +1,7 @@
 'use client';
 
 import { FormGroup } from '@lobehub/ui';
-import { Badge, Button, Card, Col, Divider, Row, Segmented, Tag, Typography, message } from 'antd';
+import { Badge, Button, Card, Divider, Segmented, Tag, Typography, message } from 'antd';
 import {
   Bot,
   Check,
@@ -9,12 +9,10 @@ import {
   CreditCard,
   Crown,
   Database,
-  Key,
   MessageSquare,
   Rocket,
   Shield,
   Star,
-  Users,
   Zap,
 } from 'lucide-react';
 import { memo, useCallback, useState } from 'react';
@@ -191,23 +189,18 @@ const Plans = memo<{ mobile?: boolean }>(() => {
   return (
     <>
       <SettingHeader title="Plans d'abonnement" />
-      <FormGroup
-        collapsible={false}
-        extra={
-          <Segmented
-            onChange={(v) => setBillingCycle(v as BillingCycle)}
-            options={[
-              { label: 'Mensuel', value: 'monthly' },
-              { label: 'Annuel (-17%)', value: 'yearly' },
-            ]}
-            value={billingCycle}
-          />
-        }
-        gap={16}
-        title="Choisissez votre plan"
-        variant={'filled'}
-      >
-        <Row gutter={[16, 16]}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Choisissez votre plan</Title>
+        <Segmented
+          onChange={(v) => setBillingCycle(v as BillingCycle)}
+          options={[
+            { label: 'Mensuel', value: 'monthly' },
+            { label: 'Annuel (-17%)', value: 'yearly' },
+          ]}
+          value={billingCycle}
+        />
+      </div>
+      <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
           {PLANS_CONFIG.map((plan) => {
             const Icon = plan.icon;
             const price =
@@ -330,7 +323,7 @@ const Plans = memo<{ mobile?: boolean }>(() => {
             );
 
             return (
-              <Col key={plan.key} lg={plan.popular ? 6 : 5} md={8} sm={12} xs={24}>
+              <div key={plan.key} style={{ flex: '1 0 220px', maxWidth: 280, minWidth: 220 }}>
                 {plan.popular ? (
                   <Badge.Ribbon color={plan.color} text="Populaire">
                     {card}
@@ -338,11 +331,10 @@ const Plans = memo<{ mobile?: boolean }>(() => {
                 ) : (
                   card
                 )}
-              </Col>
+              </div>
             );
           })}
-        </Row>
-      </FormGroup>
+      </div>
 
       <FormGroup collapsible={false} gap={16} title="Comparaison des fonctionnalités" variant={'filled'}>
         <div style={{ overflowX: 'auto' }}>
