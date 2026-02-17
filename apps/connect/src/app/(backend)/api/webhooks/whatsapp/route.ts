@@ -11,7 +11,10 @@ import { and, isNotNull, like, ne, sql } from 'drizzle-orm';
 interface WhatsAppIncomingMessage {
     chat_jid: string;
     content: string;
+    filename?: string;
     is_from_me: boolean;
+    media_type?: string; // 'image' | 'audio' | 'video' | 'document'
+    message_id?: string;
     sender: string;
     timestamp: string;
 }
@@ -100,6 +103,265 @@ async function sendWhatsAppMessage(
         return false;
     }
 }
+
+/**
+ * Download media from WhatsApp Bridge via /api/download
+ * Returns the local file path on the bridge server
+ */
+async function downloadMediaFromBridge(
+    bridgeUrl: string,
+    chatJid: string,
+    messageId: string,
+    sessionId?: string
+): Promise<{ filename: string; mediaType: string; path: string } | null> {
+    try {
+        let url = `${bridgeUrl}/api/download`;
+        if (sessionId) {
+            url += `?sessionId=${encodeURIComponent(sessionId)}`;
+        }
+
+        const response = await fetch(url, {
+            body: JSON.stringify({ chat_jid: chatJid, message_id: messageId }),
+            headers: { 'Content-Type': 'application/json' },
+            method: 'POST',
+        });
+
+        if (!response.ok) {
+            console.error('[WhatsApp Webhook] Failed to download media:', await response.text());
+            return null;
+        }
+
+        const data = await response.json();
+        if (!data.success) {
+            console.error('[WhatsApp Webhook] Media download unsuccessful:', data.message);
+            return null;
+        }
+
+        return { filename: data.filename, mediaType: data.message, path: data.path };
+    } catch (error) {
+        console.error('[WhatsApp Webhook] Error downloading media:', error);
+        return null;
+    }
+}
+
+/**
+ * Read file from bridge server as base64
+ * The bridge serves files from its local filesystem
+ */
+async function readMediaFileAsBase64(
+    bridgeUrl: string,
+    filePath: string,
+    sessionId?: string
+): Promise<string | null> {
+    try {
+        // Use the bridge's file serving endpoint
+        let url = `${bridgeUrl}/api/file?path=${encodeURIComponent(filePath)}`;
+        if (sessionId) {
+            url += `&sessionId=${encodeURIComponent(sessionId)}`;
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            console.error('[WhatsApp Webhook] Failed to read file:', response.status);
+            return null;
+        }
+
+        const buffer = await response.arrayBuffer();
+        return Buffer.from(buffer).toString('base64');
+    } catch (error) {
+        console.error('[WhatsApp Webhook] Error reading media file:', error);
+        return null;
+    }
+}
+
+/**
+ * Analyze an image using GPT-4o Vision API
+ */
+async function analyzeImageWithVision(
+    imageBase64: string,
+    mimeType: string,
+    userCaption: string
+): Promise<string | null> {
+    if (!OPENAI_API_KEY) return null;
+
+    try {
+        console.log('[WhatsApp Webhook] Analyzing image with GPT-4o Vision...');
+
+        const messages: any[] = [
+            {
+                content: 'Tu es un assistant IA qui analyse les images envoyées par WhatsApp. Décris le contenu de l\'image de manière claire et concise en français. Si l\'utilisateur a ajouté un message avec l\'image, réponds en tenant compte de ce message.',
+                role: 'system',
+            },
+            {
+                content: [
+                    {
+                        image_url: { url: `data:${mimeType};base64,${imageBase64}` },
+                        type: 'image_url',
+                    },
+                    ...(userCaption ? [{ text: userCaption, type: 'text' }] : [{ text: 'Décris cette image.', type: 'text' }]),
+                ],
+                role: 'user',
+            },
+        ];
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            body: JSON.stringify({
+                max_completion_tokens: 500,
+                messages,
+                model: 'gpt-4o-mini',
+            }),
+            headers: {
+                'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                'Content-Type': 'application/json',
+            },
+            method: 'POST',
+        });
+
+        if (!response.ok) {
+            console.error('[WhatsApp Webhook] Vision API error:', await response.text());
+            return null;
+        }
+
+        const data = await response.json();
+        return data.choices?.[0]?.message?.content || null;
+    } catch (error) {
+        console.error('[WhatsApp Webhook] Error analyzing image:', error);
+        return null;
+    }
+}
+
+/**
+ * Transcribe audio/voice message using OpenAI Whisper API
+ */
+async function transcribeAudioWithWhisper(
+    audioBase64: string,
+    filename: string
+): Promise<string | null> {
+    if (!OPENAI_API_KEY) return null;
+
+    try {
+        console.log('[WhatsApp Webhook] Transcribing audio with Whisper...');
+
+        // Convert base64 to a File/Blob for FormData
+        const audioBuffer = Buffer.from(audioBase64, 'base64');
+        const blob = new Blob([audioBuffer], { type: 'audio/ogg' });
+
+        const formData = new FormData();
+        formData.append('file', blob, filename || 'audio.ogg');
+        formData.append('model', 'whisper-1');
+        formData.append('language', 'fr');
+
+        const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+            body: formData,
+            headers: {
+                'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            },
+            method: 'POST',
+        });
+
+        if (!response.ok) {
+            console.error('[WhatsApp Webhook] Whisper API error:', await response.text());
+            return null;
+        }
+
+        const data = await response.json();
+        return data.text || null;
+    } catch (error) {
+        console.error('[WhatsApp Webhook] Error transcribing audio:', error);
+        return null;
+    }
+}
+
+/**
+ * Get MIME type from filename extension
+ */
+function getMimeType(filename: string): string {
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
+    const mimeMap: Record<string, string> = {
+        avi: 'video/avi',
+        doc: 'application/msword',
+        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        gif: 'image/gif',
+        jpeg: 'image/jpeg',
+        jpg: 'image/jpeg',
+        m4a: 'audio/mp4',
+        mov: 'video/quicktime',
+        mp3: 'audio/mpeg',
+        mp4: 'video/mp4',
+        ogg: 'audio/ogg',
+        pdf: 'application/pdf',
+        png: 'image/png',
+        wav: 'audio/wav',
+        webp: 'image/webp',
+        xls: 'application/vnd.ms-excel',
+        xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    };
+    return mimeMap[ext] || 'application/octet-stream';
+}
+
+/**
+ * Process incoming media: download, analyze, and return text description
+ */
+async function processIncomingMedia(
+    bridgeUrl: string,
+    chatJid: string,
+    messageId: string,
+    mediaType: string,
+    filename: string,
+    userCaption: string,
+    sessionId?: string
+): Promise<string | null> {
+    console.log(`[WhatsApp Webhook] Processing incoming ${mediaType}: ${filename}`);
+
+    // Step 1: Download the media via the bridge
+    const download = await downloadMediaFromBridge(bridgeUrl, chatJid, messageId, sessionId);
+    if (!download) {
+        console.warn('[WhatsApp Webhook] Could not download media, skipping processing');
+        return null;
+    }
+
+    // Step 2: Read the file content as base64
+    const base64 = await readMediaFileAsBase64(bridgeUrl, download.path, sessionId);
+    if (!base64) {
+        console.warn('[WhatsApp Webhook] Could not read media file as base64');
+        return null;
+    }
+
+    // Step 3: Process based on media type
+    switch (mediaType) {
+        case 'image': {
+            const mimeType = getMimeType(filename);
+            const description = await analyzeImageWithVision(base64, mimeType, userCaption);
+            if (description) {
+                return `[L'utilisateur a envoyé une image${userCaption ? ` avec le message: "${userCaption}"` : ''}]\nAnalyse de l'image: ${description}`;
+            }
+            return `[L'utilisateur a envoyé une image${userCaption ? ` avec le message: "${userCaption}"` : ''} mais l'analyse a échoué]`;
+        }
+
+        case 'audio': {
+            const transcription = await transcribeAudioWithWhisper(base64, filename);
+            if (transcription) {
+                return `[L'utilisateur a envoyé un message vocal]\nTranscription: "${transcription}"`;
+            }
+            return `[L'utilisateur a envoyé un message vocal mais la transcription a échoué]`;
+        }
+
+        case 'video': {
+            // For videos, we can't easily analyze the full content
+            // Just note that a video was sent and include caption if any
+            return `[L'utilisateur a envoyé une vidéo: ${filename}${userCaption ? ` avec le message: "${userCaption}"` : ''}. Le contenu vidéo ne peut pas être analysé automatiquement.]`;
+        }
+
+        case 'document': {
+            // For documents, inform the agent about the document
+            return `[L'utilisateur a envoyé un document: ${filename}${userCaption ? ` avec le message: "${userCaption}"` : ''}. Le contenu du document ne peut pas être extrait automatiquement pour le moment.]`;
+        }
+
+        default:
+            return `[L'utilisateur a envoyé un fichier de type "${mediaType}": ${filename}]`;
+    }
+}
+
 /**
  * Get conversation history from WhatsApp Bridge
  */
@@ -351,7 +613,12 @@ function buildMessagesWithHistory(
     const reversedHistory = [...history].reverse();
 
     for (const msg of reversedHistory) {
+        // Include media messages in history context
         if (!msg.Content && msg.MediaType) {
+            messages.push({
+                content: `[${msg.MediaType}: ${msg.Filename || 'fichier'}]`,
+                role: msg.IsFromMe ? 'assistant' : 'user',
+            });
             continue;
         }
 
@@ -493,19 +760,23 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ status: 'ignored' });
         }
 
-        const { chat_jid, content, sender } = body.data;
+        const { chat_jid, content, sender, media_type, message_id, filename } = body.data;
 
         // Ignore status broadcast messages (WhatsApp Stories/Status updates)
         if (chat_jid && (chat_jid.includes('status@broadcast') || chat_jid.endsWith('@broadcast'))) {
             return NextResponse.json({ status: 'ignored_broadcast' });
         }
 
-        if (!content || content.trim() === '') {
+        const hasMedia = !!media_type && !!message_id;
+        const hasText = !!content && content.trim() !== '';
+
+        // Ignore if there's neither text nor media
+        if (!hasText && !hasMedia) {
             return NextResponse.json({ status: 'empty_message' });
         }
 
         console.log(
-            `[WhatsApp Webhook] Processing message from ${sender}: "${content.substring(0, 50)}..."`
+            `[WhatsApp Webhook] Processing message from ${sender}: "${(content || '').substring(0, 50)}..."${hasMedia ? ` [media: ${media_type}, file: ${filename}]` : ''}`
         );
 
         // Verify the WhatsApp session is actually connected before processing
@@ -548,8 +819,30 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Credit limit reached', status: 'credit_limit_reached' }, { status: 429 });
         }
 
+        // Process media if present (image → vision, audio → whisper, etc.)
+        let messageForAI = content || '';
+        if (hasMedia && media_type && message_id) {
+            console.log(`[WhatsApp Webhook] Processing media: ${media_type} (${filename})`);
+            const mediaDescription = await processIncomingMedia(
+                bridgeUrl,
+                chat_jid,
+                message_id,
+                media_type,
+                filename || 'unknown',
+                content || '',
+                sessionId
+            );
+            if (mediaDescription) {
+                messageForAI = mediaDescription;
+                console.log(`[WhatsApp Webhook] Media processed: "${mediaDescription.substring(0, 80)}..."`);
+            } else if (!hasText) {
+                // Media processing failed and there's no text — inform user
+                messageForAI = `[L'utilisateur a envoyé un ${media_type}: ${filename || 'fichier'}]`;
+            }
+        }
+
         // Generate response using the agent with conversation context
-        const response = await generateAgentResponse(agent, bridgeUrl, chat_jid, content, sessionId);
+        const response = await generateAgentResponse(agent, bridgeUrl, chat_jid, messageForAI, sessionId);
 
         if (!response) {
             console.error('[WhatsApp Webhook] Failed to generate response');

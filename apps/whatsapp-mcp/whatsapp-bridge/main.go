@@ -824,8 +824,9 @@ func handleMessage(client *whatsmeow.Client, messageStore *MessageStore, msg *ev
 	}
 
 	// Trigger LobeHub webhook for incoming messages (not from ourselves)
-	if !msg.Info.IsFromMe && content != "" {
-		go triggerLobeHubWebhook(chatJID, sender, content, msg.Info.Timestamp, logger, sessionID)
+	// Trigger for text messages AND media messages (images, audio, documents, video)
+	if !msg.Info.IsFromMe && (content != "" || mediaType != "") {
+		go triggerLobeHubWebhook(chatJID, sender, content, msg.Info.Timestamp, logger, sessionID, msg.Info.ID, mediaType, filename)
 	}
 }
 
@@ -840,20 +841,29 @@ func getEnvOrDefault(key, defaultValue string) string {
 }
 
 // Trigger LobeHub webhook to process the incoming message with the active agent
-func triggerLobeHubWebhook(chatJID, sender, content string, timestamp time.Time, logger waLog.Logger, sessionID string) {
-	logger.Infof("Triggering LobeHub webhook for message from %s (session: %s)", sender, sessionID)
+func triggerLobeHubWebhook(chatJID, sender, content string, timestamp time.Time, logger waLog.Logger, sessionID string, messageID string, mediaType string, filename string) {
+	logger.Infof("Triggering LobeHub webhook for message from %s (session: %s, mediaType: %s)", sender, sessionID, mediaType)
 
-	// Prepare webhook payload with sessionId
+	// Prepare webhook payload with sessionId and media info
+	data := map[string]interface{}{
+		"chat_jid":   chatJID,
+		"sender":     sender,
+		"content":    content,
+		"timestamp":  timestamp.Format(time.RFC3339),
+		"is_from_me": false,
+	}
+
+	// Include media info if present
+	if mediaType != "" {
+		data["media_type"] = mediaType
+		data["filename"] = filename
+		data["message_id"] = messageID
+	}
+
 	payload := map[string]interface{}{
 		"event":     "message",
-		"sessionId": sessionID, // Include sessionId so webhook knows which account to use
-		"data": map[string]interface{}{
-			"chat_jid":   chatJID,
-			"sender":     sender,
-			"content":    content,
-			"timestamp":  timestamp.Format(time.RFC3339),
-			"is_from_me": false,
-		},
+		"sessionId": sessionID,
+		"data":      data,
 	}
 
 	jsonPayload, err := json.Marshal(payload)
