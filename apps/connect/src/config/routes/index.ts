@@ -9,6 +9,7 @@ import {
   type LucideIcon,
   Settings,
   ShapesIcon,
+  Store,
 } from 'lucide-react';
 
 export interface NavigationRoute {
@@ -124,6 +125,15 @@ export const NAVIGATION_ROUTES: NavigationRoute[] = [
     keywords: ['credits', 'balance', 'topup', 'recharge', 'crédits'],
     path: '/credits',
     pathPrefix: '/credits',
+  },
+  {
+    cmdkKey: 'cmdk.ecommerce',
+    electronKey: 'navigation.ecommerce',
+    icon: Store,
+    id: 'ecommerce',
+    keywords: ['ecommerce', 'shop', 'store', 'products', 'vente', 'produits', 'boutique'],
+    path: '/ecommerce',
+    pathPrefix: '/ecommerce',
   },
 ];
 

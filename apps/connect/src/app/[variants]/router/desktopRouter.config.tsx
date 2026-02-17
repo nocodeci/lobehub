@@ -433,6 +433,25 @@ export const desktopRoutes: RouteConfig[] = [
         path: 'credits',
       },
 
+      // E-Commerce routes
+      {
+        children: [
+          {
+            element: dynamicElement(
+              () => import('../(main)/ecommerce'),
+              'Desktop > Ecommerce',
+            ),
+            index: true,
+          },
+        ],
+        element: dynamicElement(
+          () => import('../(main)/ecommerce/_layout'),
+          'Desktop > Ecommerce > Layout',
+        ),
+        errorElement: <ErrorBoundary resetPath="/ecommerce" />,
+        path: 'ecommerce',
+      },
+
       ...BusinessDesktopRoutesWithMainLayout,
 
       // Pages routes

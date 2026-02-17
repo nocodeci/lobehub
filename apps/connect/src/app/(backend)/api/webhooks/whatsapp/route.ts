@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { getServerDB } from '@/database/core/db-adaptor';
 import { checkCredits, deductCredits } from '@/libs/subscription/credits';
-import { agents } from '@lobechat/database/schemas';
-import { and, isNotNull, like, ne, sql } from 'drizzle-orm';
+import { agents, userSettings } from '@lobechat/database/schemas';
+import { and, eq, isNotNull, like, ne, sql } from 'drizzle-orm';
 
 // WhatsApp Bridge webhook endpoint
 // Receives incoming WhatsApp messages and triggers the appropriate agent to respond
@@ -717,18 +717,60 @@ async function isHumanTakeover(
 }
 
 /**
+ * Fetch the user's product catalog from userSettings
+ */
+async function getUserProductCatalog(userId: string): Promise<string | null> {
+    try {
+        const db = await getServerDB();
+        const result = await db
+            .select({ general: userSettings.general })
+            .from(userSettings)
+            .where(eq(userSettings.id, userId) as any)
+            .limit(1);
+
+        const general = (result?.[0]?.general as Record<string, any>) || {};
+        const products = general?.ecommerce?.products;
+
+        if (!products || !Array.isArray(products) || products.length === 0) {
+            return null;
+        }
+
+        const inStockProducts = products.filter((p: any) => p.inStock !== false);
+        if (inStockProducts.length === 0) return null;
+
+        const catalog = inStockProducts.map((p: any) => {
+            const price = typeof p.price === 'number' ? p.price : 0;
+            const currency = p.currency || 'XOF';
+            const stock = p.stockQuantity != null ? ` (${p.stockQuantity} en stock)` : '';
+            return `- ${p.name}: ${price.toLocaleString('fr-FR')} ${currency}${stock}${p.description ? ` — ${p.description}` : ''}`;
+        }).join('\n');
+
+        console.log(`[WhatsApp Webhook] Loaded ${inStockProducts.length} products for user ${userId}`);
+
+        return `\n\n---\n📦 CATALOGUE PRODUITS DISPONIBLES:\n${catalog}\n\nINSTRUCTIONS VENTE: Quand un client demande un produit, présente-lui les produits du catalogue avec leurs prix. Sois commercial et aide-le à choisir. Si un produit n'est pas dans le catalogue, dis-le poliment. Tu peux proposer des produits similaires ou complémentaires du catalogue.`;
+    } catch (error) {
+        console.error('[WhatsApp Webhook] Error fetching product catalog:', error);
+        return null;
+    }
+}
+
+/**
  * Build messages array with conversation history
  */
 function buildMessagesWithHistory(
     systemRole: string,
     history: Message[],
     currentMessage: string,
-    webContext: string | null
+    webContext: string | null,
+    productCatalog: string | null
 ): Array<{ content: string; role: 'assistant' | 'system' | 'user' }> {
-    // Enhance system role with web context if available
+    // Enhance system role with web context and product catalog if available
     let enhancedSystemRole = systemRole;
     if (webContext) {
         enhancedSystemRole += `\n\n---\n${webContext}`;
+    }
+    if (productCatalog) {
+        enhancedSystemRole += productCatalog;
     }
 
     const messages: Array<{ content: string; role: 'assistant' | 'system' | 'user' }> = [
@@ -795,7 +837,7 @@ function needsWebSearch(message: string): boolean {
  * Generate agent response using OpenAI with conversation context
  */
 async function generateAgentResponse(
-    agent: { id: string; model: string; systemRole: string; title: string },
+    agent: { id: string; model: string; systemRole: string; title: string; userId: string },
     bridgeUrl: string,
     chatJid: string,
     currentMessage: string,
@@ -821,8 +863,11 @@ async function generateAgentResponse(
             }
         }
 
+        // Fetch user's product catalog for e-commerce integration
+        const productCatalog = await getUserProductCatalog(agent.userId);
+
         // Build messages with context
-        const messages = buildMessagesWithHistory(agent.systemRole, history, currentMessage, webContext);
+        const messages = buildMessagesWithHistory(agent.systemRole, history, currentMessage, webContext, productCatalog);
         console.log(`[WhatsApp Webhook] Sending ${messages.length} messages to OpenAI`);
 
         const modelName = (agent.model || '').toLowerCase();

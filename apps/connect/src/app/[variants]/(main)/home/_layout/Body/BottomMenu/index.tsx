@@ -43,6 +43,12 @@ const BottomMenu = memo(() => {
           url: '/credits',
         },
         {
+          icon: getRouteById('ecommerce')!.icon,
+          key: SidebarTabKey.Ecommerce,
+          title: 'E-Commerce',
+          url: '/ecommerce',
+        },
+        {
           icon: getRouteById('settings')!.icon,
           key: SidebarTabKey.Setting,
           title: t('tab.setting'),
