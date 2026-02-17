@@ -24,8 +24,7 @@ export const SkillStoreContent = () => {
 
   const options: SegmentedOptions = [
     { label: t('skillStore.tabs.lobehub'), value: SkillStoreTab.LobeHub },
-    // TODO: Réactiver l'onglet Communauté quand prêt pour l'intégration
-    // { label: t('skillStore.tabs.community'), value: SkillStoreTab.Community },
+    { label: t('skillStore.tabs.community'), value: SkillStoreTab.Community },
     { label: t('skillStore.tabs.custom'), value: SkillStoreTab.Custom },
   ];
 
