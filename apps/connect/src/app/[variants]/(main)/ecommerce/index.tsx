@@ -12,6 +12,7 @@ import {
   Download,
   Edit3,
   FileSpreadsheet,
+  ImagePlus,
   Package,
   Plus,
   Search,
@@ -22,8 +23,9 @@ import {
   TrendingUp,
   Upload,
   Wallet,
+  X,
 } from 'lucide-react';
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -121,7 +123,7 @@ const useStyles = createStyles(({ css, token }) => ({
     height: 100%;
   `,
   header: css`
-    background: linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryBg} 100%);
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%);
     border-radius: 16px;
     padding: 32px;
     margin-bottom: 24px;
@@ -180,6 +182,9 @@ const EcommercePage = memo(() => {
   const [formCurrency, setFormCurrency] = useState('XOF');
   const [formCategory, setFormCategory] = useState('Général');
   const [formImageUrl, setFormImageUrl] = useState('');
+  const [formImageFile, setFormImageFile] = useState<File | null>(null);
+  const [formImagePreview, setFormImagePreview] = useState<string>('');
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [formInStock, setFormInStock] = useState(true);
   const [formStockQuantity, setFormStockQuantity] = useState<number | undefined>(undefined);
 
@@ -254,9 +259,12 @@ const EcommercePage = memo(() => {
     setFormCurrency('XOF');
     setFormCategory('Général');
     setFormImageUrl('');
+    setFormImageFile(null);
+    setFormImagePreview('');
     setFormInStock(true);
     setFormStockQuantity(undefined);
     setEditingProduct(null);
+    if (imageInputRef.current) imageInputRef.current.value = '';
   };
 
   const openAddModal = () => {
@@ -272,6 +280,8 @@ const EcommercePage = memo(() => {
     setFormCurrency(product.currency);
     setFormCategory(product.category);
     setFormImageUrl(product.imageUrl || '');
+    setFormImagePreview(product.imageUrl || '');
+    setFormImageFile(null);
     setFormInStock(product.inStock);
     setFormStockQuantity(product.stockQuantity);
     setModalOpen(true);
@@ -289,6 +299,17 @@ const EcommercePage = memo(() => {
 
     setSaving(true);
     try {
+      let finalImageUrl = formImageUrl.trim();
+
+      // Convert file to base64 data URL if a file was selected
+      if (formImageFile) {
+        finalImageUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(formImageFile);
+        });
+      }
+
       const body = {
         ...(editingProduct ? { id: editingProduct.id } : {}),
         name: formName.trim(),
@@ -296,7 +317,7 @@ const EcommercePage = memo(() => {
         price: formPrice,
         currency: formCurrency,
         category: formCategory,
-        imageUrl: formImageUrl.trim(),
+        imageUrl: finalImageUrl,
         inStock: formInStock,
         stockQuantity: formStockQuantity,
       };
@@ -909,12 +930,72 @@ const EcommercePage = memo(() => {
             />
           </div>
           <div>
-            <Text strong style={{ display: 'block', marginBottom: 4 }}>URL de l&apos;image</Text>
-            <Input
-              placeholder="https://example.com/image.jpg"
-              value={formImageUrl}
-              onChange={(e) => setFormImageUrl(e.target.value)}
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>Image du produit</Text>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  if (file.size > 2 * 1024 * 1024) {
+                    message.warning('L\'image ne doit pas dépasser 2 Mo');
+                    return;
+                  }
+                  setFormImageFile(file);
+                  setFormImageUrl('');
+                  const reader = new FileReader();
+                  reader.onloadend = () => setFormImagePreview(reader.result as string);
+                  reader.readAsDataURL(file);
+                }
+              }}
             />
+            {formImagePreview ? (
+              <div style={{ position: 'relative', display: 'inline-block', marginBottom: 8 }}>
+                <img
+                  src={formImagePreview}
+                  alt="Aperçu"
+                  style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 12, border: `2px solid ${theme.colorBorder}` }}
+                />
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  icon={<X size={14} />}
+                  style={{ position: 'absolute', top: -8, right: -8, background: 'white', borderRadius: '50%', boxShadow: '0 2px 6px rgba(0,0,0,0.15)', width: 24, height: 24, padding: 0, minWidth: 24 }}
+                  onClick={() => { setFormImageFile(null); setFormImagePreview(''); setFormImageUrl(''); if (imageInputRef.current) imageInputRef.current.value = ''; }}
+                />
+              </div>
+            ) : null}
+            <Flexbox gap={8} horizontal align="center">
+              <Button
+                icon={<ImagePlus size={16} />}
+                onClick={() => imageInputRef.current?.click()}
+                style={{ flex: 1 }}
+              >
+                {formImagePreview ? 'Changer l\'image' : 'Choisir une image'}
+              </Button>
+            </Flexbox>
+            <div style={{ marginTop: 8 }}>
+              <Text type="secondary" style={{ fontSize: 11 }}>ou coller une URL :</Text>
+              <Input
+                size="small"
+                placeholder="https://example.com/image.jpg"
+                value={formImageUrl}
+                onChange={(e) => {
+                  setFormImageUrl(e.target.value);
+                  if (e.target.value) {
+                    setFormImagePreview(e.target.value);
+                    setFormImageFile(null);
+                    if (imageInputRef.current) imageInputRef.current.value = '';
+                  } else {
+                    setFormImagePreview('');
+                  }
+                }}
+                style={{ marginTop: 4 }}
+              />
+            </div>
           </div>
           <Flexbox gap={12} horizontal align="center">
             <div style={{ flex: 1 }}>
